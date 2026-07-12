@@ -1,4 +1,27 @@
-@{ ViewData["Title"] = "Smart job search workspace"; }
-<section class="welcome"><div class="welcome-copy"><span class="eyebrow">Your job search, organized</span><h1>ApplyWise</h1><p class="welcome-tagline">Track every application. Choose the right resume. Apply smarter.</p><p>Manage your job search and understand how well your experience matches each opportunity.</p><div class="welcome-actions"><a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Get started</a><a class="btn btn-outline-secondary btn-lg" asp-area="Identity" asp-page="/Account/Login">Log in</a></div></div>
-<div class="welcome-preview" aria-label="ApplyWise dashboard preview"><div class="preview-heading"><span>Application overview</span><span class="badge status-applied">This month</span></div><div class="preview-stats"><div><strong>24</strong><span>Applications</span></div><div><strong>5</strong><span>Interviews</span></div><div><strong>78%</strong><span>Match score</span></div></div>
-<div class="preview-row"><span class="company-avatar blue">N</span><span><strong>Product Designer</strong><small>Northstar Labs</small></span><span class="badge status-interview">Interview</span></div><div class="preview-row"><span class="company-avatar green">V</span><span><strong>UX Researcher</strong><small>Vertex Health</small></span><span class="badge status-applied">Applied</span></div><div class="preview-row"><span class="company-avatar purple">L</span><span><strong>Design Lead</strong><small>Loop Finance</small></span><span class="badge status-shortlisted">Shortlisted</span></div></div></section>
+@{ ViewData["Title"] = "Your smarter job search"; }
+
+<section class="welcome">
+    <div class="welcome-copy">
+        <span class="hero-pill"><svg class="ui-icon"><use href="#i-spark" /></svg>Your calm, clever career workspace</span>
+        <h1>Move your job search <span>forward.</span></h1>
+        <p class="welcome-tagline">Track every application. Choose the right resume. Apply smarter.</p>
+        <p>ApplyWise keeps opportunities, tailored resumes, interview prep, and follow-ups in one focused place—with Wiso beside you at every step.</p>
+        <div class="welcome-actions">
+            <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Get Started <svg class="ui-icon"><use href="#i-arrow" /></svg></a>
+            <a class="btn btn-light btn-lg" href="#demo">View Demo</a>
+        </div>
+        <div class="hero-proof"><span><b>✓</b> Private workspace</span><span><b>✓</b> Explainable matching</span><span><b>✓</b> Built for momentum</span></div>
+    </div>
+    <div class="hero-visual">
+        <div class="wiso-orbit"><span class="float-card float-card-score"><b>84%</b><small>Strong match</small></span><img src="~/images/wiso.png" alt="Wiso, the ApplyWise career assistant, holding a resume checklist" /><span class="float-card float-card-reminder"><b>Interview ready</b><small>Prep checklist complete</small></span></div>
+    </div>
+</section>
+
+<section class="home-demo" id="demo">
+    <div class="home-section-heading"><span class="eyebrow">One thoughtful workspace</span><h2>Less job-search chaos. More confident next steps.</h2></div>
+    <div class="benefit-grid">
+        <article class="benefit-card blue"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span><h3>Stay on top of every role</h3><p>See applications, deadlines, interviews, and follow-ups at a glance.</p><a asp-area="Identity" asp-page="/Account/Register">Explore tracking <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
+        <article class="benefit-card green"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-spark" /></svg></span><h3>Choose your strongest resume</h3><p>Compare skill coverage and understand exactly where each version fits.</p><a asp-area="Identity" asp-page="/Account/Register">Explore matching <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
+        <article class="benefit-card purple"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-chart" /></svg></span><h3>Turn gaps into a plan</h3><p>Spot recurring missing skills and focus your learning where it matters.</p><a asp-area="Identity" asp-page="/Account/Register">Explore insights <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
+    </div>
+</section>

@@ -1,17 +1,20 @@
 @model ApplyWise.Web.ViewModels.Dashboard.DashboardViewModel
 @{ ViewData["Title"] = "Dashboard"; }
-<div class="page-heading"><div><p class="eyebrow">@Model.CurrentTime.ToString("dddd, MMMM d")</p><h2>What needs attention</h2><p>Your upcoming interviews, reminders, and application deadlines.</p></div></div>
+<section class="dashboard-welcome">
+    <div><p class="eyebrow">@Model.CurrentTime.ToString("dddd, MMMM d")</p><h2>Let’s make your next move count.</h2><p>Wiso has gathered what needs attention, so you can focus on the next best action.</p><div class="welcome-quick-actions"><a class="btn btn-primary" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze a resume</a><a class="btn btn-soft" asp-controller="JobApplications" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add application</a></div></div>
+    <img src="~/images/wiso.png" alt="Wiso, your ApplyWise assistant" />
+</section>
 
 <section class="metric-grid">
-    <article class="metric-card"><span>Total Applications</span><strong>@Model.TotalApplications</strong><small><a asp-controller="JobApplications" asp-action="Index">View tracker</a></small></article>
-    <article class="metric-card"><span>Interviews</span><strong>@Model.TotalInterviewCount</strong><small>@Model.UpcomingInterviewCount upcoming</small></article>
-    <article class="metric-card"><span>Average Match Score</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><small><a asp-controller="Analytics" asp-action="ResumePerformance">Resume performance</a></small></article>
-    <article class="metric-card"><span>Pending Follow-ups</span><strong>@Model.PendingReminderCount</strong><small class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount overdue</small></article>
+    <article class="metric-card metric-blue"><span class="metric-icon"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span><span>Total Applications</span><strong>@Model.TotalApplications</strong><small><a asp-controller="JobApplications" asp-action="Index">View tracker</a></small></article>
+    <article class="metric-card metric-purple"><span class="metric-icon"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span>Interviews</span><strong>@Model.TotalInterviewCount</strong><small>@Model.UpcomingInterviewCount upcoming</small></article>
+    <article class="metric-card metric-green"><span class="metric-icon"><svg class="ui-icon"><use href="#i-spark" /></svg></span><span>Average Match Score</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><div class="mini-progress"><i style="width:@Math.Clamp(Model.AverageMatchScore, 0, 100)%"></i></div><small><a asp-controller="Analytics" asp-action="ResumePerformance">Resume performance</a></small></article>
+    <article class="metric-card metric-amber"><span class="metric-icon"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span>Pending Follow-ups</span><strong>@Model.PendingReminderCount</strong><small class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount overdue</small></article>
 </section>
 
 <div class="action-dashboard-grid">
     <section class="panel today-actions-panel"><div class="panel-header"><div><h3>Today's Actions</h3><p>Everything due before the day ends</p></div><span class="today-count">@Model.TodayActionCount</span></div>
-        @if (Model.TodayActions.Count == 0) { <div class="compact-empty"><strong>Nothing due today</strong><span>Your upcoming work will appear here.</span></div> }
+        @if (Model.TodayActions.Count == 0) { <div class="compact-empty wiso-compact"><img src="~/images/wiso.png" alt="" /><span><strong>You’re clear for today</strong><small>Your upcoming work will appear here.</small></span></div> }
         else { <div class="action-item-list">@foreach (var item in Model.TodayActions) { <a class="action-item" asp-controller="@item.Controller" asp-action="@item.Action" asp-route-id="@item.Id"><span class="action-kind">@item.Kind</span><span><strong>@item.Title</strong><small>@item.Context</small></span><time>@item.SortAt.ToLocalTime().ToString("h:mm tt")</time></a> }</div> }
     </section>
 

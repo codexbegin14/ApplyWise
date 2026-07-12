@@ -1,11 +1,11 @@
 @model ApplyWise.Web.ViewModels.Reminders.ReminderIndexViewModel
 @{ ViewData["Title"] = "Reminders"; }
-<div class="page-heading"><div><h2>Reminders</h2><p>Manage follow-ups, deadlines, and next actions.</p></div><a class="btn btn-primary" asp-action="Create">Add Reminder</a></div>
+<div class="page-heading"><div><h2>Reminders</h2><p>Manage follow-ups, deadlines, and next actions.</p></div><a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Reminder</a></div>
 @if (TempData["SuccessMessage"] is string successMessage) { <div class="alert app-alert" role="status">@successMessage</div> }
 <nav class="filter-tabs" aria-label="Reminder filters"><a class="@(Model.Filter == "pending" ? "active" : null)" asp-action="Index" asp-route-filter="pending">Pending</a><a class="@(Model.Filter == "completed" ? "active" : null)" asp-action="Index" asp-route-filter="completed">Completed</a><a class="@(Model.Filter == "overdue" ? "active" : null)" asp-action="Index" asp-route-filter="overdue">Overdue</a><a class="@(Model.Filter == "all" ? "active" : null)" asp-action="Index" asp-route-filter="all">All</a></nav>
 @if (Model.Reminders.Count == 0)
 {
-    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>@EmptyTitle()</h3><p>@(Model.Filter == "pending" ? "Add your next follow-up or deadline so it does not get missed." : "No reminders match this view yet.")</p>@if (Model.Filter == "pending") { <a class="btn btn-primary" asp-action="Create">Add Reminder</a> }</section>
+    <section class="panel empty-state"><img class="empty-wiso" src="~/images/wiso.png" alt="Wiso, your reminder assistant" /><h3>@EmptyTitle()</h3><p>@(Model.Filter == "pending" ? "Add your next follow-up or deadline so it does not get missed." : "No reminders match this view yet.")</p>@if (Model.Filter == "pending") { <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Reminder</a> }</section>
 }
 else
 {

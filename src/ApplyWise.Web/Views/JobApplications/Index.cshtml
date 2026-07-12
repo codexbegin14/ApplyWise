@@ -5,7 +5,7 @@
 
 <div class="page-heading">
     <div><h2>Applications</h2><p>Track every job, status, platform, deadline, and resume version used.</p></div>
-    <a class="btn btn-primary" asp-action="Create">Add Application</a>
+    <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -24,7 +24,7 @@
 @if (Model.Applications.Count == 0)
 {
     <section class="panel empty-state">
-        <span class="empty-icon" aria-hidden="true">A</span>
+        <img class="empty-wiso" src="~/images/wiso.png" alt="Wiso, your job tracking assistant" />
         <h3>@(HasFilters() ? "No matching applications" : "No applications tracked yet")</h3>
         <p>@(HasFilters() ? "Try clearing or adjusting your search and filters." : "Add your first job so ApplyWise can remember where you applied and which resume you used.")</p>
         @if (HasFilters()) { <a class="btn btn-outline-secondary" asp-action="Index">Clear Filters</a> }

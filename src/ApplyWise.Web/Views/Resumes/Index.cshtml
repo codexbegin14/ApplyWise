@@ -19,10 +19,10 @@
 @if (Model.Count == 0)
 {
     <section class="panel empty-state">
-        <span class="empty-icon" aria-hidden="true">R</span>
-        <h3>No resumes uploaded yet</h3>
-        <p>Upload your first resume version so ApplyWise can help you track and compare it later.</p>
-        <a class="btn btn-primary" asp-action="Create">Upload Resume</a>
+        <img class="empty-wiso" src="~/images/wiso.png" alt="Wiso holding a resume checklist" />
+        <h3>No resumes yet</h3>
+        <p>Upload your first resume version so ApplyWise can help you compare it with job requirements.</p>
+        <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Upload Resume</a>
     </section>
 }
 else

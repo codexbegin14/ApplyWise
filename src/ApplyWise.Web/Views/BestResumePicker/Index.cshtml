@@ -5,12 +5,12 @@
     var isPastedMode = Model.Mode != "saved";
 }
 
-<div class="page-heading"><div><h2>Best Resume Picker</h2><p>Paste job requirements and rank every uploaded resume by match strength.</p></div></div>
+<section class="tool-hero tool-hero-green"><div><span class="tool-kicker"><svg class="ui-icon"><use href="#i-file" /></svg>Best Resume Picker</span><h2>Lead with your strongest story.</h2><p>Compare every resume version against the role and see why the best one wins.</p></div><img src="~/images/wiso.png" alt="Wiso helping compare resume versions" /></section>
 <partial name="_AnalyzerTabs" model="activeTab" />
 
 @if (Model.ResumeCount == 0)
 {
-    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>No resumes to compare</h3><p>Upload a resume before running analysis.</p><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></section>
+    <section class="panel empty-state"><img class="empty-wiso" src="~/images/wiso.png" alt="Wiso holding a resume checklist" /><h3>No resumes to compare</h3><p>Upload your first resume version so Wiso can find the strongest match.</p><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Upload Resume</a></section>
 }
 else
 {
@@ -59,7 +59,7 @@ else
         @if (recommended is not null)
         {
             <article class="panel recommended-resume-card">
-                <div class="recommended-copy"><span class="recommended-label">Recommended</span><h3>@recommended.VersionName</h3><p>@result.RecommendationReason</p><small>@recommended.OriginalFileName</small></div>
+                <img class="recommendation-wiso" src="~/images/wiso.png" alt="Wiso recommends this resume" /><div class="recommended-copy"><span class="recommended-label">★ Recommended</span><h3>@recommended.VersionName</h3><p>@result.RecommendationReason</p><small>@recommended.OriginalFileName</small></div>
                 <div class="recommended-actions"><span class="picker-score @ScoreClass(recommended.MatchScore)"><strong>@recommended.MatchScore</strong><small>% match</small></span>@if (result.JobApplicationId.HasValue) { <form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@recommended.ResumeId" /><button class="btn btn-primary" type="submit">Use this resume for this job</button></form> }</div>
             </article>
         }
@@ -79,6 +79,7 @@ else
                 <div class="rank-marker">@(resume.Rank.HasValue ? $"#{resume.Rank}" : "—")</div>
                 <div class="ranked-resume-main">
                     <div class="ranked-resume-heading"><div><h3>@resume.VersionName @if (resume.IsRecommended) { <span class="recommended-inline">Recommended</span> }</h3><p>@resume.OriginalFileName</p></div>@if (resume.MatchScore.HasValue) { <span class="history-score @ScoreClass(resume.MatchScore)">@resume.MatchScore%</span> } else { <span class="not-ranked-label">Not ranked</span> }</div>
+                    @if (resume.MatchScore.HasValue) { <div class="comparison-bar" aria-hidden="true"><i style="width:@resume.MatchScore%"></i></div> }
                     @if (resume.AnalysisError is not null)
                     {
                         <p class="resume-analysis-error">@resume.AnalysisError</p>

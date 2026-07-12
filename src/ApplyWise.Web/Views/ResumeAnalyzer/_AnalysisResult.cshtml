@@ -9,6 +9,7 @@
         </div>
         <div class="analysis-score @ScoreClass(Model.MatchScore)" aria-label="Match score @Model.MatchScore percent"><strong>@Model.MatchScore</strong><span>% match</span></div>
     </div>
+    <div class="match-progress" role="progressbar" aria-label="Resume match score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.MatchScore"><i class="@ScoreClass(Model.MatchScore)" style="width:@Model.MatchScore%"></i></div>
 
     @if (Model.DetectedSkillCount == 0)
     {

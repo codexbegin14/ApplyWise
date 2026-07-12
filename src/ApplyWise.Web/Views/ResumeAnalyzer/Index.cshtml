@@ -6,9 +6,7 @@
     var hasResumes = Model.AvailableResumes.Count > 0;
 }
 
-<div class="page-heading">
-    <div><h2>Resume Analyzer</h2><p>Paste job requirements or choose a saved application to compare your resume.</p></div>
-</div>
+<section class="tool-hero tool-hero-blue"><div><span class="tool-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Smart resume matching</span><h2>Make every resume feel made for the role.</h2><p>Get a clear match score, see the skills already working for you, and focus your next edit.</p></div><div class="tool-hero-stat"><strong>Clear</strong><span>explainable results</span></div></section>
 <partial name="_AnalyzerTabs" model="activeTab" />
 
 <div class="analyzer-layout">
@@ -49,10 +47,10 @@
     </section>
 
     <aside class="panel analyzer-method-card">
-        <span class="method-label">Local analysis</span>
-        <h3>Clear, explainable matching</h3>
-        <p>ApplyWise detects known skills in the requirements, checks which appear in your resume, and calculates direct coverage.</p>
-        <small>Your resume and pasted requirements are not sent to an external AI service.</small>
+        <div class="wiso-helper"><img src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Wiso’s tip</b><small>Resume buddy</small></span></div>
+        <h3>Paste a job description and I’ll help you find the strongest resume match.</h3>
+        <div class="helper-points"><span><b>1</b> Include specific tools and skills</span><span><b>2</b> Choose the closest resume version</span><span><b>3</b> Use only honest recommendations</span></div>
+        <small class="privacy-note">🔒 Your resume and requirements stay inside ApplyWise.</small>
     </aside>
 </div>
 
