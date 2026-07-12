@@ -1,6 +1,12 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
-}
-<h1>@ViewData["Title"]</h1>
-
-<p>Use this page to detail your site's privacy policy.</p>
+@{ ViewData["Title"] = "Privacy"; }
+<section class="public-info-card">
+    <span class="eyebrow">Privacy by design</span>
+    <h1>Your job search belongs to you.</h1>
+    <p>ApplyWise stores account data, resume files, job applications, analyses, interviews, reminders, and job-post checks so the product can provide your private workspace.</p>
+    <div class="public-info-grid">
+        <div><h2>Private files</h2><p>Uploaded resumes are stored outside the public web root and served only after an ownership check.</p></div>
+        <div><h2>Account isolation</h2><p>Product queries are scoped to the signed-in user. Other users cannot browse your records by changing a URL.</p></div>
+        <div><h2>Local analysis</h2><p>Resume matching and job-post checks run with local, explainable rules. This release does not send resume content to a paid AI service.</p></div>
+    </div>
+    <p class="public-info-note">For a production deployment, the site operator is responsible for retention, backups, account deletion, and applicable privacy-law notices.</p>
+</section>

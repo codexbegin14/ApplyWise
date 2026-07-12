@@ -1,34 +1,69 @@
+@{
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isIdentityPage = string.Equals(ViewContext.RouteData.Values["area"]?.ToString(), "Identity", StringComparison.OrdinalIgnoreCase);
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+}
 <!DOCTYPE html>
-<html lang="en"><head>
-    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - ApplyWise</title><script type="importmap"></script>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ApplyWise helps job seekers track applications, choose the right resume, and apply smarter." />
+    <title>@ViewData["Title"] - ApplyWise</title>
+    <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/release.css" asp-append-version="true" />
 </head>
-<body class="@(User.Identity?.IsAuthenticated == true ? "app-body" : "public-body")">
-@if (User.Identity?.IsAuthenticated == true) {
+<body class="@(isAuthenticated ? "app-body" : isIdentityPage ? "public-body identity-body" : "public-body")">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+@if (isAuthenticated)
+{
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
             <a class="brand" asp-controller="Dashboard" asp-action="Index"><span class="brand-mark">A</span><span>ApplyWise</span></a>
             <nav class="sidebar-nav" aria-label="Main navigation">
-                <a asp-controller="Dashboard" asp-action="Index">Dashboard</a><a asp-controller="JobApplications" asp-action="Index">Applications</a>
-                <a asp-controller="Resumes" asp-action="Index">Resumes</a><a asp-controller="ResumeAnalyzer" asp-action="Index">Resume Analyzer</a>
-                <a asp-controller="Analytics" asp-action="SkillGaps">Skill Gaps</a><a asp-controller="Interviews" asp-action="Index">Interviews</a>
-                <a asp-controller="Reminders" asp-action="Index">Reminders</a><a asp-controller="Analytics" asp-action="Index">Analytics</a>
-                <a asp-controller="Dashboard" asp-action="Settings">Settings</a>
-            </nav><div class="sidebar-footer"><span class="status-dot"></span> Workspace ready</div>
+                <a class="@(controller == "Dashboard" && action != "Settings" ? "active" : null)" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                <a class="@(controller == "JobApplications" ? "active" : null)" asp-controller="JobApplications" asp-action="Index">Applications</a>
+                <a class="@(controller == "Resumes" ? "active" : null)" asp-controller="Resumes" asp-action="Index">Resumes</a>
+                <a class="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index">Resume tools</a>
+                <a class="@(controller == "Interviews" ? "active" : null)" asp-controller="Interviews" asp-action="Index">Interviews</a>
+                <a class="@(controller == "Reminders" ? "active" : null)" asp-controller="Reminders" asp-action="Index">Reminders</a>
+                <a class="@(controller is "Analytics" or "JobScamChecks" ? "active" : null)" asp-controller="Analytics" asp-action="Index">Insights</a>
+                <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" asp-controller="Dashboard" asp-action="Settings">Settings</a>
+            </nav>
+            <div class="sidebar-footer"><span class="status-dot"></span> Workspace ready</div>
         </aside>
-        <div class="app-main"><header class="topbar">
-            <button class="menu-button" type="button" data-sidebar-toggle aria-label="Toggle navigation"><span></span><span></span><span></span></button>
-            <h1>@ViewData["Title"]</h1><div class="topbar-actions"><label class="search-box"><span class="visually-hidden">Search applications and resumes</span><input type="search" placeholder="Search applications, resumes..." /></label>
-            <a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a><partial name="_LoginPartial" /></div>
-        </header><main class="app-content" role="main">@RenderBody()</main></div>
+        <div class="app-main">
+            <header class="topbar">
+                <button class="menu-button" type="button" data-sidebar-toggle aria-label="Toggle navigation" aria-controls="appSidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+                <h1>@ViewData["Title"]</h1>
+                <div class="topbar-actions">
+                    <form class="search-box" asp-controller="JobApplications" asp-action="Index" method="get" role="search">
+                        <label class="visually-hidden" for="globalSearch">Search applications</label>
+                        <input id="globalSearch" name="SearchTerm" type="search" placeholder="Search applications..." />
+                    </form>
+                    <a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a>
+                    <partial name="_LoginPartial" />
+                </div>
+            </header>
+            <main class="app-content" id="main-content" role="main">@RenderBody()</main>
+        </div>
         <button class="sidebar-backdrop" type="button" data-sidebar-toggle aria-label="Close navigation"></button>
     </div>
-} else {
-    <header class="public-header"><a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark">A</span><span>ApplyWise</span></a><partial name="_LoginPartial" /></header>
-    <main role="main">@RenderBody()</main>
 }
-<script src="~/lib/jquery/dist/jquery.min.js"></script><script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script><script src="~/js/site.js" asp-append-version="true"></script>
+else
+{
+    <header class="public-header">
+        <a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark">A</span><span>ApplyWise</span></a>
+        <partial name="_LoginPartial" />
+    </header>
+    <main id="main-content" role="main">@RenderBody()</main>
+}
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
-</body></html>
+</body>
+</html>

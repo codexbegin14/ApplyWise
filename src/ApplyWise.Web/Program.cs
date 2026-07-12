@@ -5,6 +5,7 @@ using ApplyWise.Web.Services.BestResumePicker;
 using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
+using ApplyWise.Web.Services.ResumeStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +15,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+builder.Services.AddDefaultIdentity<IdentityUser>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = false;
+        options.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
@@ -22,6 +27,12 @@ builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddOptions<ResumeStorageOptions>()
+    .Bind(builder.Configuration.GetSection(ResumeStorageOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
+        "ResumeStorage:RootPath must be configured.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
 
 var app = builder.Build();
 
@@ -38,6 +49,17 @@ else
 }
 
 app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+    context.Response.Headers.TryAdd(
+        "Content-Security-Policy",
+        "base-uri 'self'; frame-ancestors 'none'; object-src 'none'");
+    await next();
+});
 app.UseRouting();
 
 app.UseAuthorization();

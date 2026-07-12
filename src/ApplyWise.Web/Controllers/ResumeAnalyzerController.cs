@@ -2,6 +2,7 @@ using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
+using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.ViewModels.ResumeAnalyzer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -16,7 +17,7 @@ namespace ApplyWise.Web.Controllers;
 public class ResumeAnalyzerController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
-    IWebHostEnvironment environment,
+    IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor,
     IResumeAnalysisService analysisService) : Controller
 {
@@ -88,7 +89,7 @@ public class ResumeAnalyzerController(
         var resumeText = resume!.ExtractedText;
         if (string.IsNullOrWhiteSpace(resumeText))
         {
-            var absolutePath = ResolvePrivatePath(resume.FilePath);
+            var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
             if (System.IO.File.Exists(absolutePath))
             {
                 resumeText = await textExtractor.ExtractTextAsync(absolutePath, HttpContext.RequestAborted);
@@ -201,21 +202,6 @@ public class ResumeAnalyzerController(
 
     private string GetUserId() => userManager.GetUserId(User)
         ?? throw new InvalidOperationException("The current user does not have an identifier.");
-
-    private string ResolvePrivatePath(string relativePath)
-    {
-        var contentRoot = Path.GetFullPath(environment.ContentRootPath);
-        var absolutePath = Path.GetFullPath(Path.Combine(contentRoot, relativePath));
-        var storageRoot = Path.GetFullPath(Path.Combine(contentRoot, "App_Data", "Uploads", "Resumes"))
-            + Path.DirectorySeparatorChar;
-
-        if (!absolutePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("The resume path is outside the private storage directory.");
-        }
-
-        return absolutePath;
-    }
 
     private static int? SelectOwnedOrFirst(int? selectedId, IReadOnlyList<SelectListItem> items)
     {

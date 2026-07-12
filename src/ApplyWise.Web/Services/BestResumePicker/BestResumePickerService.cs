@@ -2,6 +2,7 @@ using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
+using ApplyWise.Web.Services.ResumeStorage;
 using Microsoft.EntityFrameworkCore;
 using ResumeAnalysisEntity = ApplyWise.Web.Models.ResumeAnalysis;
 
@@ -9,10 +10,11 @@ namespace ApplyWise.Web.Services.BestResumePicker;
 
 public sealed class BestResumePickerService(
     ApplicationDbContext dbContext,
-    IWebHostEnvironment environment,
+    IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor,
     IResumeAnalysisService analysisService) : IBestResumePickerService
 {
+    private const int MaxResumesPerComparison = 25;
     private sealed record CompletedComparison(Resume Resume, ResumeAnalysisResult Result);
 
     public async Task<BestResumePickerResult> CompareResumesForJobAsync(
@@ -41,6 +43,12 @@ public sealed class BestResumePickerService(
             throw new InvalidOperationException("No resumes are available to compare.");
         }
 
+        if (resumes.Count > MaxResumesPerComparison)
+        {
+            throw new InvalidOperationException(
+                $"Compare up to {MaxResumesPerComparison} resumes at a time. Remove older versions before trying again.");
+        }
+
         var completed = new List<CompletedComparison>();
         var unreadable = new List<ComparedResumeResult>();
         var comparisonTime = DateTimeOffset.UtcNow;
@@ -51,7 +59,7 @@ public sealed class BestResumePickerService(
             var resumeText = resume.ExtractedText;
             if (string.IsNullOrWhiteSpace(resumeText))
             {
-                var absolutePath = ResolvePrivatePath(resume.FilePath);
+                var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
                 if (File.Exists(absolutePath))
                 {
                     resumeText = await textExtractor.ExtractTextAsync(absolutePath, cancellationToken);
@@ -140,21 +148,6 @@ public sealed class BestResumePickerService(
             completed.Count,
             hasDetectedSkills,
             comparedResults);
-    }
-
-    private string ResolvePrivatePath(string relativePath)
-    {
-        var contentRoot = Path.GetFullPath(environment.ContentRootPath);
-        var absolutePath = Path.GetFullPath(Path.Combine(contentRoot, relativePath));
-        var storageRoot = Path.GetFullPath(Path.Combine(contentRoot, "App_Data", "Uploads", "Resumes"))
-            + Path.DirectorySeparatorChar;
-
-        if (!absolutePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("The resume path is outside the private storage directory.");
-        }
-
-        return absolutePath;
     }
 
     private static string BuildReason(CompletedComparison winner, int readableCount, int topScoreCount)

@@ -1,6 +1,7 @@
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
+using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.ViewModels.Resumes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ namespace ApplyWise.Web.Controllers;
 public class ResumesController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
-    IWebHostEnvironment environment,
+    IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor) : Controller
 {
     private const long MaxFileSize = 5 * 1024 * 1024;
@@ -54,8 +55,8 @@ public class ResumesController(
         var userId = GetUserId();
         var originalFileName = SanitizeFileName(model.ResumeFile!.FileName);
         var storedFileName = $"{Guid.NewGuid():N}.pdf";
-        var relativePath = Path.Combine("App_Data", "Uploads", "Resumes", userId, storedFileName);
-        var absolutePath = ResolvePrivatePath(relativePath);
+        var relativePath = resumeStorage.CreateRelativePath(userId, storedFileName);
+        var absolutePath = resumeStorage.ResolvePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
 
         string? extractedText;
@@ -71,6 +72,14 @@ public class ResumesController(
         {
             System.IO.File.Delete(absolutePath);
             throw;
+        }
+
+        if (string.IsNullOrWhiteSpace(extractedText))
+        {
+            System.IO.File.Delete(absolutePath);
+            ModelState.AddModelError(nameof(model.ResumeFile),
+                "We could not safely read text from this PDF. Upload a text-based PDF with 50 pages or fewer.");
+            return View(model);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -131,7 +140,7 @@ public class ResumesController(
             return NotFound();
         }
 
-        var absolutePath = ResolvePrivatePath(resume.FilePath);
+        var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
         if (!System.IO.File.Exists(absolutePath))
         {
             return NotFound();
@@ -203,7 +212,7 @@ public class ResumesController(
         await dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        var absolutePath = ResolvePrivatePath(resume.FilePath);
+        var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
         if (System.IO.File.Exists(absolutePath))
         {
             System.IO.File.Delete(absolutePath);
@@ -265,20 +274,6 @@ public class ResumesController(
                 ModelState.AddModelError(nameof(ResumeUploadViewModel.ResumeFile), "The selected file does not contain a valid PDF header.");
             }
         }
-    }
-
-    private string ResolvePrivatePath(string relativePath)
-    {
-        var contentRoot = Path.GetFullPath(environment.ContentRootPath);
-        var absolutePath = Path.GetFullPath(Path.Combine(contentRoot, relativePath));
-        var storageRoot = Path.GetFullPath(Path.Combine(contentRoot, "App_Data", "Uploads", "Resumes")) + Path.DirectorySeparatorChar;
-
-        if (!absolutePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("The resume path is outside the private storage directory.");
-        }
-
-        return absolutePath;
     }
 
     private static string SanitizeFileName(string fileName)
