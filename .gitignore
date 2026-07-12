@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+*.log
+appsettings.Development.json
+.env
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+coverage/
