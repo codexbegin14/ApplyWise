@@ -1,0 +1,68 @@
+@page
+@model ApplyWise.Web.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Create account";
+}
+
+<div class="aw-auth-shell aw-auth-shell-register aw-fade-in">
+    <section class="aw-login-card aw-register-card aw-slide-up" aria-labelledby="register-title">
+        <header class="aw-login-heading">
+            <span class="aw-auth-kicker">Start your workspace</span>
+            <h1 id="register-title">Build your next opportunity</h1>
+            <p>Create an account and bring your applications, resumes, and next actions together.</p>
+        </header>
+
+        <form id="registerForm" method="post" class="aw-login-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary aw-login-alert" role="alert"></div>
+
+            <label class="aw-login-field" asp-for="Input.Email">
+                <span>Email address</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6" /></svg>
+                    <input asp-for="Input.Email" autocomplete="username" placeholder="you@example.com" autofocus />
+                </span>
+                <span asp-validation-for="Input.Email" class="field-validation-error"></span>
+            </label>
+
+            <label class="aw-login-field" asp-for="Input.Password">
+                <span>Password</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                    <input asp-for="Input.Password" autocomplete="new-password" placeholder="At least 6 characters" />
+                </span>
+                <span asp-validation-for="Input.Password" class="field-validation-error"></span>
+            </label>
+
+            <label class="aw-login-field" asp-for="Input.ConfirmPassword">
+                <span>Confirm password</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                    <input asp-for="Input.ConfirmPassword" autocomplete="new-password" placeholder="Repeat your password" />
+                </span>
+                <span asp-validation-for="Input.ConfirmPassword" class="field-validation-error"></span>
+            </label>
+
+            <button id="registerSubmit" type="submit" class="btn btn-primary btn-lg aw-login-submit">Create account <svg class="ui-icon"><use href="#i-arrow" /></svg></button>
+            <p class="aw-register-terms">By continuing, you agree to keep your account information accurate and secure.</p>
+
+            <div class="aw-login-divider"><span>Already have an account?</span></div>
+            <a class="btn btn-secondary-soft aw-create-account" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Back to log in</a>
+        </form>
+    </section>
+
+    <aside class="aw-auth-visual aw-auth-visual-signup" aria-label="ApplyWise motivation">
+        <div class="aw-auth-quote">
+            <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Your next chapter</span>
+            <blockquote>“The right opportunity begins with one well-prepared step.”</blockquote>
+            <p>Start organized, learn from every application, and let steady progress do the rest.</p>
+        </div>
+        <div class="aw-auth-avatar-wrap">
+            <span>Let's begin!</span>
+            <img src="~/images/wiso.png" alt="Wiso welcoming you to ApplyWise" />
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

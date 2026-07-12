@@ -1,0 +1,66 @@
+@page
+@model ApplyWise.Web.Areas.Identity.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<div class="aw-auth-shell aw-fade-in">
+    <section class="aw-login-card aw-slide-up" aria-labelledby="login-title">
+        <header class="aw-login-heading">
+            <span class="aw-auth-kicker">Welcome back</span>
+            <h1 id="login-title">Continue your momentum</h1>
+            <p>Log in to open your private ApplyWise workspace.</p>
+        </header>
+
+        <form id="account" method="post" class="aw-login-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary aw-login-alert" role="alert"></div>
+
+            <label class="aw-login-field" asp-for="Input.Email">
+                <span>Email address</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6" /></svg>
+                    <input asp-for="Input.Email" autocomplete="username" placeholder="you@example.com" autofocus />
+                </span>
+                <span asp-validation-for="Input.Email" class="field-validation-error"></span>
+            </label>
+
+            <label class="aw-login-field" asp-for="Input.Password">
+                <span>Password</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                    <input asp-for="Input.Password" autocomplete="current-password" placeholder="Enter your password" />
+                </span>
+                <span asp-validation-for="Input.Password" class="field-validation-error"></span>
+            </label>
+
+            <div class="aw-login-options">
+                <label asp-for="Input.RememberMe"><input asp-for="Input.RememberMe" /> <span>Remember me</span></label>
+                <a asp-page="./ForgotPassword">Forgot password?</a>
+            </div>
+
+            <button id="login-submit" type="submit" class="btn btn-primary btn-lg aw-login-submit">Log in <svg class="ui-icon"><use href="#i-arrow" /></svg></button>
+
+            <div class="aw-login-divider"><span>New to ApplyWise?</span></div>
+            <a class="btn btn-secondary-soft aw-create-account" asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Create your free account</a>
+            <a class="aw-confirmation-link" asp-page="./ResendEmailConfirmation">Resend email confirmation</a>
+        </form>
+
+        <footer class="aw-login-footer"><span>✓</span> Your workspace is private to your account.</footer>
+    </section>
+
+    <aside class="aw-auth-visual" aria-label="ApplyWise motivation">
+        <div class="aw-auth-quote">
+            <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>A note from Wiso</span>
+            <blockquote>“Small, focused steps turn a job search into real momentum.”</blockquote>
+            <p>Come back to your plan, take the next useful action, and keep moving forward.</p>
+        </div>
+        <div class="aw-auth-avatar-wrap">
+            <span>You've got this!</span>
+            <img src="~/images/wiso.png" alt="Wiso, your ApplyWise career assistant" />
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
