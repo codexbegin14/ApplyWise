@@ -13,3 +13,4 @@ appsettings.Development.json
 [Rr]elease/
 TestResults/
 coverage/
+app.db
