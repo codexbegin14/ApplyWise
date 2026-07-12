@@ -1,8 +1,8 @@
 @model string
 
 <nav class="analyzer-tabs" aria-label="Resume analyzer sections">
-    <a class="@(Model == "pasted" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index">Paste Requirements</a>
-    <a class="@(Model == "saved" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-mode="saved">Saved Application</a>
-    <a class="@(Model == "picker" ? "active" : null)" asp-controller="BestResumePicker" asp-action="Index">Best Resume Picker</a>
-    <a class="@(Model == "history" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="History">History</a>
+    <a class="@(Model == "pasted" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-file" /></svg>Paste Requirements</a>
+    <a class="@(Model == "saved" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-mode="saved"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Saved Application</a>
+    <a class="@(Model == "picker" ? "active" : null)" asp-controller="BestResumePicker" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Best Resume Picker</a>
+    <a class="@(Model == "history" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="History"><svg class="ui-icon"><use href="#i-chart" /></svg>History</a>
 </nav>

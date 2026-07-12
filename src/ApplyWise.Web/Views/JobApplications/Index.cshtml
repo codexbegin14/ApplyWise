@@ -1,73 +1,49 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationIndexViewModel
 @{
     ViewData["Title"] = "Applications";
+    var activeCount = Model.Applications.Count(a => a.Status is not ApplicationStatus.Rejected and not ApplicationStatus.Withdrawn);
 }
 
-<div class="page-heading">
-    <div><h2>Applications</h2><p>Track every job, status, platform, deadline, and resume version used.</p></div>
-    <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a>
+<div class="aw-page aw-fade-in">
+    <section class="aw-applications-hero aw-slide-up"><div><span class="aw-kicker"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Your application workspace</span><h2>Every role. One clear next move.</h2><p>Track status, resume choice, deadlines, and follow-ups without losing the story behind each application.</p></div><div class="aw-workspace-summary"><span><strong>@Model.Applications.Count</strong><small>shown</small></span><span><strong>@activeCount</strong><small>active</small></span><a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a></div></section>
+
+    @if (TempData["SuccessMessage"] is string successMessage) { <div class="alert app-alert aw-success-toast" role="status"><span>✓</span>@successMessage</div> }
+
+    <form method="get" class="aw-panel aw-filter-panel aw-slide-up" aria-label="Application filters">
+        <div class="aw-filter-heading"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-search" /></svg></span><div><strong>Find an application</strong><small>Search, filter, or sort your workspace.</small></div></div>
+        <label><span>Search</span><input asp-for="SearchTerm" class="form-control" placeholder="Company or job title" /></label>
+        <label><span>Status</span><select asp-for="StatusFilter" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"><option value="">All statuses</option></select></label>
+        <label><span>Source</span><select asp-for="SourceFilter" asp-items="Html.GetEnumSelectList<JobSource>()" class="form-select"><option value="">All sources</option></select></label>
+        <label><span>Sort</span><select asp-for="SortBy" class="form-select"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="deadline">Deadline</option><option value="status">Status</option></select></label>
+        <div class="aw-filter-actions"><button class="btn btn-primary" type="submit">Apply Filters</button><a class="btn btn-link" asp-action="Index">Clear</a></div>
+    </form>
+
+    @if (Model.Applications.Count == 0)
+    {
+        <section class="aw-panel aw-empty-state aw-slide-up"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your job tracking assistant" /><span class="aw-kicker">A fresh workspace</span><h3>@(HasFilters() ? "No matching applications" : "No applications yet")</h3><p>@(HasFilters() ? "Try clearing a filter to bring more roles back into view." : "Start by saving a job post, then ApplyWise will help track the resume, status, and next action.")</p>@if (HasFilters()) { <a class="btn btn-secondary-soft" asp-action="Index">Clear Filters</a> } else { <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a> }</section>
+    }
+    else
+    {
+        <div class="aw-list-heading"><div><span class="aw-kicker">Application board</span><h3>@Model.Applications.Count role@(Model.Applications.Count == 1 ? "" : "s") in view</h3></div><span>Private to your account</span></div>
+        <section class="aw-application-board">
+            @foreach (var application in Model.Applications)
+            {
+                <article class="aw-card aw-application-card aw-slide-up">
+                    <div class="aw-application-card-head"><span class="aw-company-avatar">@Initial(application.CompanyName)</span><div><h3>@application.JobTitle</h3><p>@application.CompanyName</p></div><span class="aw-status @StatusClass(application.Status)">@application.Status.GetDisplayName()</span></div>
+                    <div class="aw-application-meta"><span><small>Source</small><strong>@application.Source.GetDisplayName()</strong></span><span><small>Resume</small><strong>@(application.ResumeVersionName ?? "Choose one")</strong></span><span><small>Deadline</small><strong class="@(IsDeadlineSoon(application.Deadline) ? "warning-text" : null)">@FormatDate(application.Deadline)</strong></span></div>
+                    <div class="aw-next-action"><span class="aw-action-mark"><svg class="ui-icon"><use href="#i-arrow" /></svg></span><div><small>Suggested next action</small><strong>@NextAction(application.Status, application.Deadline)</strong></div></div>
+                    <div class="aw-card-actions"><a class="btn btn-primary btn-sm" asp-action="Details" asp-route-id="@application.Id">Open Workspace</a><a class="btn btn-secondary-soft btn-sm" asp-action="Edit" asp-route-id="@application.Id">Edit</a><a class="aw-icon-link" asp-action="Delete" asp-route-id="@application.Id" aria-label="Delete @application.JobTitle application">Delete</a></div>
+                </article>
+            }
+        </section>
+    }
 </div>
-
-@if (TempData["SuccessMessage"] is string successMessage)
-{
-    <div class="alert app-alert" role="status">@successMessage</div>
-}
-
-<form method="get" class="application-filters" aria-label="Application filters">
-    <label class="filter-search"><span>Search</span><input asp-for="SearchTerm" class="form-control" placeholder="Company or job title" /></label>
-    <label><span>Status</span><select asp-for="StatusFilter" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"><option value="">All statuses</option></select></label>
-    <label><span>Source</span><select asp-for="SourceFilter" asp-items="Html.GetEnumSelectList<JobSource>()" class="form-select"><option value="">All sources</option></select></label>
-    <label><span>Sort</span><select asp-for="SortBy" class="form-select"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="deadline">Deadline</option><option value="status">Status</option></select></label>
-    <div class="filter-actions"><button class="btn btn-outline-secondary" type="submit">Apply</button><a class="btn btn-link" asp-action="Index">Clear</a></div>
-</form>
-
-@if (Model.Applications.Count == 0)
-{
-    <section class="panel empty-state">
-        <img class="empty-wiso" src="~/images/wiso.png" alt="Wiso, your job tracking assistant" />
-        <h3>@(HasFilters() ? "No matching applications" : "No applications tracked yet")</h3>
-        <p>@(HasFilters() ? "Try clearing or adjusting your search and filters." : "Add your first job so ApplyWise can remember where you applied and which resume you used.")</p>
-        @if (HasFilters()) { <a class="btn btn-outline-secondary" asp-action="Index">Clear Filters</a> }
-        else { <a class="btn btn-primary" asp-action="Create">Add Application</a> }
-    </section>
-}
-else
-{
-    <section class="panel applications-table-panel">
-        <div class="resume-list-header"><span>@Model.Applications.Count result@(Model.Applications.Count == 1 ? string.Empty : "s")</span><span>Private to your account</span></div>
-        <div class="table-responsive">
-            <table class="table app-table applications-table">
-                <thead><tr><th>Role</th><th>Status</th><th>Source</th><th>Resume used</th><th>Applied</th><th>Deadline</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
-                <tbody>
-                @foreach (var application in Model.Applications)
-                {
-                    <tr>
-                        <td><div class="application-role"><strong>@application.JobTitle</strong><span>@application.CompanyName</span></div></td>
-                        <td><span class="badge @StatusClass(application.Status)">@application.Status.GetDisplayName()</span></td>
-                        <td>@application.Source.GetDisplayName()</td>
-                        <td><span class="resume-memory">@(application.ResumeVersionName ?? "Not selected")</span></td>
-                        <td>@FormatDate(application.AppliedDate)</td>
-                        <td>@FormatDate(application.Deadline)</td>
-                        <td><div class="table-actions"><a asp-action="Details" asp-route-id="@application.Id">View</a><a asp-action="Edit" asp-route-id="@application.Id">Edit</a><a class="text-danger" asp-action="Delete" asp-route-id="@application.Id">Delete</a></div></td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        </div>
-    </section>
-}
 
 @functions {
     private bool HasFilters() => !string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.StatusFilter.HasValue || Model.SourceFilter.HasValue;
-    private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "-";
-    private static string StatusClass(ApplicationStatus status) => status switch
-    {
-        ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved",
-        ApplicationStatus.Applied => "status-applied",
-        ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer",
-        ApplicationStatus.Interview => "status-shortlisted",
-        ApplicationStatus.TechnicalTest => "status-interview",
-        ApplicationStatus.Rejected => "status-rejected",
-        _ => "status-saved"
-    };
+    private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
+    private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not set";
+    private static bool IsDeadlineSoon(DateOnly? date) => date.HasValue && date.Value <= DateOnly.FromDateTime(DateTime.Today.AddDays(7));
+    private static string NextAction(ApplicationStatus status, DateOnly? deadline) => status switch { ApplicationStatus.Saved => deadline.HasValue ? "Tailor a resume before the deadline" : "Review the role and choose a resume", ApplicationStatus.Applied => "Set a follow-up reminder", ApplicationStatus.Shortlisted => "Prepare your role story", ApplicationStatus.Interview => "Review interview notes", ApplicationStatus.TechnicalTest => "Track the test deadline", ApplicationStatus.Offer => "Review the offer details", ApplicationStatus.Rejected => "Capture a lesson and archive", ApplicationStatus.Withdrawn => "Keep for future reference", _ => "Open application details" };
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "aw-status-neutral", ApplicationStatus.Applied => "aw-status-info", ApplicationStatus.Shortlisted or ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.TechnicalTest => "aw-status-warning", ApplicationStatus.Offer => "aw-status-success", ApplicationStatus.Rejected => "aw-status-danger", _ => "aw-status-neutral" };
 }

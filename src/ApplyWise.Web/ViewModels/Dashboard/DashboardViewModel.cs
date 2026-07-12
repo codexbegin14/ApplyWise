@@ -13,6 +13,9 @@ public sealed class DashboardViewModel
     public int PendingReminderCount { get; set; }
     public int OverdueReminderCount { get; set; }
     public int TodayActionCount { get; set; }
+    public ApplicationFunnelResult Funnel { get; set; } = new(0, 0, 0, 0, 0, 0);
+    public string? BestResumeVersionName { get; set; }
+    public double BestResumeScore { get; set; }
     public IReadOnlyList<DashboardInterviewItemViewModel> UpcomingInterviews { get; set; } = [];
     public IReadOnlyList<DashboardReminderItemViewModel> PendingReminders { get; set; } = [];
     public IReadOnlyList<DashboardDeadlineItemViewModel> UpcomingDeadlines { get; set; } = [];

@@ -121,7 +121,22 @@ public class JobApplicationsController(
                 check.Id, check.RiskScore, check.RiskLevel, check.QualityScore,
                 check.Recommendation, check.CreatedAt))
             .FirstOrDefaultAsync();
-        return View(ToDetailsViewModel(application, latestCheck));
+        var interviews = await dbContext.Interviews.AsNoTracking()
+            .Where(interview => interview.UserId == application.UserId && interview.JobApplicationId == application.Id)
+            .OrderByDescending(interview => interview.ScheduledAt)
+            .Take(3)
+            .Select(interview => new ApplicationInterviewSummaryViewModel(
+                interview.Id, interview.InterviewType, interview.Status, interview.ScheduledAt))
+            .ToListAsync();
+        var reminders = await dbContext.Reminders.AsNoTracking()
+            .Where(reminder => reminder.UserId == application.UserId && reminder.JobApplicationId == application.Id)
+            .OrderBy(reminder => reminder.IsCompleted)
+            .ThenBy(reminder => reminder.DueAt)
+            .Take(3)
+            .Select(reminder => new ApplicationReminderSummaryViewModel(
+                reminder.Id, reminder.Title, reminder.ReminderType, reminder.DueAt, reminder.IsCompleted))
+            .ToListAsync();
+        return View(ToDetailsViewModel(application, latestCheck, interviews, reminders));
     }
 
     [HttpGet("{id:int}/edit")]
@@ -297,10 +312,12 @@ public class JobApplicationsController(
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static JobApplicationDetailsViewModel ToDetailsViewModel(
-        JobApplication application, JobScamCheckSummaryViewModel? latestScamCheck = null) =>
+        JobApplication application, JobScamCheckSummaryViewModel? latestScamCheck = null,
+        IReadOnlyList<ApplicationInterviewSummaryViewModel>? interviews = null,
+        IReadOnlyList<ApplicationReminderSummaryViewModel>? reminders = null) =>
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
             application.AppliedDate, application.Deadline, application.Notes,
-            application.CreatedAt, application.UpdatedAt, latestScamCheck);
+            application.CreatedAt, application.UpdatedAt, latestScamCheck, interviews, reminders);
 }

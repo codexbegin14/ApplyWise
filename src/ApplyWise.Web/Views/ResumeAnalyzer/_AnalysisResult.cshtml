@@ -1,45 +1,25 @@
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
 
-<section class="analysis-result" aria-labelledby="analysis-result-title">
-    <div class="panel analysis-summary">
-        <div>
-            <span class="method-label">Analysis result</span>
-            <h3 id="analysis-result-title">@Model.ContextTitle</h3>
-            <p>Compared with <strong>@Model.ResumeVersionName</strong> · @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</p>
-        </div>
-        <div class="analysis-score @ScoreClass(Model.MatchScore)" aria-label="Match score @Model.MatchScore percent"><strong>@Model.MatchScore</strong><span>% match</span></div>
+<section class="aw-results aw-slide-up" aria-labelledby="analysis-result-title">
+    <div class="aw-results-heading"><span class="aw-kicker">Your match snapshot</span><h2 id="analysis-result-title">@Model.ContextTitle</h2><p>Compared with <strong>@Model.ResumeVersionName</strong> on @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</p></div>
+    <div class="aw-result-overview">
+        <section class="aw-panel aw-score-card @ScoreTone(Model.MatchScore)"><div class="aw-score-ring" style="--aw-score:@Model.MatchScore"><span><strong>@Model.MatchScore</strong><small>% match</small></span></div><div><span class="aw-kicker">Match score</span><h3>@ScoreMessage(Model.MatchScore)</h3><p>@Model.MatchedKeywords.Count matched and @Model.MissingKeywords.Count missing skills detected.</p></div></section>
+        <section class="aw-panel aw-result-next"><span class="aw-kicker">Best next move</span><h3>@NextMove(Model.MatchScore)</h3><p>Focus on the highest-value gap that honestly reflects your experience.</p><a class="btn btn-secondary-soft" asp-controller="BestResumePicker" asp-action="Index"><svg class="ui-icon"><use href="#i-file" /></svg>Compare all resumes</a></section>
     </div>
-    <div class="match-progress" role="progressbar" aria-label="Resume match score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.MatchScore"><i class="@ScoreClass(Model.MatchScore)" style="width:@Model.MatchScore%"></i></div>
+    <div class="aw-progress aw-progress-large" role="progressbar" aria-label="Resume match score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.MatchScore"><i style="--aw-progress:@Model.MatchScore%"></i></div>
 
-    @if (Model.DetectedSkillCount == 0)
-    {
-        <div class="analysis-data-warning"><strong>Not enough skill data detected.</strong><span>Add specific technologies and requirements to the job description, then run the analysis again.</span></div>
-    }
+    @if (Model.DetectedSkillCount == 0) { <div class="aw-inline-notice aw-notice-warning"><div><strong>Not enough skill data detected</strong><p>Add specific technologies and requirements, then try again.</p></div></div> }
 
-    <div class="analysis-grid">
-        <section class="panel keyword-card"><div class="analysis-card-heading"><div><h3>Matched skills</h3><p>Required skills also found in this resume.</p></div><span class="keyword-count matched-count">@Model.MatchedKeywords.Count</span></div>
-            @if (Model.MatchedKeywords.Count == 0) { <p class="analysis-empty-copy">No detected job skills were found in the resume.</p> }
-            else { <div class="keyword-list">@foreach (var keyword in Model.MatchedKeywords) { <span class="keyword matched-keyword">@keyword</span> }</div> }
-        </section>
-        <section class="panel keyword-card"><div class="analysis-card-heading"><div><h3>Missing skills</h3><p>Detected requirements not found in this resume.</p></div><span class="keyword-count missing-count">@Model.MissingKeywords.Count</span></div>
-            @if (Model.MissingKeywords.Count == 0) { <p class="analysis-empty-copy">No missing skills were detected.</p> }
-            else { <div class="keyword-list">@foreach (var keyword in Model.MissingKeywords) { <span class="keyword missing-keyword">@keyword</span> }</div> }
-        </section>
+    <div class="aw-result-grid">
+        <section class="aw-panel aw-keyword-card"><div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-green">Working for you</span><h3>Matched skills</h3><p>Requirements already supported by this resume.</p></div><span class="aw-count-badge green">@Model.MatchedKeywords.Count</span></div>@if (Model.MatchedKeywords.Count == 0) { <p class="aw-muted">No matched skills were detected yet.</p> } else { <div class="aw-skill-cloud">@foreach (var keyword in Model.MatchedKeywords) { <span class="aw-chip aw-chip-green">✓ @keyword</span> }</div> }</section>
+        <section class="aw-panel aw-keyword-card"><div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-amber">Worth reviewing</span><h3>Missing skills</h3><p>Requirements not yet visible in this resume.</p></div><span class="aw-count-badge amber">@Model.MissingKeywords.Count</span></div>@if (Model.MissingKeywords.Count == 0) { <p class="aw-muted">No missing skills were detected.</p> } else { <div class="aw-skill-cloud">@foreach (var keyword in Model.MissingKeywords) { <span class="aw-chip aw-chip-amber">! @keyword</span> }</div> }</section>
     </div>
 
-    <section class="panel suggestion-card">
-        <div class="analysis-card-heading"><div><h3>Improvement suggestions</h3><p>Use only the recommendations that honestly reflect your experience.</p></div></div>
-        <ol class="suggestion-list">@foreach (var suggestion in Model.Suggestions) { <li>@suggestion</li> }</ol>
-        <div class="analysis-result-actions"><a asp-action="Details" asp-route-id="@Model.Id">View saved analysis</a><a asp-action="History">View history</a></div>
-    </section>
+    <section class="aw-panel aw-suggestions"><div class="aw-section-heading"><div><span class="aw-kicker">Action plan</span><h3>Small edits with the biggest impact</h3><p>Only use suggestions that truthfully represent your experience.</p></div></div><div class="aw-suggestion-grid">@for (var i = 0; i < Model.Suggestions.Count; i++) { <article class="aw-action-card"><span class="aw-action-mark">@(i + 1)</span><span><b>Resume improvement</b><small>@Model.Suggestions[i]</small></span></article> }</div><div class="aw-result-links"><a asp-action="Details" asp-route-id="@Model.Id">View saved analysis</a><a asp-action="History">Open history</a></div></section>
 </section>
 
 @functions {
-    private static string ScoreClass(int score) => score switch
-    {
-        >= 80 => "score-strong",
-        >= 60 => "score-good",
-        >= 40 => "score-fair",
-        _ => "score-low"
-    };
+    private static string ScoreTone(int score) => score >= 80 ? "is-strong" : score >= 60 ? "is-good" : score >= 40 ? "is-fair" : "is-low";
+    private static string ScoreMessage(int score) => score >= 80 ? "Strong role alignment" : score >= 60 ? "A promising starting point" : score >= 40 ? "A few focused edits will help" : "Choose a closer resume version";
+    private static string NextMove(int score) => score >= 80 ? "Polish the evidence behind your strongest skills." : score >= 60 ? "Strengthen two missing requirements." : "Compare your other resume versions first.";
 }

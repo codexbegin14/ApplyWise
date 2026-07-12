@@ -16,3 +16,10 @@ document.addEventListener('keydown', (event) => {
         document.querySelector('.menu-button')?.focus();
     }
 });
+
+// Give repeated workspace cards a restrained entrance rhythm.
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.aw-slide-up').forEach((element, index) => {
+        element.style.animationDelay = `${Math.min(index * 35, 210)}ms`;
+    });
+}

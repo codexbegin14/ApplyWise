@@ -1,65 +1,73 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationDetailsViewModel
 @{
     ViewData["Title"] = "Application Details";
+    var interviews = Model.Interviews ?? [];
+    var reminders = Model.Reminders ?? [];
 }
 
-<div class="page-heading application-details-heading">
-    <div>
-        <a class="back-link" asp-action="Index">Back to applications</a>
-        <div class="title-with-badge"><h2>@Model.JobTitle</h2><span class="badge @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span></div>
-        <p>@Model.CompanyName</p>
+<div class="aw-page aw-fade-in">
+    <a class="back-link" asp-action="Index">← Back to application workspace</a>
+    <section class="aw-detail-hero aw-slide-up">
+        <div class="aw-detail-identity"><span class="aw-company-avatar aw-company-avatar-large">@Initial(Model.CompanyName)</span><div><span class="aw-status @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span><h2>@Model.JobTitle</h2><p>@Model.CompanyName @if (!string.IsNullOrWhiteSpace(Model.JobLocation)) { <span>· @Model.JobLocation</span> }</p></div></div>
+        <div class="aw-detail-actions"><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-secondary-soft" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id"><svg class="ui-icon"><use href="#i-spark" /></svg>Find Best Resume</a><a class="aw-more-link" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
+    </section>
+
+    @if (TempData["SuccessMessage"] is string successMessage) { <div class="alert app-alert aw-success-toast" role="status"><span>✓</span>@successMessage</div> }
+
+    <section class="aw-panel aw-timeline-panel aw-slide-up">
+        <div class="aw-section-heading"><div><span class="aw-kicker">Application progress</span><h3>Where this opportunity stands</h3></div><a asp-action="Edit" asp-route-id="@Model.Id">Update status</a></div>
+        <div class="aw-timeline" aria-label="Application status timeline">
+            @TimelineStep("Saved", 0)
+            @TimelineStep("Applied", 1)
+            @TimelineStep("Interview", 2)
+            @TimelineStep("Offer", 3)
+        </div>
+    </section>
+
+    <div class="aw-detail-grid">
+        <section class="aw-panel aw-detail-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Resume choice</span><h3>Resume used</h3></div><span class="aw-stat-icon green"><svg class="ui-icon"><use href="#i-file" /></svg></span></div><strong class="aw-detail-value">@(Model.ResumeVersionName ?? "No resume selected")</strong><p>@(Model.ResumeVersionName is null ? "Choose a version so ApplyWise can track performance." : "This version is linked to the application history.")</p><a asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id">Compare resume versions →</a></section>
+        <section class="aw-panel aw-detail-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Timing</span><h3>Dates and deadline</h3></div><span class="aw-stat-icon amber"><svg class="ui-icon"><use href="#i-calendar" /></svg></span></div><div class="aw-date-pair"><span><small>Applied</small><strong>@FormatDate(Model.AppliedDate)</strong></span><span><small>Deadline</small><strong>@FormatDate(Model.Deadline)</strong></span></div><p>@DeadlineCopy(Model.Deadline)</p></section>
+        <section class="aw-panel aw-detail-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Role snapshot</span><h3>Job details</h3></div><span class="aw-stat-icon purple"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span></div><dl class="aw-mini-details"><div><dt>Source</dt><dd>@Model.Source.GetDisplayName()</dd></div><div><dt>Type</dt><dd>@(Model.JobType?.GetDisplayName() ?? "Not specified")</dd></div><div><dt>Salary</dt><dd>@(Model.SalaryRange ?? "Not specified")</dd></div></dl>@if (Model.JobUrl is not null) { <a href="@Model.JobUrl" target="_blank" rel="noopener noreferrer">Open original listing ↗</a> }</section>
     </div>
-    <div class="form-actions"><a class="btn btn-outline-secondary" asp-controller="Interviews" asp-action="Create" asp-route-jobApplicationId="@Model.Id">Add Interview</a><a class="btn btn-outline-secondary" asp-controller="Reminders" asp-action="Create" asp-route-jobApplicationId="@Model.Id">Add Reminder</a><a class="btn btn-outline-secondary" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id">Find Best Resume</a><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
-</div>
 
-@if (TempData["SuccessMessage"] is string successMessage)
-{
-    <div class="alert app-alert" role="status">@successMessage</div>
-}
-
-<section class="panel application-overview">
-    <div class="details-grid application-details-grid">
-        <div><dt>Source</dt><dd>@Model.Source.GetDisplayName()</dd></div>
-        <div><dt>Resume used</dt><dd><span class="resume-memory">@(Model.ResumeVersionName ?? "Not selected")</span></dd></div>
-        <div><dt>Applied date</dt><dd>@FormatDate(Model.AppliedDate)</dd></div>
-        <div><dt>Deadline</dt><dd>@FormatDate(Model.Deadline)</dd></div>
-        <div><dt>Location</dt><dd>@(Model.JobLocation ?? "Not specified")</dd></div>
-        <div><dt>Job type</dt><dd>@(Model.JobType?.GetDisplayName() ?? "Not specified")</dd></div>
-        <div><dt>Salary range</dt><dd>@(Model.SalaryRange ?? "Not specified")</dd></div>
-        <div><dt>Job post</dt><dd>@if (Model.JobUrl is not null) { <a href="@Model.JobUrl" target="_blank" rel="noopener noreferrer">Open original listing</a> } else { <span>Not added</span> }</dd></div>
+    <div class="aw-detail-grid aw-detail-grid-two">
+        <section class="aw-panel aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Interview plan</span><h3>Interviews</h3><p>Prep and outcomes connected to this role.</p></div><a class="btn btn-secondary-soft btn-sm" asp-controller="Interviews" asp-action="Create" asp-route-jobApplicationId="@Model.Id">+ Add Interview</a></div>
+            @if (interviews.Count == 0) { <div class="aw-compact-state"><span class="aw-stat-icon purple"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><div><strong>No interviews yet</strong><p>Add one when the conversation is scheduled.</p></div></div> }
+            else { <div class="aw-action-stack">@foreach (var interview in interviews) { <a class="aw-action-card" asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><span class="aw-action-mark purple"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span><b>@interview.InterviewType.GetDisplayName()</b><small>@interview.Status.GetDisplayName()</small></span><time>@interview.ScheduledAt.ToLocalTime().ToString("MMM d, h:mm tt")</time></a> }</div> }
+        </section>
+        <section class="aw-panel aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Next actions</span><h3>Reminders</h3><p>Follow-ups and deadlines for this role.</p></div><a class="btn btn-secondary-soft btn-sm" asp-controller="Reminders" asp-action="Create" asp-route-jobApplicationId="@Model.Id">+ Add Reminder</a></div>
+            @if (reminders.Count == 0) { <div class="aw-compact-state"><span class="aw-stat-icon amber"><svg class="ui-icon"><use href="#i-bell" /></svg></span><div><strong>No reminders yet</strong><p>Add a follow-up so nothing slips through.</p></div></div> }
+            else { <div class="aw-action-stack">@foreach (var reminder in reminders) { <a class="aw-action-card @(reminder.IsCompleted ? "is-complete" : null)" asp-controller="Reminders" asp-action="Index"><span class="aw-action-mark"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span><b>@reminder.Title</b><small>@reminder.ReminderType.GetDisplayName()</small></span><time>@(reminder.IsCompleted ? "Complete" : reminder.DueAt.ToLocalTime().ToString("MMM d"))</time></a> }</div> }
+        </section>
     </div>
-</section>
 
-<div class="application-detail-sections">
-    <section class="panel content-panel"><h3>Job description</h3><p>@(string.IsNullOrWhiteSpace(Model.JobDescription) ? "No job description added." : Model.JobDescription)</p></section>
-    <section class="panel content-panel"><h3>Notes</h3><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes added." : Model.Notes)</p></section>
+    <section class="aw-panel aw-scam-card aw-slide-up">
+        <div class="aw-section-heading"><div><span class="aw-kicker">Trust check</span><h3>Job post safety</h3><p>Review the listing for suspicious signals and missing information.</p></div><span class="aw-stat-icon green"><svg class="ui-icon"><use href="#i-search" /></svg></span></div>
+        @if (Model.LatestScamCheck is null)
+        {
+            <div class="aw-inline-notice"><div><strong>No safety check yet</strong><p>Run a quick rule-based review before sharing sensitive information.</p></div><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-primary" type="submit">Run Scam Check</button></form></div>
+        }
+        else
+        {
+            <div class="aw-scam-result"><div><span class="aw-status @RiskClass(Model.LatestScamCheck.RiskLevel)">@Model.LatestScamCheck.RiskLevel.GetDisplayName() risk</span><strong>@Model.LatestScamCheck.RiskScore/100</strong><small>risk score</small></div><div class="aw-scam-quality"><span>Listing quality <b>@Model.LatestScamCheck.QualityScore/100</b></span><div class="aw-progress"><i style="--aw-progress:@Model.LatestScamCheck.QualityScore%"></i></div><p>@Model.LatestScamCheck.Recommendation</p></div><div><a class="btn btn-secondary-soft btn-sm" asp-controller="JobScamChecks" asp-action="Details" asp-route-id="@Model.LatestScamCheck.Id">View Full Check</a><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-link btn-sm" type="submit">Run again</button></form></div></div>
+        }
+    </section>
+
+    <div class="aw-detail-grid aw-detail-grid-two">
+        <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Role context</span><h3>Job description</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.JobDescription) ? "No job description added yet. Add it to unlock resume matching." : Model.JobDescription)</p></section>
+        <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Your context</span><h3>Notes</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes yet. Capture contacts, questions, or the next follow-up here." : Model.Notes)</p></section>
+    </div>
+    <p class="record-timestamps">Created @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") · Updated @Model.UpdatedAt.ToLocalTime().ToString("MMM d, yyyy")</p>
 </div>
-
-<section class="panel job-scam-section">
-    <div class="panel-header"><div><h3>Job Post Review</h3><p>Check this listing for potential red flags and missing information.</p></div><a asp-controller="JobScamChecks" asp-action="History">Check history</a></div>
-    @if (Model.LatestScamCheck is null)
-    {
-        <div class="scam-empty"><span class="scam-shield">?</span><div><strong>No scam check yet</strong><p>Run a rule-based check to review this job post for potential red flags.</p></div><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-primary" type="submit">Run Scam Check</button></form></div>
-    }
-    else
-    {
-        <div class="latest-scam-result"><div class="scam-risk-summary"><span class="badge @RiskBadge(Model.LatestScamCheck.RiskLevel)">@Model.LatestScamCheck.RiskLevel.GetDisplayName()</span><strong>@Model.LatestScamCheck.RiskScore/100 risk</strong><span>@Model.LatestScamCheck.QualityScore/100 quality</span></div><p>@Model.LatestScamCheck.Recommendation</p><div class="analysis-result-actions"><a asp-controller="JobScamChecks" asp-action="Details" asp-route-id="@Model.LatestScamCheck.Id">View full check</a><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-link" type="submit">Run again</button></form></div></div>
-    }
-</section>
-
-<p class="record-timestamps">Created @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt") · Updated @Model.UpdatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</p>
 
 @functions {
+    private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
     private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not specified";
-    private static string StatusClass(ApplicationStatus status) => status switch
-    {
-        ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved",
-        ApplicationStatus.Applied => "status-applied",
-        ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer",
-        ApplicationStatus.Interview => "status-shortlisted",
-        ApplicationStatus.TechnicalTest => "status-interview",
-        ApplicationStatus.Rejected => "status-rejected",
-        _ => "status-saved"
-    };
-    private static string RiskBadge(JobRiskLevel level) => level switch { JobRiskLevel.High => "status-rejected", JobRiskLevel.Medium => "status-interview", _ => "status-offer" };
+    private static string DeadlineCopy(DateOnly? date) => !date.HasValue ? "Add a deadline to keep this role visible in upcoming actions." : date.Value < DateOnly.FromDateTime(DateTime.Today) ? "This deadline has passed." : $"{date.Value.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber} days remaining.";
+    private int CurrentStage() => Model.Status switch { ApplicationStatus.Saved => 0, ApplicationStatus.Applied => 1, ApplicationStatus.Shortlisted or ApplicationStatus.Interview or ApplicationStatus.TechnicalTest => 2, ApplicationStatus.Offer => 3, ApplicationStatus.Rejected or ApplicationStatus.Withdrawn => 1, _ => 0 };
+    private Microsoft.AspNetCore.Html.IHtmlContent TimelineStep(string label, int step) { var css = step < CurrentStage() ? "is-done" : step == CurrentStage() ? "is-current" : ""; return Html.Raw($"<div class=\"aw-timeline-step {css}\"><span>{(step < CurrentStage() ? "✓" : (step + 1).ToString())}</span><b>{label}</b></div>"); }
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "aw-status-neutral", ApplicationStatus.Applied => "aw-status-info", ApplicationStatus.Shortlisted or ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.TechnicalTest => "aw-status-warning", ApplicationStatus.Offer => "aw-status-success", ApplicationStatus.Rejected => "aw-status-danger", _ => "aw-status-neutral" };
+    private static string RiskClass(JobRiskLevel level) => level switch { JobRiskLevel.High => "aw-status-danger", JobRiskLevel.Medium => "aw-status-warning", _ => "aw-status-success" };
 }

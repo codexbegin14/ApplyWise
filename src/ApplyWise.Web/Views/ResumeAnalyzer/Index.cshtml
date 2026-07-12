@@ -6,57 +6,57 @@
     var hasResumes = Model.AvailableResumes.Count > 0;
 }
 
-<section class="tool-hero tool-hero-blue"><div><span class="tool-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Smart resume matching</span><h2>Make every resume feel made for the role.</h2><p>Get a clear match score, see the skills already working for you, and focus your next edit.</p></div><div class="tool-hero-stat"><strong>Clear</strong><span>explainable results</span></div></section>
-<partial name="_AnalyzerTabs" model="activeTab" />
-
-<div class="analyzer-layout">
-    <section class="panel analyzer-form-card">
-        @if (!hasResumes)
-        {
-            <div class="analyzer-notice"><strong>Upload a resume before running analysis.</strong><a asp-controller="Resumes" asp-action="Create">Upload Resume</a></div>
-        }
-
-        @if (isPastedMode)
-        {
-            <div class="panel-header"><div><h3>Paste job requirements</h3><p>Use requirements copied from LinkedIn, WhatsApp, email, or a company website.</p></div></div>
-            <form asp-action="AnalyzePastedRequirements" method="post">
-                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
-                <div class="analyzer-fields analyzer-fields-stacked">
-                    <div><label asp-for="Pasted.ResumeId" class="form-label"></label><select asp-for="Pasted.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select><span asp-validation-for="Pasted.ResumeId" class="field-validation-error"></span></div>
-                    <div><label asp-for="Pasted.JobRequirements" class="form-label"></label><textarea asp-for="Pasted.JobRequirements" class="form-control requirements-textarea" rows="11" placeholder="Paste the role responsibilities, required skills, tools, experience, and qualifications here..."></textarea><div class="form-hint">At least 30 characters. Include specific skills for a more useful comparison.</div><span asp-validation-for="Pasted.JobRequirements" class="field-validation-error"></span></div>
-                </div>
-                <button class="btn btn-primary" type="submit" disabled="@(!hasResumes)">Analyze Resume</button>
-            </form>
-        }
-        else
-        {
-            <div class="panel-header"><div><h3>Analyze a saved application</h3><p>Compare a resume with the job description stored in your application tracker.</p></div></div>
-            @if (Model.AvailableJobApplications.Count == 0)
-            {
-                <div class="analyzer-notice"><strong>Add an application with a job description before using this mode.</strong><a asp-controller="JobApplications" asp-action="Create">Add Application</a></div>
-            }
-            <form asp-action="AnalyzeSavedApplication" method="post">
-                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
-                <div class="analyzer-fields">
-                    <div><label asp-for="Saved.ResumeId" class="form-label"></label><select asp-for="Saved.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select><span asp-validation-for="Saved.ResumeId" class="field-validation-error"></span></div>
-                    <div><label asp-for="Saved.JobApplicationId" class="form-label"></label><select asp-for="Saved.JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select" disabled="@(Model.AvailableJobApplications.Count == 0)"><option value="">Select an application</option></select><span asp-validation-for="Saved.JobApplicationId" class="field-validation-error"></span></div>
-                </div>
-                <button class="btn btn-primary" type="submit" disabled="@(!hasResumes || Model.AvailableJobApplications.Count == 0)">Analyze Resume</button>
-            </form>
-        }
+<div class="aw-page aw-fade-in">
+    <section class="aw-tool-hero aw-slide-up">
+        <div><span class="aw-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Guided resume check</span><h2>Test your resume before you apply.</h2><p>Choose a resume, add the role requirements, and get clear visual feedback in seconds.</p></div>
+        <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Let's find your strongest match.</b><small>Wiso will guide the next step.</small></span></div>
     </section>
 
-    <aside class="panel analyzer-method-card">
-        <div class="wiso-helper"><img src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Wiso’s tip</b><small>Resume buddy</small></span></div>
-        <h3>Paste a job description and I’ll help you find the strongest resume match.</h3>
-        <div class="helper-points"><span><b>1</b> Include specific tools and skills</span><span><b>2</b> Choose the closest resume version</span><span><b>3</b> Use only honest recommendations</span></div>
-        <small class="privacy-note">🔒 Your resume and requirements stay inside ApplyWise.</small>
-    </aside>
-</div>
+    <partial name="_AnalyzerTabs" model="activeTab" />
 
-@if (Model.LatestResult is not null)
-{
-    <partial name="_AnalysisResult" model="Model.LatestResult" />
-}
+    <div class="aw-stepper" aria-label="Analysis workflow"><span class="is-active"><b>1</b>Choose resume</span><i></i><span><b>2</b>Add requirements</span><i></i><span><b>3</b>Review match</span></div>
+
+    <div class="aw-analyzer-grid aw-slide-up">
+        <section class="aw-panel aw-analyzer-form">
+            @if (!hasResumes)
+            {
+                <div class="aw-inline-notice"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-file" /></svg></span><div><strong>Your resume library is empty</strong><p>Upload one version to unlock guided matching.</p></div><a class="btn btn-sm btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></div>
+            }
+
+            @if (isPastedMode)
+            {
+                <div class="aw-section-heading"><div><span class="aw-kicker">Direct comparison</span><h3>Paste job requirements</h3><p>Skills, tools, experience, and qualifications work best.</p></div><span class="aw-count-badge">1 resume</span></div>
+                <form asp-action="AnalyzePastedRequirements" method="post" class="aw-guided-form">
+                    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                    <label class="aw-field"><span class="aw-field-label"><b>1</b><span><strong>Resume to test</strong><small>Pick the version closest to this role.</small></span></span><select asp-for="Pasted.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select><span asp-validation-for="Pasted.ResumeId" class="field-validation-error"></span></label>
+                    <label class="aw-field"><span class="aw-field-label"><b>2</b><span><strong>Job requirements</strong><small>Paste the original description for a useful comparison.</small></span></span><textarea asp-for="Pasted.JobRequirements" class="form-control requirements-textarea" rows="11" placeholder="Paste responsibilities, required skills, tools, experience, and qualifications..."></textarea><span class="aw-textarea-meta"><small>Minimum 30 characters</small><small>Specific skills improve accuracy</small></span><span asp-validation-for="Pasted.JobRequirements" class="field-validation-error"></span></label>
+                    <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes)"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze Resume <span>→</span></button>
+                </form>
+            }
+            else
+            {
+                <div class="aw-section-heading"><div><span class="aw-kicker">Saved role</span><h3>Choose an application</h3><p>Use the description already stored in your workspace.</p></div></div>
+                @if (Model.AvailableJobApplications.Count == 0)
+                {
+                    <div class="aw-inline-notice"><div><strong>No applications with descriptions yet</strong><p>Add a role first, then return here to compare.</p></div><a class="btn btn-sm btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a></div>
+                }
+                <form asp-action="AnalyzeSavedApplication" method="post" class="aw-guided-form">
+                    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                    <label class="aw-field"><span class="aw-field-label"><b>1</b><span><strong>Resume to test</strong><small>Choose one version from your library.</small></span></span><select asp-for="Saved.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select><span asp-validation-for="Saved.ResumeId" class="field-validation-error"></span></label>
+                    <label class="aw-field"><span class="aw-field-label"><b>2</b><span><strong>Saved application</strong><small>We will use its stored job description.</small></span></span><select asp-for="Saved.JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select" disabled="@(Model.AvailableJobApplications.Count == 0)"><option value="">Select an application</option></select><span asp-validation-for="Saved.JobApplicationId" class="field-validation-error"></span></label>
+                    <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes || Model.AvailableJobApplications.Count == 0)"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze Resume <span>→</span></button>
+                </form>
+            }
+        </section>
+
+        <aside class="aw-panel aw-helper-panel">
+            <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Wiso's checklist</span><h3>Three things make a better match</h3></div></div>
+            <div class="aw-tip-list"><div><b>1</b><span><strong>Paste the real description</strong><small>Keep its skills and requirements intact.</small></span></div><div><b>2</b><span><strong>Choose one resume</strong><small>Test the version you would actually send.</small></span></div><div><b>3</b><span><strong>Review the gaps</strong><small>Only add experience you genuinely have.</small></span></div></div>
+            <div class="aw-privacy-note"><span>✓</span><p><strong>Private and explainable</strong><small>Your resume and requirements stay inside ApplyWise.</small></p></div>
+        </aside>
+    </div>
+
+    @if (Model.LatestResult is not null) { <partial name="_AnalysisResult" model="Model.LatestResult" /> }
+</div>
 
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,45 +1,98 @@
 @model ApplyWise.Web.ViewModels.Dashboard.DashboardViewModel
 @{ ViewData["Title"] = "Dashboard"; }
-<section class="dashboard-welcome">
-    <div><p class="eyebrow">@Model.CurrentTime.ToString("dddd, MMMM d")</p><h2>Let’s make your next move count.</h2><p>Wiso has gathered what needs attention, so you can focus on the next best action.</p><div class="welcome-quick-actions"><a class="btn btn-primary" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze a resume</a><a class="btn btn-soft" asp-controller="JobApplications" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add application</a></div></div>
-    <img src="~/images/wiso.png" alt="Wiso, your ApplyWise assistant" />
-</section>
 
-<section class="metric-grid">
-    <article class="metric-card metric-blue"><span class="metric-icon"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span><span>Total Applications</span><strong>@Model.TotalApplications</strong><small><a asp-controller="JobApplications" asp-action="Index">View tracker</a></small></article>
-    <article class="metric-card metric-purple"><span class="metric-icon"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span>Interviews</span><strong>@Model.TotalInterviewCount</strong><small>@Model.UpcomingInterviewCount upcoming</small></article>
-    <article class="metric-card metric-green"><span class="metric-icon"><svg class="ui-icon"><use href="#i-spark" /></svg></span><span>Average Match Score</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><div class="mini-progress"><i style="width:@Math.Clamp(Model.AverageMatchScore, 0, 100)%"></i></div><small><a asp-controller="Analytics" asp-action="ResumePerformance">Resume performance</a></small></article>
-    <article class="metric-card metric-amber"><span class="metric-icon"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span>Pending Follow-ups</span><strong>@Model.PendingReminderCount</strong><small class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount overdue</small></article>
-</section>
-
-<div class="action-dashboard-grid">
-    <section class="panel today-actions-panel"><div class="panel-header"><div><h3>Today's Actions</h3><p>Everything due before the day ends</p></div><span class="today-count">@Model.TodayActionCount</span></div>
-        @if (Model.TodayActions.Count == 0) { <div class="compact-empty wiso-compact"><img src="~/images/wiso.png" alt="" /><span><strong>You’re clear for today</strong><small>Your upcoming work will appear here.</small></span></div> }
-        else { <div class="action-item-list">@foreach (var item in Model.TodayActions) { <a class="action-item" asp-controller="@item.Controller" asp-action="@item.Action" asp-route-id="@item.Id"><span class="action-kind">@item.Kind</span><span><strong>@item.Title</strong><small>@item.Context</small></span><time>@item.SortAt.ToLocalTime().ToString("h:mm tt")</time></a> }</div> }
+<div class="aw-page aw-fade-in">
+    <section class="aw-cockpit-hero aw-slide-up">
+        <div class="aw-cockpit-copy">
+            <span class="aw-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>@Model.CurrentTime.ToString("dddd, MMMM d")</span>
+            <h2>Ready to make your next application stronger?</h2>
+            <p>Wiso has your career workspace ready. Pick one focused action and keep the momentum going.</p>
+            <div class="aw-hero-actions">
+                <a class="btn btn-primary" asp-controller="Resumes" asp-action="Create"><svg class="ui-icon"><use href="#i-file" /></svg>Upload Resume</a>
+                <a class="btn btn-secondary-soft" asp-controller="JobApplications" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a>
+                <a class="btn btn-secondary-soft" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze Resume</a>
+            </div>
+        </div>
+        <div class="aw-hero-guide"><span class="aw-guide-bubble"><b>@Model.TodayActionCount</b><small>action@(Model.TodayActionCount == 1 ? "" : "s") today</small></span><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your ApplyWise career assistant" /></div>
     </section>
 
-    <section class="panel"><div class="panel-header"><div><h3>Upcoming Interviews</h3><p>Your next scheduled conversations</p></div><a asp-controller="Interviews" asp-action="Index">View all</a></div>
-        @if (Model.UpcomingInterviews.Count == 0) { <div class="compact-empty"><strong>No interviews scheduled</strong><a asp-controller="Interviews" asp-action="Create">Add an interview</a></div> }
-        else { <div class="dashboard-schedule-list">@foreach (var interview in Model.UpcomingInterviews) { <a asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><span class="date-tile"><strong>@interview.ScheduledAt.ToLocalTime().Day</strong><small>@interview.ScheduledAt.ToLocalTime().ToString("MMM").ToUpperInvariant()</small></span><span><strong>@interview.InterviewType.GetDisplayName()</strong><small>@interview.JobTitle at @interview.CompanyName · @interview.ScheduledAt.ToLocalTime().ToString("h:mm tt")</small></span></a> }</div> }
+    <section class="aw-stat-grid" aria-label="Career workspace summary">
+        <a class="aw-stat-card aw-card aw-accent-blue aw-slide-up" asp-controller="JobApplications" asp-action="Index"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span><span>Applications tracked</span><strong>@Model.TotalApplications</strong><small>Open your workspace <b>→</b></small></a>
+        <a class="aw-stat-card aw-card aw-accent-green aw-slide-up" asp-controller="Analytics" asp-action="ResumePerformance"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-spark" /></svg></span><span>Resume match average</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><div class="aw-progress"><i style="--aw-progress:@Math.Clamp(Model.AverageMatchScore, 0, 100)%"></i></div></a>
+        <a class="aw-stat-card aw-card aw-accent-purple aw-slide-up" asp-controller="Interviews" asp-action="Index"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span>Interviews scheduled</span><strong>@Model.UpcomingInterviewCount</strong><small>@Model.TotalInterviewCount total</small></a>
+        <a class="aw-stat-card aw-card aw-accent-amber aw-slide-up" asp-controller="Reminders" asp-action="Index"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span>Follow-ups pending</span><strong>@Model.PendingReminderCount</strong><small class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount overdue</small></a>
     </section>
 
-    <section class="panel"><div class="panel-header"><div><h3>Pending Reminders</h3><p>Your next follow-ups and tasks</p></div><a asp-controller="Reminders" asp-action="Index">View all</a></div>
-        @if (Model.PendingReminders.Count == 0) { <div class="compact-empty"><strong>No pending reminders</strong><a asp-controller="Reminders" asp-action="Create">Add a reminder</a></div> }
-        else { <div class="dashboard-task-list">@foreach (var reminder in Model.PendingReminders) { <a asp-controller="Reminders" asp-action="Index"><span class="task-status-dot @(reminder.IsOverdue ? "overdue" : null)"></span><span><strong>@reminder.Title</strong><small>@(reminder.CompanyName ?? "Standalone") · @reminder.DueAt.ToLocalTime().ToString("MMM d, h:mm tt")</small></span></a> }</div> }
+    <section class="aw-panel aw-progress-strip aw-slide-up">
+        <div class="aw-section-heading"><div><span class="aw-kicker">Career progress</span><h3>Your application pipeline</h3></div><a asp-controller="Analytics" asp-action="Index">View insights</a></div>
+        <div class="aw-pipeline">
+            @PipelineStep("Saved", Model.Funnel.Saved, "blue")
+            @PipelineStep("Applied", Model.Funnel.Applied, "teal")
+            @PipelineStep("Interview", Model.Funnel.Interview, "purple")
+            @PipelineStep("Offer", Model.Funnel.Offer, "green")
+        </div>
     </section>
 
-    <section class="panel"><div class="panel-header"><div><h3>Application Deadlines</h3><p>Upcoming closing dates</p></div><a asp-controller="JobApplications" asp-action="Index" asp-route-sortBy="deadline">View applications</a></div>
-        @if (Model.UpcomingDeadlines.Count == 0) { <div class="compact-empty"><strong>No upcoming deadlines</strong><span>Deadlines saved on applications appear here.</span></div> }
-        else { <div class="dashboard-deadline-list">@foreach (var deadline in Model.UpcomingDeadlines) { <a asp-controller="JobApplications" asp-action="Details" asp-route-id="@deadline.Id"><span><strong>@deadline.JobTitle</strong><small>@deadline.CompanyName</small></span><time>@deadline.Deadline.ToString("MMM d")</time></a> }</div> }
-    </section>
-</div>
+    <div class="aw-workspace-grid">
+        <section class="aw-panel aw-resume-health aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Resume health</span><h3>@(Model.BestResumeVersionName ?? "Build your first benchmark")</h3></div><span class="aw-score-pill">@Model.BestResumeScore.ToString("0.#")%</span></div>
+            <p>@(Model.BestResumeVersionName is null ? "Analyze a resume against a role to unlock personalized feedback." : "Your best-performing version is ready for another focused improvement.")</p>
+            <div class="aw-progress aw-progress-large"><i style="--aw-progress:@Math.Clamp(Model.BestResumeScore, 0, 100)%"></i></div>
+            <div class="aw-health-scale"><span>Needs work</span><span>Role ready</span></div>
+            <a class="btn btn-primary" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Improve Resume</a>
+        </section>
 
-<div class="dashboard-insights-grid">
-    <section class="panel"><div class="panel-header"><div><h3>Top Skill Gaps</h3><p>Recurring missing requirements</p></div><a asp-controller="Analytics" asp-action="SkillGaps">View trends</a></div>@if (Model.TopSkillGaps.Count == 0) { <div class="compact-empty"><strong>No analysis trends yet</strong><a asp-controller="ResumeAnalyzer" asp-action="Index">Analyze a resume</a></div> } else { <div class="insight-list">@foreach (var skill in Model.TopSkillGaps) { <div><span><strong>@skill.SkillName</strong><small>@skill.RelatedJobCount related jobs</small></span><span class="priority @(skill.Priority == "High" ? "priority-high" : skill.Priority == "Medium" ? "priority-medium" : "priority-low")">@skill.Priority</span><b>@skill.MissingCount×</b></div> }</div> }</section>
-    <section class="panel"><div class="panel-header"><div><h3>Recent Applications</h3><p>Latest tracker activity</p></div><a asp-controller="JobApplications" asp-action="Index">View all</a></div>@if (Model.RecentApplications.Count == 0) { <div class="compact-empty"><strong>No applications yet</strong></div> } else { <div class="recent-insight-list">@foreach (var application in Model.RecentApplications) { <a asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id"><span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span><span class="badge @StatusClass(application.Status)">@application.Status.GetDisplayName()</span></a> }</div> }</section>
-    <section class="panel"><div class="panel-header"><div><h3>Recent Analysis Scores</h3><p>Latest resume comparisons</p></div><a asp-controller="ResumeAnalyzer" asp-action="History">View history</a></div>@if (Model.RecentAnalyses.Count == 0) { <div class="compact-empty"><strong>No analyses yet</strong></div> } else { <div class="recent-insight-list">@foreach (var analysis in Model.RecentAnalyses) { <a asp-controller="ResumeAnalyzer" asp-action="Details" asp-route-id="@analysis.Id"><span><strong>@analysis.JobTitle</strong><small>@analysis.ResumeVersionName · @analysis.CompanyName</small></span><b>@analysis.MatchScore%</b></a> }</div> }</section>
+        <section class="aw-panel aw-skill-card aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Focus next</span><h3>Skill gap preview</h3></div><a asp-controller="Analytics" asp-action="SkillGaps">View all</a></div>
+            @if (Model.TopSkillGaps.Count == 0)
+            {
+                <div class="aw-compact-state"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-chart" /></svg></span><div><strong>No trends yet</strong><p>Run a few analyses and Wiso will spot recurring gaps.</p></div></div>
+            }
+            else
+            {
+                <div class="aw-skill-cloud">@foreach (var skill in Model.TopSkillGaps) { <span class="aw-chip aw-chip-purple">@skill.SkillName <b>@skill.MissingCount</b></span> }</div>
+                <div class="aw-priority-list">@foreach (var skill in Model.TopSkillGaps.Take(3)) { <div><span>@skill.SkillName</span><span class="aw-status @PriorityClass(skill.Priority)">@skill.Priority</span></div> }</div>
+            }
+        </section>
+    </div>
+
+    <div class="aw-workspace-grid aw-workspace-grid-wide">
+        <section class="aw-panel aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Latest activity</span><h3>Recent applications</h3></div><a asp-controller="JobApplications" asp-action="Index">View all</a></div>
+            @if (Model.RecentApplications.Count == 0)
+            {
+                <div class="aw-compact-state"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><strong>No applications yet</strong><p>Save your first role and start building momentum.</p></div><a class="btn btn-sm btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a></div>
+            }
+            else
+            {
+                <div class="aw-application-list">@foreach (var application in Model.RecentApplications) { <a asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id"><span class="aw-company-avatar">@Initial(application.CompanyName)</span><span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span><span class="aw-status @StatusClass(application.Status)">@application.Status.GetDisplayName()</span><span class="aw-row-arrow">→</span></a> }</div>
+            }
+        </section>
+
+        <section class="aw-panel aw-slide-up">
+            <div class="aw-section-heading"><div><span class="aw-kicker">Up next</span><h3>Upcoming actions</h3></div><span class="aw-count-badge">@Model.TodayActionCount today</span></div>
+            @if (Model.TodayActions.Count == 0 && Model.UpcomingInterviews.Count == 0 && Model.PendingReminders.Count == 0)
+            {
+                <div class="aw-compact-state"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><strong>You are all caught up</strong><p>Your next interview, reminder, or deadline will appear here.</p></div></div>
+            }
+            else
+            {
+                <div class="aw-action-stack">
+                    @foreach (var item in Model.TodayActions.Take(3)) { <a class="aw-action-card is-today" asp-controller="@item.Controller" asp-action="@item.Action" asp-route-id="@item.Id"><span class="aw-action-mark"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span><b>@item.Title</b><small>@item.Context</small></span><time>Today, @item.SortAt.ToLocalTime().ToString("h:mm tt")</time></a> }
+                    @foreach (var interview in Model.UpcomingInterviews.Take(Math.Max(0, 3 - Model.TodayActions.Count))) { <a class="aw-action-card" asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><span class="aw-action-mark purple"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span><b>@interview.InterviewType.GetDisplayName()</b><small>@interview.JobTitle at @interview.CompanyName</small></span><time>@interview.ScheduledAt.ToLocalTime().ToString("MMM d")</time></a> }
+                </div>
+            }
+        </section>
+    </div>
 </div>
 
 @functions {
-    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved", ApplicationStatus.Applied => "status-applied", ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer", ApplicationStatus.Interview => "status-shortlisted", ApplicationStatus.TechnicalTest => "status-interview", ApplicationStatus.Rejected => "status-rejected", _ => "status-saved" };
+    private Microsoft.AspNetCore.Html.IHtmlContent PipelineStep(string label, int count, string color)
+    {
+        var percent = Model.Funnel.Saved == 0 ? 0 : Math.Round(count * 100d / Model.Funnel.Saved);
+        return Html.Raw($"<div class=\"aw-pipeline-step {color}\"><span class=\"aw-pipeline-dot\"></span><div><b>{count}</b><small>{label}</small></div><div class=\"aw-progress\"><i style=\"--aw-progress:{percent}%\"></i></div></div>");
+    }
+    private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
+    private static string PriorityClass(string priority) => priority == "High" ? "aw-status-danger" : priority == "Medium" ? "aw-status-warning" : "aw-status-info";
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "aw-status-neutral", ApplicationStatus.Applied => "aw-status-info", ApplicationStatus.Shortlisted or ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.TechnicalTest => "aw-status-warning", ApplicationStatus.Offer => "aw-status-success", ApplicationStatus.Rejected => "aw-status-danger", _ => "aw-status-neutral" };
 }

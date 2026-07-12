@@ -25,6 +25,9 @@ public class DashboardController(
         var todayStart = new DateTimeOffset(localNow.Date, localNow.Offset).ToUniversalTime();
         var tomorrowStart = todayStart.AddDays(1);
         var analytics = await analyticsService.GetOverviewAsync(userId, HttpContext.RequestAborted);
+        var resumePerformance = await analyticsService.GetResumePerformanceAsync(userId, HttpContext.RequestAborted);
+        var bestResume = resumePerformance.FirstOrDefault(resume => resume.IsBestPerforming)
+            ?? resumePerformance.OrderByDescending(resume => resume.AverageMatchScore).FirstOrDefault();
 
         var model = new DashboardViewModel
         {
@@ -39,6 +42,9 @@ public class DashboardController(
                 reminder.UserId == userId && !reminder.IsCompleted),
             OverdueReminderCount = await dbContext.Reminders.CountAsync(reminder =>
                 reminder.UserId == userId && !reminder.IsCompleted && reminder.DueAt < now),
+            Funnel = analytics.Funnel,
+            BestResumeVersionName = bestResume?.VersionName,
+            BestResumeScore = bestResume?.AverageMatchScore ?? 0,
             RecentApplications = analytics.RecentApplications,
             RecentAnalyses = analytics.RecentAnalyses
         };
