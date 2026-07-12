@@ -1,0 +1,9 @@
+@model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
+@{ ViewData["Title"] = "Analysis Details"; }
+
+<div class="page-heading">
+    <div><a class="back-link" asp-action="History">Back to analysis history</a><h2>Analysis Details</h2><p>Saved keyword comparison for @Model.JobTitle at @Model.CompanyName.</p></div>
+    <a class="btn btn-primary" asp-action="Index" asp-route-resumeId="@Model.ResumeId" asp-route-jobApplicationId="@Model.JobApplicationId">Run Again</a>
+</div>
+
+<partial name="_AnalysisResult" model="Model" />

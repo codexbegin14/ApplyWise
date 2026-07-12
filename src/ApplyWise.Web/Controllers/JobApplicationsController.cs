@@ -193,8 +193,13 @@ public class JobApplicationsController(
             return NotFound();
         }
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await dbContext.ResumeAnalyses
+            .Where(analysis => analysis.UserId == application.UserId && analysis.JobApplicationId == application.Id)
+            .ExecuteDeleteAsync();
         dbContext.JobApplications.Remove(application);
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
         TempData["SuccessMessage"] = $"{application.JobTitle} at {application.CompanyName} was deleted.";
         return RedirectToAction(nameof(Index));
     }

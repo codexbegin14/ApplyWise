@@ -1,0 +1,44 @@
+@model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
+
+<section class="analysis-result" aria-labelledby="analysis-result-title">
+    <div class="panel analysis-summary">
+        <div>
+            <span class="method-label">Analysis result</span>
+            <h3 id="analysis-result-title">@Model.JobTitle at @Model.CompanyName</h3>
+            <p>Compared with <strong>@Model.ResumeVersionName</strong> · @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</p>
+        </div>
+        <div class="analysis-score @ScoreClass(Model.MatchScore)" aria-label="Match score @Model.MatchScore percent"><strong>@Model.MatchScore</strong><span>% match</span></div>
+    </div>
+
+    @if (Model.DetectedSkillCount == 0)
+    {
+        <div class="analysis-data-warning"><strong>Not enough skill data detected.</strong><span>Add specific technologies and requirements to the job description, then run the analysis again.</span></div>
+    }
+
+    <div class="analysis-grid">
+        <section class="panel keyword-card"><div class="analysis-card-heading"><div><h3>Matched skills</h3><p>Required skills also found in this resume.</p></div><span class="keyword-count matched-count">@Model.MatchedKeywords.Count</span></div>
+            @if (Model.MatchedKeywords.Count == 0) { <p class="analysis-empty-copy">No detected job skills were found in the resume.</p> }
+            else { <div class="keyword-list">@foreach (var keyword in Model.MatchedKeywords) { <span class="keyword matched-keyword">@keyword</span> }</div> }
+        </section>
+        <section class="panel keyword-card"><div class="analysis-card-heading"><div><h3>Missing skills</h3><p>Detected requirements not found in this resume.</p></div><span class="keyword-count missing-count">@Model.MissingKeywords.Count</span></div>
+            @if (Model.MissingKeywords.Count == 0) { <p class="analysis-empty-copy">No missing skills were detected.</p> }
+            else { <div class="keyword-list">@foreach (var keyword in Model.MissingKeywords) { <span class="keyword missing-keyword">@keyword</span> }</div> }
+        </section>
+    </div>
+
+    <section class="panel suggestion-card">
+        <div class="analysis-card-heading"><div><h3>Improvement suggestions</h3><p>Use only the recommendations that honestly reflect your experience.</p></div></div>
+        <ol class="suggestion-list">@foreach (var suggestion in Model.Suggestions) { <li>@suggestion</li> }</ol>
+        <div class="analysis-result-actions"><a asp-action="Details" asp-route-id="@Model.Id">View saved analysis</a><a asp-action="History">View history</a></div>
+    </section>
+</section>
+
+@functions {
+    private static string ScoreClass(int score) => score switch
+    {
+        >= 80 => "score-strong",
+        >= 60 => "score-good",
+        >= 40 => "score-fair",
+        _ => "score-low"
+    };
+}

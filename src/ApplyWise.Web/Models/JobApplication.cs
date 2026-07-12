@@ -24,4 +24,5 @@ public class JobApplication
 
     public IdentityUser? User { get; set; }
     public Resume? Resume { get; set; }
+    public ICollection<ResumeAnalysis> Analyses { get; set; } = [];
 }

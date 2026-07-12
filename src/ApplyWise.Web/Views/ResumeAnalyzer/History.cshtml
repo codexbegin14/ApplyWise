@@ -1,0 +1,25 @@
+@model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisHistoryViewModel
+@{ ViewData["Title"] = "Analysis History"; }
+
+<div class="page-heading"><div><h2>Analysis History</h2><p>Review past resume-to-job comparisons and see how your targeting changes.</p></div><a class="btn btn-primary" asp-action="Index">New Analysis</a></div>
+
+@if (Model.Analyses.Count == 0)
+{
+    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">%</span><h3>No analyses saved yet</h3><p>Compare a resume with a tracked job to create your first match result.</p><a class="btn btn-primary" asp-action="Index">Analyze Resume</a></section>
+}
+else
+{
+    <section class="panel analysis-history-panel">
+        <div class="resume-list-header"><span>@Model.Analyses.Count saved result@(Model.Analyses.Count == 1 ? string.Empty : "s")</span><span>Private to your account</span></div>
+        <div class="table-responsive"><table class="table app-table analysis-history-table"><thead><tr><th>Date</th><th>Resume version</th><th>Job application</th><th>Match score</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+        @foreach (var analysis in Model.Analyses)
+        {
+            <tr><td>@analysis.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</td><td><strong>@analysis.ResumeVersionName</strong></td><td><div class="application-role"><strong>@analysis.JobTitle</strong><span>@analysis.CompanyName</span></div></td><td><span class="history-score @ScoreClass(analysis.MatchScore)">@analysis.MatchScore%</span></td><td class="text-end"><a asp-action="Details" asp-route-id="@analysis.Id">View</a></td></tr>
+        }
+        </tbody></table></div>
+    </section>
+}
+
+@functions {
+    private static string ScoreClass(int score) => score switch { >= 80 => "score-strong", >= 60 => "score-good", >= 40 => "score-fair", _ => "score-low" };
+}

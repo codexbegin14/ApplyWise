@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ApplyWise.Web.Data;
+using ApplyWise.Web.Services.ResumeAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
+builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 
 var app = builder.Build();
 

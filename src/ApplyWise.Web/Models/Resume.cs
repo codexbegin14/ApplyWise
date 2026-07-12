@@ -19,4 +19,5 @@ public class Resume
     public string? ExtractedText { get; set; }
     public IdentityUser? User { get; set; }
     public ICollection<JobApplication> JobApplications { get; set; } = [];
+    public ICollection<ResumeAnalysis> Analyses { get; set; } = [];
 }

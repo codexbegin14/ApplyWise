@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<Resume> Resumes => Set<Resume>();
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+    public DbSet<ResumeAnalysis> ResumeAnalyses => Set<ResumeAnalysis>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -55,6 +56,34 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasOne(application => application.Resume)
                 .WithMany(resume => resume.JobApplications)
                 .HasForeignKey(application => application.ResumeId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ResumeAnalysis>(entity =>
+        {
+            entity.Property(analysis => analysis.MatchedKeywordsJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.MissingKeywordsJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.SuggestionsJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.ResumeTextSnapshot).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.JobDescriptionSnapshot).HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(analysis => new { analysis.UserId, analysis.CreatedAt });
+            entity.HasIndex(analysis => new { analysis.UserId, analysis.ResumeId });
+            entity.HasIndex(analysis => new { analysis.UserId, analysis.JobApplicationId });
+
+            entity.HasOne(analysis => analysis.User)
+                .WithMany()
+                .HasForeignKey(analysis => analysis.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(analysis => analysis.Resume)
+                .WithMany(resume => resume.Analyses)
+                .HasForeignKey(analysis => analysis.ResumeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(analysis => analysis.JobApplication)
+                .WithMany(application => application.Analyses)
+                .HasForeignKey(analysis => analysis.JobApplicationId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }

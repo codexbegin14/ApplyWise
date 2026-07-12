@@ -1,5 +1,6 @@
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.ViewModels.Resumes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -13,7 +14,8 @@ namespace ApplyWise.Web.Controllers;
 public class ResumesController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
-    IWebHostEnvironment environment) : Controller
+    IWebHostEnvironment environment,
+    IResumeTextExtractorService textExtractor) : Controller
 {
     private const long MaxFileSize = 5 * 1024 * 1024;
     private static readonly byte[] PdfSignature = "%PDF-"u8.ToArray();
@@ -56,9 +58,19 @@ public class ResumesController(
         var absolutePath = ResolvePrivatePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
 
-        await using (var output = System.IO.File.Create(absolutePath))
+        string? extractedText;
+        try
         {
-            await model.ResumeFile.CopyToAsync(output);
+            await using (var output = System.IO.File.Create(absolutePath))
+            {
+                await model.ResumeFile.CopyToAsync(output);
+            }
+            extractedText = await textExtractor.ExtractTextAsync(absolutePath, HttpContext.RequestAborted);
+        }
+        catch
+        {
+            System.IO.File.Delete(absolutePath);
+            throw;
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -74,7 +86,8 @@ public class ResumesController(
             Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim(),
             IsDefault = model.IsDefault,
             UploadedAt = now,
-            UpdatedAt = now
+            UpdatedAt = now,
+            ExtractedText = extractedText
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
@@ -177,6 +190,9 @@ public class ResumesController(
 
         var now = DateTimeOffset.UtcNow;
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await dbContext.ResumeAnalyses
+            .Where(analysis => analysis.UserId == resume.UserId && analysis.ResumeId == resume.Id)
+            .ExecuteDeleteAsync();
         await dbContext.JobApplications
             .Where(application => application.UserId == resume.UserId && application.ResumeId == resume.Id)
             .ExecuteUpdateAsync(setters => setters

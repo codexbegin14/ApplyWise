@@ -42,6 +42,7 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Level 3: ApplyWise dashboard and responsive navigation
 - Level 4: Private PDF resume upload and resume version management
 - Level 5: Job application tracking
+- Level 6: Local resume-to-job analysis and saved match history
 
 ## Level 5 Features
 
@@ -51,3 +52,11 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Search by company or role and filter by status or source
 - Sort applications by newest, oldest, deadline, or status
 - Keep application details, job links, deadlines, descriptions, and private notes together
+
+## Level 6 Features
+
+- Extract readable text from uploaded PDF resumes with PdfPig
+- Compare resume skills with the requirements detected in a saved job description
+- Calculate a transparent keyword coverage score without paid AI APIs
+- Show matched skills, missing skills, and honest improvement suggestions
+- Save private analysis history and re-run comparisons after updating source data

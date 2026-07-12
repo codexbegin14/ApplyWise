@@ -1,0 +1,48 @@
+@model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalyzerIndexViewModel
+@{
+    ViewData["Title"] = "Resume Analyzer";
+    var canAnalyze = Model.AvailableResumes.Count > 0 && Model.AvailableJobApplications.Count > 0;
+}
+
+<div class="page-heading">
+    <div><h2>Resume Analyzer</h2><p>Compare a resume version with a job description and find missing skills.</p></div>
+    <a class="btn btn-outline-secondary" asp-action="History">Analysis History</a>
+</div>
+
+<div class="analyzer-layout">
+    <section class="panel analyzer-form-card">
+        <div class="panel-header"><div><h3>Choose what to compare</h3><p>Analysis uses the saved resume text and job description.</p></div></div>
+
+        @if (Model.AvailableResumes.Count == 0)
+        {
+            <div class="analyzer-notice"><strong>Upload a resume before running analysis.</strong><a asp-controller="Resumes" asp-action="Create">Upload Resume</a></div>
+        }
+        @if (Model.AvailableJobApplications.Count == 0)
+        {
+            <div class="analyzer-notice"><strong>Add a job application with a job description before running analysis.</strong><a asp-controller="JobApplications" asp-action="Create">Add Application</a></div>
+        }
+
+        <form asp-action="Analyze" method="post">
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <div class="analyzer-fields">
+                <div><label asp-for="ResumeId" class="form-label"></label><select asp-for="ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(Model.AvailableResumes.Count == 0)"><option value="">Select a resume</option></select><span asp-validation-for="ResumeId" class="field-validation-error"></span></div>
+                <div><label asp-for="JobApplicationId" class="form-label"></label><select asp-for="JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select" disabled="@(Model.AvailableJobApplications.Count == 0)"><option value="">Select an application</option></select><span asp-validation-for="JobApplicationId" class="field-validation-error"></span></div>
+            </div>
+            <button class="btn btn-primary" type="submit" disabled="@(!canAnalyze)">Analyze Resume</button>
+        </form>
+    </section>
+
+    <aside class="panel analyzer-method-card">
+        <span class="method-label">Local analysis</span>
+        <h3>Clear, explainable matching</h3>
+        <p>ApplyWise detects known skills in the job description, checks which appear in your resume, and calculates a direct coverage score.</p>
+        <small>No paid API and no generated experience claims.</small>
+    </aside>
+</div>
+
+@if (Model.LatestResult is not null)
+{
+    <partial name="_AnalysisResult" model="Model.LatestResult" />
+}
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
