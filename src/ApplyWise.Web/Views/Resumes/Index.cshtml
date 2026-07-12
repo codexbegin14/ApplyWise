@@ -1,0 +1,79 @@
+@model IReadOnlyList<ApplyWise.Web.ViewModels.Resumes.ResumeListItemViewModel>
+@{
+    ViewData["Title"] = "Resumes";
+}
+
+<div class="page-heading">
+    <div>
+        <h2>Resumes</h2>
+        <p>Manage resume versions and track which file you use for each application.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">Upload Resume</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert app-alert" role="status">@successMessage</div>
+}
+
+@if (Model.Count == 0)
+{
+    <section class="panel empty-state">
+        <span class="empty-icon" aria-hidden="true">R</span>
+        <h3>No resumes uploaded yet</h3>
+        <p>Upload your first resume version so ApplyWise can help you track and compare it later.</p>
+        <a class="btn btn-primary" asp-action="Create">Upload Resume</a>
+    </section>
+}
+else
+{
+    <section class="panel resume-list-panel">
+        <div class="resume-list-header">
+            <span>@Model.Count resume@(Model.Count == 1 ? string.Empty : "s")</span>
+            <span>Private to your account</span>
+        </div>
+        <div class="resume-list">
+        @foreach (var resume in Model)
+        {
+            <article class="resume-row">
+                <div class="pdf-tile" aria-hidden="true">PDF</div>
+                <div class="resume-main">
+                    <div class="resume-title-line">
+                        <h3>@resume.VersionName</h3>
+                        @if (resume.IsDefault)
+                        {
+                            <span class="badge status-applied">Default</span>
+                        }
+                    </div>
+                    <p class="resume-file-name" title="@resume.OriginalFileName">@resume.OriginalFileName</p>
+                    @if (!string.IsNullOrWhiteSpace(resume.Notes))
+                    {
+                        <p class="resume-notes">@resume.Notes</p>
+                    }
+                </div>
+                <div class="resume-meta">
+                    <span>@FormatFileSize(resume.FileSize)</span>
+                    <span>Uploaded @resume.UploadedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                </div>
+                <div class="resume-actions">
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@resume.Id">View</a>
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Download" asp-route-id="@resume.Id">Download</a>
+                    @if (!resume.IsDefault)
+                    {
+                        <form asp-action="SetDefault" asp-route-id="@resume.Id" method="post">
+                            <button class="btn btn-sm btn-link" type="submit">Set Default</button>
+                        </form>
+                    }
+                    <a class="btn btn-sm btn-link text-danger" asp-action="Delete" asp-route-id="@resume.Id">Delete</a>
+                </div>
+            </article>
+        }
+        </div>
+    </section>
+}
+
+@functions {
+    private static string FormatFileSize(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / 1024d / 1024d:0.##} MB"
+        : $"{Math.Max(1, bytes / 1024d):0.#} KB";
+}

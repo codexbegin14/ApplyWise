@@ -14,3 +14,4 @@ appsettings.Development.json
 TestResults/
 coverage/
 app.db
+**/App_Data/Uploads/

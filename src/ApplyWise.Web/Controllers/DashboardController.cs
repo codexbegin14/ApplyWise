@@ -8,7 +8,6 @@ public class DashboardController : Controller
 {
     public IActionResult Index() => View();
     [Route("applications")] public IActionResult Applications() => Section("Applications", "Track every opportunity from saved to offer.", "Add Application");
-    [Route("resumes")] public IActionResult Resumes() => Section("Resumes", "Keep your resume versions organized for every role.", "Add Resume");
     [Route("resume-analyzer")] public IActionResult ResumeAnalyzer() => Section("Resume Analyzer", "Compare a resume with a job description and uncover improvements.", "New Analysis");
     [Route("skill-gaps")] public IActionResult SkillGaps() => Section("Skill Gaps", "See recurring skills across the roles you are targeting.");
     [Route("interviews")] public IActionResult Interviews() => Section("Interviews", "Keep upcoming interviews and preparation notes in one place.", "Schedule Interview");

@@ -1,0 +1,43 @@
+@model ApplyWise.Web.ViewModels.Resumes.ResumeDetailsViewModel
+@{
+    ViewData["Title"] = "Resume Details";
+}
+
+<div class="page-heading">
+    <div>
+        <a class="back-link" asp-action="Index">Back to resumes</a>
+        <h2>@Model.VersionName</h2>
+        <p>@Model.OriginalFileName</p>
+    </div>
+    <div class="form-actions">
+        <a class="btn btn-primary" asp-action="Download" asp-route-id="@Model.Id">Download PDF</a>
+        <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a>
+    </div>
+</div>
+
+<section class="panel details-panel">
+    <div class="details-heading">
+        <span class="pdf-tile" aria-hidden="true">PDF</span>
+        <div><h3>@Model.VersionName</h3><p>Resume version</p></div>
+        @if (Model.IsDefault) { <span class="badge status-applied">Default</span> }
+    </div>
+    <dl class="details-grid">
+        <div><dt>File name</dt><dd>@Model.OriginalFileName</dd></div>
+        <div><dt>File size</dt><dd>@FormatFileSize(Model.FileSize)</dd></div>
+        <div><dt>Uploaded</dt><dd>@Model.UploadedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</dd></div>
+        <div><dt>Last updated</dt><dd>@Model.UpdatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</dd></div>
+    </dl>
+    <div class="notes-section"><h3>Notes</h3><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes added for this resume." : Model.Notes)</p></div>
+    @if (!Model.IsDefault)
+    {
+        <form asp-action="SetDefault" asp-route-id="@Model.Id" method="post">
+            <button class="btn btn-outline-secondary" type="submit">Set as Default</button>
+        </form>
+    }
+</section>
+
+@functions {
+    private static string FormatFileSize(long bytes) => bytes >= 1024 * 1024
+        ? $"{bytes / 1024d / 1024d:0.##} MB"
+        : $"{Math.Max(1, bytes / 1024d):0.#} KB";
+}

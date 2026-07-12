@@ -1,0 +1,51 @@
+@model ApplyWise.Web.ViewModels.Resumes.ResumeUploadViewModel
+@{
+    ViewData["Title"] = "Upload Resume";
+}
+
+<div class="page-heading">
+    <div>
+        <h2>Upload Resume</h2>
+        <p>Add a clearly labeled PDF version to your resume library.</p>
+    </div>
+</div>
+
+<section class="panel form-panel">
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+
+        <div class="mb-4">
+            <label asp-for="VersionName" class="form-label"></label>
+            <input asp-for="VersionName" class="form-control" placeholder="e.g. DotNet Resume" autocomplete="off" />
+            <span asp-validation-for="VersionName" class="field-validation-error"></span>
+        </div>
+
+        <div class="mb-4">
+            <label asp-for="Notes" class="form-label"></label>
+            <textarea asp-for="Notes" class="form-control" rows="4" placeholder="Optional context for this version"></textarea>
+            <div class="form-hint">Up to 1,000 characters.</div>
+            <span asp-validation-for="Notes" class="field-validation-error"></span>
+        </div>
+
+        <div class="mb-4">
+            <label asp-for="ResumeFile" class="form-label"></label>
+            <input asp-for="ResumeFile" class="form-control" type="file" accept="application/pdf,.pdf" />
+            <div class="form-hint">PDF only, up to 5 MB.</div>
+            <span asp-validation-for="ResumeFile" class="field-validation-error"></span>
+        </div>
+
+        <div class="form-check mb-4">
+            <input asp-for="IsDefault" class="form-check-input" />
+            <label asp-for="IsDefault" class="form-check-label"></label>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Upload Resume</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
