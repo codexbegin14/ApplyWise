@@ -1,8 +1,4 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
-}
-
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+@{ ViewData["Title"] = "Smart job search workspace"; }
+<section class="welcome"><div class="welcome-copy"><span class="eyebrow">Your job search, organized</span><h1>ApplyWise</h1><p class="welcome-tagline">Track every application. Choose the right resume. Apply smarter.</p><p>Manage your job search and understand how well your experience matches each opportunity.</p><div class="welcome-actions"><a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Get started</a><a class="btn btn-outline-secondary btn-lg" asp-area="Identity" asp-page="/Account/Login">Log in</a></div></div>
+<div class="welcome-preview" aria-label="ApplyWise dashboard preview"><div class="preview-heading"><span>Application overview</span><span class="badge status-applied">This month</span></div><div class="preview-stats"><div><strong>24</strong><span>Applications</span></div><div><strong>5</strong><span>Interviews</span></div><div><strong>78%</strong><span>Match score</span></div></div>
+<div class="preview-row"><span class="company-avatar blue">N</span><span><strong>Product Designer</strong><small>Northstar Labs</small></span><span class="badge status-interview">Interview</span></div><div class="preview-row"><span class="company-avatar green">V</span><span><strong>UX Researcher</strong><small>Vertex Health</small></span><span class="badge status-applied">Applied</span></div><div class="preview-row"><span class="company-avatar purple">L</span><span><strong>Design Lead</strong><small>Loop Finance</small></span><span class="badge status-shortlisted">Shortlisted</span></div></div></section>
