@@ -2,12 +2,14 @@
 @{
     ViewData["Title"] = "Resume Analyzer";
     var canAnalyze = Model.AvailableResumes.Count > 0 && Model.AvailableJobApplications.Count > 0;
+    var activeTab = "analyze";
 }
 
 <div class="page-heading">
     <div><h2>Resume Analyzer</h2><p>Compare a resume version with a job description and find missing skills.</p></div>
     <a class="btn btn-outline-secondary" asp-action="History">Analysis History</a>
 </div>
+<partial name="_AnalyzerTabs" model="activeTab" />
 
 <div class="analyzer-layout">
     <section class="panel analyzer-form-card">

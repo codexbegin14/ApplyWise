@@ -1,7 +1,8 @@
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisHistoryViewModel
-@{ ViewData["Title"] = "Analysis History"; }
+@{ ViewData["Title"] = "Analysis History"; var activeTab = "history"; }
 
 <div class="page-heading"><div><h2>Analysis History</h2><p>Review past resume-to-job comparisons and see how your targeting changes.</p></div><a class="btn btn-primary" asp-action="Index">New Analysis</a></div>
+<partial name="_AnalyzerTabs" model="activeTab" />
 
 @if (Model.Analyses.Count == 0)
 {

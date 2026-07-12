@@ -1,0 +1,91 @@
+@model ApplyWise.Web.ViewModels.BestResumePicker.BestResumePickerIndexViewModel
+@{
+    ViewData["Title"] = "Best Resume Picker";
+    var activeTab = "picker";
+}
+
+<div class="page-heading"><div><h2>Best Resume Picker</h2><p>Compare every resume version against a job and choose the strongest match.</p></div></div>
+<partial name="_AnalyzerTabs" model="activeTab" />
+
+@if (Model.AvailableJobApplications.Count == 0)
+{
+    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">J</span><h3>No job applications yet</h3><p>Add a job application with a job description before comparing resume versions.</p><a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a></section>
+}
+else if (Model.ResumeCount == 0)
+{
+    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>No resumes to compare</h3><p>Upload at least one resume version before using the Best Resume Picker.</p><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></section>
+}
+else
+{
+    <section class="panel picker-form-card">
+        <div class="panel-header"><div><h3>Choose a job</h3><p>Every readable resume version will be compared with this job description.</p></div><span class="resume-count-label">@Model.ResumeCount resume@(Model.ResumeCount == 1 ? string.Empty : "s") ready</span></div>
+        <form asp-action="Compare" method="post" class="picker-form">
+            <div><label asp-for="JobApplicationId" class="form-label"></label><select asp-for="JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select"><option value="">Select an application</option></select><span asp-validation-for="JobApplicationId" class="field-validation-error"></span></div>
+            <button class="btn btn-primary" type="submit">Compare Resumes</button>
+        </form>
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+    </section>
+
+    @if (Model.JobDescriptionRequiredId.HasValue)
+    {
+        <section class="panel picker-required-card"><div><h3>Job description required</h3><p>Add the job description so ApplyWise can compare it with your resume versions.</p></div><a class="btn btn-outline-secondary" asp-controller="JobApplications" asp-action="Edit" asp-route-id="@Model.JobDescriptionRequiredId">Edit Application</a></section>
+    }
+}
+
+@if (Model.Comparison is not null)
+{
+    var result = Model.Comparison;
+    var recommended = result.RecommendedResume;
+
+    <section class="picker-results" aria-labelledby="picker-results-title">
+        <div class="comparison-context"><span>Comparison result</span><h3 id="picker-results-title">@result.JobTitle at @result.CompanyName</h3><p>@result.ReadableResumeCount of @result.ComparedResumeCount resume@(result.ComparedResumeCount == 1 ? string.Empty : "s") could be analyzed.</p></div>
+
+        @if (recommended is not null)
+        {
+            <article class="panel recommended-resume-card">
+                <div class="recommended-copy"><span class="recommended-label">Recommended</span><h3>@recommended.VersionName</h3><p>@result.RecommendationReason</p><small>@recommended.OriginalFileName</small></div>
+                <div class="recommended-actions"><span class="picker-score @ScoreClass(recommended.MatchScore)"><strong>@recommended.MatchScore</strong><small>% match</small></span><form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@recommended.ResumeId" /><button class="btn btn-primary" type="submit">Use this resume for this job</button></form></div>
+            </article>
+        }
+        else if (result.ReadableResumeCount == 0)
+        {
+            <div class="analysis-data-warning"><strong>No readable resumes were available.</strong><span>Upload a text-based PDF resume, then run the comparison again.</span></div>
+        }
+        else if (!result.HasDetectedSkills)
+        {
+            <div class="analysis-data-warning"><strong>Not enough skill data detected.</strong><span>Add specific tools, technologies, and requirements to the job description before choosing a resume.</span></div>
+        }
+
+        <div class="ranked-resume-list">
+        @foreach (var resume in result.ComparedResumes)
+        {
+            <article class="panel ranked-resume-card @(resume.IsRecommended ? "recommended-row" : null)">
+                <div class="rank-marker">@(resume.Rank.HasValue ? $"#{resume.Rank}" : "—")</div>
+                <div class="ranked-resume-main">
+                    <div class="ranked-resume-heading"><div><h3>@resume.VersionName @if (resume.IsRecommended) { <span class="recommended-inline">Recommended</span> }</h3><p>@resume.OriginalFileName</p></div>@if (resume.MatchScore.HasValue) { <span class="history-score @ScoreClass(resume.MatchScore)">@resume.MatchScore%</span> } else { <span class="not-ranked-label">Not ranked</span> }</div>
+                    @if (resume.AnalysisError is not null)
+                    {
+                        <p class="resume-analysis-error">@resume.AnalysisError</p>
+                    }
+                    else
+                    {
+                        <div class="comparison-keywords"><div><span class="keyword-group-label">Matched</span><div class="keyword-list">@if (resume.MatchedKeywords.Count == 0) { <span class="keyword-placeholder">None detected</span> } else { @foreach (var skill in resume.MatchedKeywords) { <span class="keyword matched-keyword">@skill</span> } }</div></div><div><span class="keyword-group-label">Missing</span><div class="keyword-list">@if (resume.MissingKeywords.Count == 0) { <span class="keyword-placeholder">None detected</span> } else { @foreach (var skill in resume.MissingKeywords) { <span class="keyword missing-keyword">@skill</span> } }</div></div></div>
+                    }
+                </div>
+                <div class="ranked-resume-action">
+                    @if (resume.MatchScore.HasValue)
+                    {
+                        <form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@resume.ResumeId" /><button class="btn btn-outline-secondary btn-sm" type="submit">Use for this job</button></form>
+                    }
+                </div>
+            </article>
+        }
+        </div>
+    </section>
+}
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+
+@functions {
+    private static string ScoreClass(int? score) => score switch { >= 80 => "score-strong", >= 60 => "score-good", >= 40 => "score-fair", _ => "score-low" };
+}

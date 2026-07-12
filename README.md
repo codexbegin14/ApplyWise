@@ -43,6 +43,7 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Level 4: Private PDF resume upload and resume version management
 - Level 5: Job application tracking
 - Level 6: Local resume-to-job analysis and saved match history
+- Level 7: Best resume comparison, ranking, and job assignment
 
 ## Level 5 Features
 
@@ -60,3 +61,11 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Calculate a transparent keyword coverage score without paid AI APIs
 - Show matched skills, missing skills, and honest improvement suggestions
 - Save private analysis history and re-run comparisons after updating source data
+
+## Level 7 Features
+
+- Compare every uploaded resume version against one tracked job description
+- Rank readable resumes using the transparent Level 6 match score
+- Recommend the strongest resume with a short coverage explanation
+- Show matched and missing skills for every compared resume
+- Assign the recommended or selected resume directly to the job application

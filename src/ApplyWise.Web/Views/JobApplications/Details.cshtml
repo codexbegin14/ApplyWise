@@ -9,8 +9,13 @@
         <div class="title-with-badge"><h2>@Model.JobTitle</h2><span class="badge @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span></div>
         <p>@Model.CompanyName</p>
     </div>
-    <div class="form-actions"><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
+    <div class="form-actions"><a class="btn btn-outline-secondary" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id">Find Best Resume</a><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
 </div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert app-alert" role="status">@successMessage</div>
+}
 
 <section class="panel application-overview">
     <div class="details-grid application-details-grid">
