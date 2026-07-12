@@ -11,6 +11,7 @@ appsettings.Development.json
 [Bb]uild/
 [Dd]ebug/
 [Rr]elease/
+.verify-build/
 TestResults/
 coverage/
 app.db
