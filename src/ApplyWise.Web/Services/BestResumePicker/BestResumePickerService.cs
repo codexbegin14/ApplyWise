@@ -32,6 +32,42 @@ public sealed class BestResumePickerService(
             throw new InvalidOperationException("The selected job application does not have a job description.");
         }
 
+        return await CompareAsync(
+            userId,
+            application.JobDescription,
+            application.Id,
+            $"{application.JobTitle} at {application.CompanyName}",
+            ResumeAnalysisType.SavedApplication,
+            cancellationToken);
+    }
+
+    public Task<BestResumePickerResult> CompareResumesWithRequirementsAsync(
+        string userId,
+        string jobRequirements,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(jobRequirements) || jobRequirements.Trim().Length < 30)
+        {
+            throw new InvalidOperationException("Paste at least 30 characters of job requirements before comparing.");
+        }
+
+        return CompareAsync(
+            userId,
+            jobRequirements.Trim(),
+            null,
+            "Pasted job requirements",
+            ResumeAnalysisType.PastedRequirements,
+            cancellationToken);
+    }
+
+    private async Task<BestResumePickerResult> CompareAsync(
+        string userId,
+        string jobRequirements,
+        int? jobApplicationId,
+        string contextTitle,
+        ResumeAnalysisType analysisType,
+        CancellationToken cancellationToken)
+    {
         var resumes = await dbContext.Resumes
             .Where(resume => resume.UserId == userId)
             .OrderByDescending(resume => resume.IsDefault)
@@ -88,19 +124,20 @@ public sealed class BestResumePickerService(
                 continue;
             }
 
-            var result = analysisService.Analyze(resumeText, application.JobDescription);
+            var result = analysisService.Analyze(resumeText, jobRequirements);
             completed.Add(new CompletedComparison(resume, result));
             dbContext.ResumeAnalyses.Add(new ResumeAnalysisEntity
             {
                 UserId = userId,
                 ResumeId = resume.Id,
-                JobApplicationId = application.Id,
+                JobApplicationId = jobApplicationId,
+                AnalysisType = analysisType,
                 MatchScore = result.MatchScore,
                 MatchedKeywordsJson = JsonSerializer.Serialize(result.MatchedKeywords),
                 MissingKeywordsJson = JsonSerializer.Serialize(result.MissingKeywords),
                 SuggestionsJson = JsonSerializer.Serialize(result.Suggestions),
                 ResumeTextSnapshot = resumeText,
-                JobDescriptionSnapshot = application.JobDescription,
+                JobDescriptionSnapshot = jobRequirements,
                 CreatedAt = comparisonTime
             });
         }
@@ -138,9 +175,8 @@ public sealed class BestResumePickerService(
             .ToArray();
 
         return new BestResumePickerResult(
-            application.Id,
-            application.CompanyName,
-            application.JobTitle,
+            jobApplicationId,
+            contextTitle,
             winner?.Resume.Id,
             winner?.Resume.VersionName,
             winner is null ? null : BuildReason(winner, ranked.Count, topScoreCount),

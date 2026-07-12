@@ -1,9 +1,8 @@
 namespace ApplyWise.Web.ViewModels.BestResumePicker;
 
 public sealed record BestResumePickerResultViewModel(
-    int JobApplicationId,
-    string CompanyName,
-    string JobTitle,
+    int? JobApplicationId,
+    string ContextTitle,
     int? RecommendedResumeId,
     string? RecommendedResumeVersionName,
     string? RecommendationReason,

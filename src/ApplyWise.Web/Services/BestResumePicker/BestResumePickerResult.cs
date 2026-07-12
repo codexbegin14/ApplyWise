@@ -1,9 +1,8 @@
 namespace ApplyWise.Web.Services.BestResumePicker;
 
 public sealed record BestResumePickerResult(
-    int JobApplicationId,
-    string CompanyName,
-    string JobTitle,
+    int? JobApplicationId,
+    string ContextTitle,
     int? RecommendedResumeId,
     string? RecommendedResumeVersionName,
     string? RecommendationReason,

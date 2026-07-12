@@ -6,4 +6,9 @@ public interface IBestResumePickerService
         string userId,
         int jobApplicationId,
         CancellationToken cancellationToken = default);
+
+    Task<BestResumePickerResult> CompareResumesWithRequirementsAsync(
+        string userId,
+        string jobRequirements,
+        CancellationToken cancellationToken = default);
 }

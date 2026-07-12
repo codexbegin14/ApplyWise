@@ -2,27 +2,43 @@
 @{
     ViewData["Title"] = "Best Resume Picker";
     var activeTab = "picker";
+    var isPastedMode = Model.Mode != "saved";
 }
 
-<div class="page-heading"><div><h2>Best Resume Picker</h2><p>Compare every resume version against a job and choose the strongest match.</p></div></div>
+<div class="page-heading"><div><h2>Best Resume Picker</h2><p>Paste job requirements and rank every uploaded resume by match strength.</p></div></div>
 <partial name="_AnalyzerTabs" model="activeTab" />
 
-@if (Model.AvailableJobApplications.Count == 0)
+@if (Model.ResumeCount == 0)
 {
-    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">J</span><h3>No job applications yet</h3><p>Add a job application with a job description before comparing resume versions.</p><a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a></section>
-}
-else if (Model.ResumeCount == 0)
-{
-    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>No resumes to compare</h3><p>Upload at least one resume version before using the Best Resume Picker.</p><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></section>
+    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>No resumes to compare</h3><p>Upload a resume before running analysis.</p><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></section>
 }
 else
 {
+    <nav class="picker-mode-switch" aria-label="Best resume comparison source">
+        <a class="@(isPastedMode ? "active" : null)" asp-action="Index">Paste requirements</a>
+        <a class="@(!isPastedMode ? "active" : null)" asp-action="Index" asp-route-mode="saved" asp-route-jobApplicationId="@Model.JobApplicationId">Saved application</a>
+    </nav>
+
     <section class="panel picker-form-card">
-        <div class="panel-header"><div><h3>Choose a job</h3><p>Every readable resume version will be compared with this job description.</p></div><span class="resume-count-label">@Model.ResumeCount resume@(Model.ResumeCount == 1 ? string.Empty : "s") ready</span></div>
-        <form asp-action="Compare" method="post" class="picker-form">
-            <div><label asp-for="JobApplicationId" class="form-label"></label><select asp-for="JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select"><option value="">Select an application</option></select><span asp-validation-for="JobApplicationId" class="field-validation-error"></span></div>
-            <button class="btn btn-primary" type="submit">Compare Resumes</button>
-        </form>
+        <div class="panel-header"><div><h3>@(isPastedMode ? "Paste job requirements" : "Choose a saved application")</h3><p>Every readable resume version will be compared and ranked.</p></div><span class="resume-count-label">@Model.ResumeCount resume@(Model.ResumeCount == 1 ? string.Empty : "s") ready</span></div>
+        @if (isPastedMode)
+        {
+            <form asp-action="CompareResumesWithPastedRequirements" method="post" class="picker-requirements-form">
+                <div><label asp-for="JobRequirements" class="form-label"></label><textarea asp-for="JobRequirements" class="form-control requirements-textarea" rows="11" placeholder="Paste the role responsibilities, required skills, tools, experience, and qualifications here..."></textarea><div class="form-hint">At least 30 characters. More specific requirements produce a more useful ranking.</div><span asp-validation-for="JobRequirements" class="field-validation-error"></span></div>
+                <button class="btn btn-primary" type="submit">Compare All Resumes</button>
+            </form>
+        }
+        else if (Model.AvailableJobApplications.Count == 0)
+        {
+            <div class="analyzer-notice"><strong>Add an application with a job description before using this mode.</strong><a asp-controller="JobApplications" asp-action="Create">Add Application</a></div>
+        }
+        else
+        {
+            <form asp-action="Compare" method="post" class="picker-form">
+                <div><label asp-for="JobApplicationId" class="form-label"></label><select asp-for="JobApplicationId" asp-items="Model.AvailableJobApplications" class="form-select"><option value="">Select an application</option></select><span asp-validation-for="JobApplicationId" class="field-validation-error"></span></div>
+                <button class="btn btn-primary" type="submit">Compare Resumes</button>
+            </form>
+        }
         <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
     </section>
 
@@ -38,13 +54,13 @@ else
     var recommended = result.RecommendedResume;
 
     <section class="picker-results" aria-labelledby="picker-results-title">
-        <div class="comparison-context"><span>Comparison result</span><h3 id="picker-results-title">@result.JobTitle at @result.CompanyName</h3><p>@result.ReadableResumeCount of @result.ComparedResumeCount resume@(result.ComparedResumeCount == 1 ? string.Empty : "s") could be analyzed.</p></div>
+        <div class="comparison-context"><span>Comparison result</span><h3 id="picker-results-title">@result.ContextTitle</h3><p>@result.ReadableResumeCount of @result.ComparedResumeCount resume@(result.ComparedResumeCount == 1 ? string.Empty : "s") could be analyzed.</p></div>
 
         @if (recommended is not null)
         {
             <article class="panel recommended-resume-card">
                 <div class="recommended-copy"><span class="recommended-label">Recommended</span><h3>@recommended.VersionName</h3><p>@result.RecommendationReason</p><small>@recommended.OriginalFileName</small></div>
-                <div class="recommended-actions"><span class="picker-score @ScoreClass(recommended.MatchScore)"><strong>@recommended.MatchScore</strong><small>% match</small></span><form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@recommended.ResumeId" /><button class="btn btn-primary" type="submit">Use this resume for this job</button></form></div>
+                <div class="recommended-actions"><span class="picker-score @ScoreClass(recommended.MatchScore)"><strong>@recommended.MatchScore</strong><small>% match</small></span>@if (result.JobApplicationId.HasValue) { <form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@recommended.ResumeId" /><button class="btn btn-primary" type="submit">Use this resume for this job</button></form> }</div>
             </article>
         }
         else if (result.ReadableResumeCount == 0)
@@ -53,7 +69,7 @@ else
         }
         else if (!result.HasDetectedSkills)
         {
-            <div class="analysis-data-warning"><strong>Not enough skill data detected.</strong><span>Add specific tools, technologies, and requirements to the job description before choosing a resume.</span></div>
+            <div class="analysis-data-warning"><strong>Not enough skill data detected.</strong><span>Add specific tools, technologies, and requirements before choosing a resume.</span></div>
         }
 
         <div class="ranked-resume-list">
@@ -72,12 +88,10 @@ else
                         <div class="comparison-keywords"><div><span class="keyword-group-label">Matched</span><div class="keyword-list">@if (resume.MatchedKeywords.Count == 0) { <span class="keyword-placeholder">None detected</span> } else { @foreach (var skill in resume.MatchedKeywords) { <span class="keyword matched-keyword">@skill</span> } }</div></div><div><span class="keyword-group-label">Missing</span><div class="keyword-list">@if (resume.MissingKeywords.Count == 0) { <span class="keyword-placeholder">None detected</span> } else { @foreach (var skill in resume.MissingKeywords) { <span class="keyword missing-keyword">@skill</span> } }</div></div></div>
                     }
                 </div>
-                <div class="ranked-resume-action">
-                    @if (resume.MatchScore.HasValue)
-                    {
-                        <form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@resume.ResumeId" /><button class="btn btn-outline-secondary btn-sm" type="submit">Use for this job</button></form>
-                    }
-                </div>
+                @if (resume.MatchScore.HasValue && result.JobApplicationId.HasValue)
+                {
+                    <div class="ranked-resume-action"><form asp-action="UseResume" method="post"><input type="hidden" name="JobApplicationId" value="@result.JobApplicationId" /><input type="hidden" name="ResumeId" value="@resume.ResumeId" /><button class="btn btn-outline-secondary btn-sm" type="submit">Use for this job</button></form></div>
+                }
             </article>
         }
         </div>

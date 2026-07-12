@@ -1,7 +1,8 @@
 @model string
 
 <nav class="analyzer-tabs" aria-label="Resume analyzer sections">
-    <a class="@(Model == "analyze" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index">Analyze</a>
+    <a class="@(Model == "pasted" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index">Paste Requirements</a>
+    <a class="@(Model == "saved" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-mode="saved">Saved Application</a>
     <a class="@(Model == "picker" ? "active" : null)" asp-controller="BestResumePicker" asp-action="Index">Best Resume Picker</a>
     <a class="@(Model == "history" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="History">History</a>
 </nav>

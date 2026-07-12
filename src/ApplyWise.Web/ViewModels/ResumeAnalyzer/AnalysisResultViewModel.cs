@@ -1,12 +1,16 @@
+using ApplyWise.Web.Models;
+
 namespace ApplyWise.Web.ViewModels.ResumeAnalyzer;
 
 public sealed record AnalysisResultViewModel(
     int Id,
     int ResumeId,
-    int JobApplicationId,
+    int? JobApplicationId,
+    ResumeAnalysisType AnalysisType,
     string ResumeVersionName,
-    string CompanyName,
-    string JobTitle,
+    string ContextTitle,
+    string? ContextSubtitle,
+    string JobDescriptionSnapshot,
     int MatchScore,
     IReadOnlyList<string> MatchedKeywords,
     IReadOnlyList<string> MissingKeywords,

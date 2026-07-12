@@ -7,7 +7,8 @@ public class ResumeAnalysis
     public int Id { get; set; }
     public required string UserId { get; set; }
     public int ResumeId { get; set; }
-    public int JobApplicationId { get; set; }
+    public int? JobApplicationId { get; set; }
+    public ResumeAnalysisType AnalysisType { get; set; }
     public int MatchScore { get; set; }
     public required string MatchedKeywordsJson { get; set; }
     public required string MissingKeywordsJson { get; set; }

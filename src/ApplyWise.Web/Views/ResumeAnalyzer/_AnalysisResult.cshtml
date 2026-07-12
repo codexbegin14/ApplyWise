@@ -4,7 +4,7 @@
     <div class="panel analysis-summary">
         <div>
             <span class="method-label">Analysis result</span>
-            <h3 id="analysis-result-title">@Model.JobTitle at @Model.CompanyName</h3>
+            <h3 id="analysis-result-title">@Model.ContextTitle</h3>
             <p>Compared with <strong>@Model.ResumeVersionName</strong> · @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</p>
         </div>
         <div class="analysis-score @ScoreClass(Model.MatchScore)" aria-label="Match score @Model.MatchScore percent"><strong>@Model.MatchScore</strong><span>% match</span></div>

@@ -17,19 +17,31 @@ public class BestResumePickerController(
     IBestResumePickerService pickerService) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(int? jobApplicationId)
+    public async Task<IActionResult> Index(string? mode, int? jobApplicationId)
     {
-        var model = new BestResumePickerIndexViewModel { JobApplicationId = jobApplicationId };
+        var model = new BestResumePickerIndexViewModel
+        {
+            Mode = mode == "saved" || jobApplicationId.HasValue ? "saved" : "pasted",
+            JobApplicationId = jobApplicationId
+        };
         await PopulatePageDataAsync(model, selectDefault: true);
         return View(model);
     }
 
     [HttpPost("compare")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Compare(BestResumePickerIndexViewModel model)
+    public async Task<IActionResult> Compare(
+        [Bind(nameof(BestResumePickerIndexViewModel.JobApplicationId))]
+        BestResumePickerIndexViewModel model)
     {
+        model.Mode = "saved";
         var userId = GetUserId();
-        if (model.JobApplicationId.HasValue)
+        ModelState.Remove(nameof(model.JobRequirements));
+        if (!model.JobApplicationId.HasValue)
+        {
+            ModelState.AddModelError(nameof(model.JobApplicationId), "Select a job application.");
+        }
+        else
         {
             var application = await dbContext.JobApplications
                 .AsNoTracking()
@@ -64,6 +76,49 @@ public class BestResumePickerController(
             var result = await pickerService.CompareResumesForJobAsync(
                 userId,
                 model.JobApplicationId!.Value,
+                HttpContext.RequestAborted);
+            model.Comparison = ToViewModel(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError(string.Empty, exception.Message);
+        }
+
+        return View("Index", model);
+    }
+
+    [HttpPost("compare-pasted-requirements")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompareResumesWithPastedRequirements(
+        [Bind(nameof(BestResumePickerIndexViewModel.JobRequirements))]
+        BestResumePickerIndexViewModel model)
+    {
+        model.Mode = "pasted";
+        ModelState.Remove(nameof(model.JobApplicationId));
+        model.JobRequirements = model.JobRequirements?.Trim() ?? string.Empty;
+        if (model.JobRequirements.Length > 0 && model.JobRequirements.Length < 30)
+        {
+            ModelState.AddModelError(
+                nameof(model.JobRequirements),
+                "Job requirements must be at least 30 characters.");
+        }
+
+        await PopulatePageDataAsync(model, selectDefault: false);
+        if (model.ResumeCount == 0)
+        {
+            ModelState.AddModelError(string.Empty, "Upload a resume before running analysis.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Index", model);
+        }
+
+        try
+        {
+            var result = await pickerService.CompareResumesWithRequirementsAsync(
+                GetUserId(),
+                model.JobRequirements,
                 HttpContext.RequestAborted);
             model.Comparison = ToViewModel(result);
         }
@@ -144,8 +199,7 @@ public class BestResumePickerController(
     private static BestResumePickerResultViewModel ToViewModel(BestResumePickerResult result) =>
         new(
             result.JobApplicationId,
-            result.CompanyName,
-            result.JobTitle,
+            result.ContextTitle,
             result.RecommendedResumeId,
             result.RecommendedResumeVersionName,
             result.RecommendationReason,

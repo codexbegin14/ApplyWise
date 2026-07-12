@@ -25,3 +25,10 @@
 .identity-body main .btn-primary{width:100%}
 .identity-body main a{font-weight:600}
 @media(max-width:760px){.public-info-card{margin:24px 16px;padding:24px}.public-info-grid{grid-template-columns:1fr}.identity-body main{padding:34px 16px}.search-box{display:none}}
+
+/* Direct requirements analysis */
+.analyzer-fields-stacked{grid-template-columns:1fr}.requirements-textarea{min-height:220px;resize:vertical;line-height:1.6}
+.picker-requirements-form{display:grid;gap:16px}.picker-requirements-form .btn{justify-self:start}
+.picker-mode-switch{display:flex;width:max-content;max-width:100%;gap:4px;margin:0 0 12px;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.picker-mode-switch a{padding:8px 12px;border-radius:6px;color:var(--secondary);font-size:.78rem;font-weight:650;white-space:nowrap}.picker-mode-switch a:hover{color:var(--text);background:var(--bg)}.picker-mode-switch a.active{color:var(--primary);background:#eff6ff}
+@media(max-width:600px){.requirements-textarea{min-height:190px}.picker-mode-switch{width:100%;overflow-x:auto}.picker-requirements-form .btn{width:100%}}

@@ -22,14 +22,23 @@ public class ResumeAnalyzerController(
     IResumeAnalysisService analysisService) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(int? resumeId, int? jobApplicationId, int? analysisId)
+    public async Task<IActionResult> Index(
+        string? mode,
+        int? resumeId,
+        int? jobApplicationId,
+        int? analysisId)
     {
+        var selectedMode = mode == "saved" || jobApplicationId.HasValue ? "saved" : "pasted";
         var model = new AnalyzerIndexViewModel
         {
-            ResumeId = resumeId,
-            JobApplicationId = jobApplicationId
+            Mode = selectedMode,
+            Pasted = new PastedRequirementsAnalysisViewModel { ResumeId = resumeId },
+            Saved = new SavedApplicationAnalysisViewModel
+            {
+                ResumeId = resumeId,
+                JobApplicationId = jobApplicationId
+            }
         };
-        await PopulateSelectionsAsync(model);
 
         if (analysisId.HasValue)
         {
@@ -39,91 +48,109 @@ public class ResumeAnalyzerController(
                 return NotFound();
             }
 
-            model.ResumeId = model.LatestResult.ResumeId;
-            model.JobApplicationId = model.LatestResult.JobApplicationId;
+            if (model.LatestResult.AnalysisType == ResumeAnalysisType.PastedRequirements)
+            {
+                model.Mode = "pasted";
+                model.Pasted.ResumeId = model.LatestResult.ResumeId;
+                model.Pasted.JobRequirements = model.LatestResult.JobDescriptionSnapshot;
+            }
+            else
+            {
+                model.Mode = "saved";
+                model.Saved.ResumeId = model.LatestResult.ResumeId;
+                model.Saved.JobApplicationId = model.LatestResult.JobApplicationId;
+            }
         }
 
+        await PopulateSelectionsAsync(model);
         return View(model);
     }
 
-    [HttpPost("analyze")]
+    [HttpPost("analyze-pasted-requirements")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Analyze(AnalyzerIndexViewModel model)
+    public async Task<IActionResult> AnalyzePastedRequirements(
+        [Bind(Prefix = "Pasted")] PastedRequirementsAnalysisViewModel form)
     {
-        var userId = GetUserId();
-        Resume? resume = null;
-        JobApplication? application = null;
-
-        if (model.ResumeId.HasValue)
+        var requirements = form.JobRequirements?.Trim() ?? string.Empty;
+        if (requirements.Length > 0 && requirements.Length < 30)
         {
-            resume = await dbContext.Resumes
-                .SingleOrDefaultAsync(item => item.Id == model.ResumeId.Value && item.UserId == userId);
-            if (resume is null)
-            {
-                ModelState.AddModelError(nameof(model.ResumeId), "Select a resume from your own resume library.");
-            }
+            ModelState.AddModelError(
+                "Pasted.JobRequirements",
+                "Job requirements must be at least 30 characters.");
         }
 
-        if (model.JobApplicationId.HasValue)
+        var resume = await LoadOwnedResumeAsync(form.ResumeId, "Pasted.ResumeId");
+        if (!ModelState.IsValid)
+        {
+            return await RenderIndexAsync("pasted", form);
+        }
+
+        var resumeText = await GetResumeTextAsync(resume!, "Pasted.ResumeId");
+        if (resumeText is null)
+        {
+            return await RenderIndexAsync("pasted", form);
+        }
+
+        form.JobRequirements = requirements;
+        var analysis = CreateAnalysis(
+            resume!,
+            resumeText,
+            requirements,
+            null,
+            ResumeAnalysisType.PastedRequirements);
+        await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+
+        return RedirectToAction(nameof(Index), new { analysisId = analysis.Id });
+    }
+
+    [HttpPost("analyze-saved-application")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AnalyzeSavedApplication(
+        [Bind(Prefix = "Saved")] SavedApplicationAnalysisViewModel form)
+    {
+        var userId = GetUserId();
+        var resume = await LoadOwnedResumeAsync(form.ResumeId, "Saved.ResumeId");
+        JobApplication? application = null;
+
+        if (form.JobApplicationId.HasValue)
         {
             application = await dbContext.JobApplications
                 .AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == model.JobApplicationId.Value && item.UserId == userId);
+                .SingleOrDefaultAsync(item =>
+                    item.Id == form.JobApplicationId.Value && item.UserId == userId,
+                    HttpContext.RequestAborted);
             if (application is null)
             {
-                ModelState.AddModelError(nameof(model.JobApplicationId), "Select a job application from your own tracker.");
+                ModelState.AddModelError(
+                    "Saved.JobApplicationId",
+                    "Select a job application from your own tracker.");
             }
             else if (string.IsNullOrWhiteSpace(application.JobDescription))
             {
-                ModelState.AddModelError(nameof(model.JobApplicationId),
+                ModelState.AddModelError(
+                    "Saved.JobApplicationId",
                     "This job application does not have a job description. Add one before analyzing.");
             }
         }
 
         if (!ModelState.IsValid)
         {
-            await PopulateSelectionsAsync(model);
-            return View("Index", model);
+            return await RenderIndexAsync("saved", saved: form);
         }
 
-        var resumeText = resume!.ExtractedText;
-        if (string.IsNullOrWhiteSpace(resumeText))
+        var resumeText = await GetResumeTextAsync(resume!, "Saved.ResumeId");
+        if (resumeText is null)
         {
-            var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
-            if (System.IO.File.Exists(absolutePath))
-            {
-                resumeText = await textExtractor.ExtractTextAsync(absolutePath, HttpContext.RequestAborted);
-            }
-
-            if (string.IsNullOrWhiteSpace(resumeText))
-            {
-                ModelState.AddModelError(nameof(model.ResumeId),
-                    "We could not read text from this PDF. Please upload a text-based resume PDF.");
-                await PopulateSelectionsAsync(model);
-                return View("Index", model);
-            }
-
-            resume.ExtractedText = resumeText;
-            resume.UpdatedAt = DateTimeOffset.UtcNow;
+            return await RenderIndexAsync("saved", saved: form);
         }
 
-        var result = analysisService.Analyze(resumeText, application!.JobDescription!);
-        var analysis = new ResumeAnalysis
-        {
-            UserId = userId,
-            ResumeId = resume.Id,
-            JobApplicationId = application.Id,
-            MatchScore = result.MatchScore,
-            MatchedKeywordsJson = JsonSerializer.Serialize(result.MatchedKeywords),
-            MissingKeywordsJson = JsonSerializer.Serialize(result.MissingKeywords),
-            SuggestionsJson = JsonSerializer.Serialize(result.Suggestions),
-            ResumeTextSnapshot = resumeText,
-            JobDescriptionSnapshot = application.JobDescription!,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        dbContext.ResumeAnalyses.Add(analysis);
-        await dbContext.SaveChangesAsync();
+        var analysis = CreateAnalysis(
+            resume!,
+            resumeText,
+            application!.JobDescription!,
+            application.Id,
+            ResumeAnalysisType.SavedApplication);
+        await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
 
         return RedirectToAction(nameof(Index), new { analysisId = analysis.Id });
     }
@@ -139,11 +166,16 @@ public class ResumeAnalyzerController(
             .Select(analysis => new AnalysisHistoryItemViewModel(
                 analysis.Id,
                 analysis.Resume!.VersionName,
-                analysis.JobApplication!.CompanyName,
-                analysis.JobApplication.JobTitle,
+                analysis.JobApplication != null
+                    ? analysis.JobApplication.JobTitle + " at " + analysis.JobApplication.CompanyName
+                    : "Pasted job requirements",
+                analysis.AnalysisType == ResumeAnalysisType.SavedApplication
+                    ? "Saved application"
+                    : "Direct input",
+                analysis.AnalysisType,
                 analysis.MatchScore,
                 analysis.CreatedAt))
-            .ToListAsync();
+            .ToListAsync(HttpContext.RequestAborted);
 
         return View(new AnalysisHistoryViewModel { Analyses = analyses });
     }
@@ -153,6 +185,94 @@ public class ResumeAnalyzerController(
     {
         var result = await LoadOwnedResultAsync(id);
         return result is null ? NotFound() : View(result);
+    }
+
+    private ResumeAnalysis CreateAnalysis(
+        Resume resume,
+        string resumeText,
+        string jobDescription,
+        int? jobApplicationId,
+        ResumeAnalysisType analysisType)
+    {
+        var result = analysisService.Analyze(resumeText, jobDescription);
+        var analysis = new ResumeAnalysis
+        {
+            UserId = resume.UserId,
+            ResumeId = resume.Id,
+            JobApplicationId = jobApplicationId,
+            AnalysisType = analysisType,
+            MatchScore = result.MatchScore,
+            MatchedKeywordsJson = JsonSerializer.Serialize(result.MatchedKeywords),
+            MissingKeywordsJson = JsonSerializer.Serialize(result.MissingKeywords),
+            SuggestionsJson = JsonSerializer.Serialize(result.Suggestions),
+            ResumeTextSnapshot = resumeText,
+            JobDescriptionSnapshot = jobDescription,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        dbContext.ResumeAnalyses.Add(analysis);
+        return analysis;
+    }
+
+    private async Task<Resume?> LoadOwnedResumeAsync(int? resumeId, string modelStateKey)
+    {
+        if (!resumeId.HasValue)
+        {
+            return null;
+        }
+
+        var userId = GetUserId();
+        var resume = await dbContext.Resumes.SingleOrDefaultAsync(
+            item => item.Id == resumeId.Value && item.UserId == userId,
+            HttpContext.RequestAborted);
+        if (resume is null)
+        {
+            ModelState.AddModelError(modelStateKey, "Select a resume from your own resume library.");
+        }
+
+        return resume;
+    }
+
+    private async Task<string?> GetResumeTextAsync(Resume resume, string modelStateKey)
+    {
+        var resumeText = resume.ExtractedText;
+        if (string.IsNullOrWhiteSpace(resumeText))
+        {
+            var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
+            if (System.IO.File.Exists(absolutePath))
+            {
+                resumeText = await textExtractor.ExtractTextAsync(
+                    absolutePath,
+                    HttpContext.RequestAborted);
+            }
+
+            if (string.IsNullOrWhiteSpace(resumeText))
+            {
+                ModelState.AddModelError(
+                    modelStateKey,
+                    "We could not read text from this PDF. Please upload a text-based resume PDF.");
+                return null;
+            }
+
+            resume.ExtractedText = resumeText;
+            resume.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        return resumeText;
+    }
+
+    private async Task<IActionResult> RenderIndexAsync(
+        string mode,
+        PastedRequirementsAnalysisViewModel? pasted = null,
+        SavedApplicationAnalysisViewModel? saved = null)
+    {
+        var model = new AnalyzerIndexViewModel
+        {
+            Mode = mode,
+            Pasted = pasted ?? new PastedRequirementsAnalysisViewModel(),
+            Saved = saved ?? new SavedApplicationAnalysisViewModel()
+        };
+        await PopulateSelectionsAsync(model);
+        return View("Index", model);
     }
 
     private async Task PopulateSelectionsAsync(AnalyzerIndexViewModel model)
@@ -168,7 +288,7 @@ public class ResumeAnalyzerController(
                 Value = resume.Id.ToString(),
                 Text = resume.VersionName + (resume.IsDefault ? " (Default)" : string.Empty)
             })
-            .ToListAsync();
+            .ToListAsync(HttpContext.RequestAborted);
 
         model.AvailableJobApplications = await dbContext.JobApplications
             .AsNoTracking()
@@ -182,10 +302,13 @@ public class ResumeAnalyzerController(
                         ? " (Description needed)"
                         : string.Empty)
             })
-            .ToListAsync();
+            .ToListAsync(HttpContext.RequestAborted);
 
-        model.ResumeId = SelectOwnedOrFirst(model.ResumeId, model.AvailableResumes);
-        model.JobApplicationId = SelectOwnedOrFirst(model.JobApplicationId, model.AvailableJobApplications);
+        model.Pasted.ResumeId = SelectOwnedOrFirst(model.Pasted.ResumeId, model.AvailableResumes);
+        model.Saved.ResumeId = SelectOwnedOrFirst(model.Saved.ResumeId, model.AvailableResumes);
+        model.Saved.JobApplicationId = SelectOwnedOrFirst(
+            model.Saved.JobApplicationId,
+            model.AvailableJobApplications);
     }
 
     private async Task<AnalysisResultViewModel?> LoadOwnedResultAsync(int id)
@@ -195,7 +318,9 @@ public class ResumeAnalyzerController(
             .AsNoTracking()
             .Include(item => item.Resume)
             .Include(item => item.JobApplication)
-            .SingleOrDefaultAsync(item => item.Id == id && item.UserId == userId);
+            .SingleOrDefaultAsync(
+                item => item.Id == id && item.UserId == userId,
+                HttpContext.RequestAborted);
 
         return analysis is null ? null : ToResultViewModel(analysis);
     }
@@ -213,19 +338,27 @@ public class ResumeAnalyzerController(
         return items.Count == 0 ? null : int.Parse(items[0].Value);
     }
 
-    private static AnalysisResultViewModel ToResultViewModel(ResumeAnalysis analysis) =>
-        new(
+    private static AnalysisResultViewModel ToResultViewModel(ResumeAnalysis analysis)
+    {
+        var isSavedApplication = analysis.AnalysisType == ResumeAnalysisType.SavedApplication
+            && analysis.JobApplication is not null;
+        return new AnalysisResultViewModel(
             analysis.Id,
             analysis.ResumeId,
             analysis.JobApplicationId,
+            analysis.AnalysisType,
             analysis.Resume!.VersionName,
-            analysis.JobApplication!.CompanyName,
-            analysis.JobApplication.JobTitle,
+            isSavedApplication
+                ? $"{analysis.JobApplication!.JobTitle} at {analysis.JobApplication.CompanyName}"
+                : "Pasted job requirements",
+            isSavedApplication ? "Saved application" : "Direct input",
+            analysis.JobDescriptionSnapshot,
             analysis.MatchScore,
             DeserializeList(analysis.MatchedKeywordsJson),
             DeserializeList(analysis.MissingKeywordsJson),
             DeserializeList(analysis.SuggestionsJson),
             analysis.CreatedAt);
+    }
 
     private static IReadOnlyList<string> DeserializeList(string json)
     {

@@ -27,8 +27,8 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             .Select(analysis => new RecentAnalysisItem(
                 analysis.Id,
                 analysis.Resume!.VersionName,
-                analysis.JobApplication!.CompanyName,
-                analysis.JobApplication.JobTitle,
+                analysis.JobApplication != null ? analysis.JobApplication.CompanyName : "Direct input",
+                analysis.JobApplication != null ? analysis.JobApplication.JobTitle : "Pasted requirements",
                 analysis.MatchScore,
                 analysis.CreatedAt))
             .ToListAsync(cancellationToken);
@@ -86,7 +86,10 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             {
                 Skill = group.Key,
                 Count = group.Count(),
-                JobCount = group.Select(item => item.JobApplicationId).Distinct().Count()
+                JobCount = group.Select(item => item.JobApplicationId)
+                    .Where(jobApplicationId => jobApplicationId.HasValue)
+                    .Distinct()
+                    .Count()
             })
             .OrderByDescending(item => item.Count)
             .ThenBy(item => item.Skill)

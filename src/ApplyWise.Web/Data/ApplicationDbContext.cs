@@ -64,6 +64,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<ResumeAnalysis>(entity =>
         {
+            entity.Property(analysis => analysis.AnalysisType)
+                .HasConversion<string>()
+                .HasMaxLength(30);
             entity.Property(analysis => analysis.MatchedKeywordsJson).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.MissingKeywordsJson).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.SuggestionsJson).HasColumnType("nvarchar(max)");

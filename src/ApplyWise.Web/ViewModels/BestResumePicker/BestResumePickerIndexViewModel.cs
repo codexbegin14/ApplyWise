@@ -5,7 +5,14 @@ namespace ApplyWise.Web.ViewModels.BestResumePicker;
 
 public sealed class BestResumePickerIndexViewModel
 {
-    [Required(ErrorMessage = "Select a job application.")]
+    public string Mode { get; set; } = "pasted";
+
+    [Display(Name = "Job Requirements / Job Description")]
+    [Required(ErrorMessage = "Paste the job requirements before comparing resumes.")]
+    [StringLength(8000, MinimumLength = 30,
+        ErrorMessage = "Job requirements must be between 30 and 8,000 characters.")]
+    public string JobRequirements { get; set; } = string.Empty;
+
     [Display(Name = "Job application")]
     public int? JobApplicationId { get; set; }
 
