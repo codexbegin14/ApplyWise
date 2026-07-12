@@ -9,7 +9,7 @@
         <div class="title-with-badge"><h2>@Model.JobTitle</h2><span class="badge @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span></div>
         <p>@Model.CompanyName</p>
     </div>
-    <div class="form-actions"><a class="btn btn-outline-secondary" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id">Find Best Resume</a><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
+    <div class="form-actions"><a class="btn btn-outline-secondary" asp-controller="Interviews" asp-action="Create" asp-route-jobApplicationId="@Model.Id">Add Interview</a><a class="btn btn-outline-secondary" asp-controller="Reminders" asp-action="Create" asp-route-jobApplicationId="@Model.Id">Add Reminder</a><a class="btn btn-outline-secondary" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id">Find Best Resume</a><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage)

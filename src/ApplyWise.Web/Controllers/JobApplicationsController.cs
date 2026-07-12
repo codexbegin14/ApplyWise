@@ -197,6 +197,12 @@ public class JobApplicationsController(
         await dbContext.ResumeAnalyses
             .Where(analysis => analysis.UserId == application.UserId && analysis.JobApplicationId == application.Id)
             .ExecuteDeleteAsync();
+        await dbContext.Interviews
+            .Where(interview => interview.UserId == application.UserId && interview.JobApplicationId == application.Id)
+            .ExecuteDeleteAsync();
+        await dbContext.Reminders
+            .Where(reminder => reminder.UserId == application.UserId && reminder.JobApplicationId == application.Id)
+            .ExecuteDeleteAsync();
         dbContext.JobApplications.Remove(application);
         await dbContext.SaveChangesAsync();
         await transaction.CommitAsync();

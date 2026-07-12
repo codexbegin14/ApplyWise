@@ -1,0 +1,4 @@
+@model ApplyWise.Web.ViewModels.Reminders.ReminderListItemViewModel
+@{ ViewData["Title"] = "Delete Reminder"; }
+<div class="page-heading"><div><h2>Delete Reminder</h2><p>Review this action before removing it.</p></div></div>
+<section class="panel confirmation-panel"><span class="danger-mark" aria-hidden="true">!</span><h3>Delete @Model.Title?</h3><p>This permanently removes the reminder due @Model.DueAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt").</p><form asp-action="DeleteConfirmed" asp-route-id="@Model.Id" method="post" class="form-actions"><button class="btn btn-danger" type="submit">Delete Reminder</button><a class="btn btn-outline-secondary" asp-action="Index">Cancel</a></form></section>

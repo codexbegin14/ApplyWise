@@ -9,6 +9,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Resume> Resumes => Set<Resume>();
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
     public DbSet<ResumeAnalysis> ResumeAnalyses => Set<ResumeAnalysis>();
+    public DbSet<Interview> Interviews => Set<Interview>();
+    public DbSet<Reminder> Reminders => Set<Reminder>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -84,6 +86,47 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasOne(analysis => analysis.JobApplication)
                 .WithMany(application => application.Analyses)
                 .HasForeignKey(analysis => analysis.JobApplicationId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<Interview>(entity =>
+        {
+            entity.Property(interview => interview.MeetingLink).HasMaxLength(2048);
+            entity.Property(interview => interview.InterviewerName).HasMaxLength(150);
+            entity.Property(interview => interview.PreparationNotes).HasMaxLength(4000);
+            entity.Property(interview => interview.FeedbackNotes).HasMaxLength(4000);
+            entity.Property(interview => interview.ResultNotes).HasMaxLength(2000);
+
+            entity.HasIndex(interview => new { interview.UserId, interview.ScheduledAt });
+            entity.HasIndex(interview => new { interview.UserId, interview.Status });
+
+            entity.HasOne(interview => interview.User)
+                .WithMany()
+                .HasForeignKey(interview => interview.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(interview => interview.JobApplication)
+                .WithMany(application => application.Interviews)
+                .HasForeignKey(interview => interview.JobApplicationId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<Reminder>(entity =>
+        {
+            entity.Property(reminder => reminder.Title).HasMaxLength(150);
+            entity.Property(reminder => reminder.Notes).HasMaxLength(1000);
+
+            entity.HasIndex(reminder => new { reminder.UserId, reminder.DueAt });
+            entity.HasIndex(reminder => new { reminder.UserId, reminder.IsCompleted });
+
+            entity.HasOne(reminder => reminder.User)
+                .WithMany()
+                .HasForeignKey(reminder => reminder.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(reminder => reminder.JobApplication)
+                .WithMany(application => application.Reminders)
+                .HasForeignKey(reminder => reminder.JobApplicationId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }

@@ -1,0 +1,24 @@
+@model ApplyWise.Web.ViewModels.Reminders.ReminderIndexViewModel
+@{ ViewData["Title"] = "Reminders"; }
+<div class="page-heading"><div><h2>Reminders</h2><p>Manage follow-ups, deadlines, and next actions.</p></div><a class="btn btn-primary" asp-action="Create">Add Reminder</a></div>
+@if (TempData["SuccessMessage"] is string successMessage) { <div class="alert app-alert" role="status">@successMessage</div> }
+<nav class="filter-tabs" aria-label="Reminder filters"><a class="@(Model.Filter == "pending" ? "active" : null)" asp-action="Index" asp-route-filter="pending">Pending</a><a class="@(Model.Filter == "completed" ? "active" : null)" asp-action="Index" asp-route-filter="completed">Completed</a><a class="@(Model.Filter == "overdue" ? "active" : null)" asp-action="Index" asp-route-filter="overdue">Overdue</a><a class="@(Model.Filter == "all" ? "active" : null)" asp-action="Index" asp-route-filter="all">All</a></nav>
+@if (Model.Reminders.Count == 0)
+{
+    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">R</span><h3>@EmptyTitle()</h3><p>@(Model.Filter == "pending" ? "Add your next follow-up or deadline so it does not get missed." : "No reminders match this view yet.")</p>@if (Model.Filter == "pending") { <a class="btn btn-primary" asp-action="Create">Add Reminder</a> }</section>
+}
+else
+{
+    <section class="reminder-list">
+    @foreach (var reminder in Model.Reminders)
+    {
+        <article class="panel reminder-row @(reminder.IsCompleted ? "completed-row" : reminder.IsOverdue ? "overdue-row" : null)"><span class="reminder-type-mark">@TypeInitial(reminder.ReminderType)</span><div class="reminder-main"><div class="reminder-title-line"><h3>@reminder.Title</h3><span class="badge @ReminderClass(reminder)">@ReminderLabel(reminder)</span></div><p>@reminder.ReminderType.GetDisplayName() · @(reminder.JobTitle is null ? "Standalone" : $"{reminder.JobTitle} at {reminder.CompanyName}")</p><time datetime="@reminder.DueAt.ToString("O")">Due @reminder.DueAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</time></div><div class="reminder-row-actions">@if (!reminder.IsCompleted) { <form asp-action="Complete" asp-route-id="@reminder.Id" method="post"><button class="btn btn-outline-success btn-sm" type="submit">Mark Complete</button></form> }<a asp-action="Edit" asp-route-id="@reminder.Id">Edit</a><a class="text-danger" asp-action="Delete" asp-route-id="@reminder.Id">Delete</a></div></article>
+    }
+    </section>
+}
+@functions {
+    private string EmptyTitle() => Model.Filter switch { "completed" => "No completed reminders", "overdue" => "No overdue reminders", "all" => "No reminders yet", _ => "No pending reminders" };
+    private static string TypeInitial(ReminderType type) => type.GetDisplayName()[..1];
+    private static string ReminderLabel(ApplyWise.Web.ViewModels.Reminders.ReminderListItemViewModel item) => item.IsCompleted ? "Completed" : item.IsOverdue ? "Overdue" : item.IsDueToday ? "Due Today" : "Pending";
+    private static string ReminderClass(ApplyWise.Web.ViewModels.Reminders.ReminderListItemViewModel item) => item.IsCompleted ? "status-offer" : item.IsOverdue ? "status-rejected" : item.IsDueToday ? "status-interview" : "status-applied";
+}

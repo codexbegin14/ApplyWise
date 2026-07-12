@@ -44,6 +44,7 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Level 5: Job application tracking
 - Level 6: Local resume-to-job analysis and saved match history
 - Level 7: Best resume comparison, ranking, and job assignment
+- Level 8: Interview scheduling, reminders, deadlines, and upcoming actions
 
 ## Level 5 Features
 
@@ -69,3 +70,11 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Recommend the strongest resume with a short coverage explanation
 - Show matched and missing skills for every compared resume
 - Assign the recommended or selected resume directly to the job application
+
+## Level 8 Features
+
+- Schedule and manage interviews with meeting details, preparation, feedback, and outcomes
+- Create linked or standalone reminders and mark next actions complete
+- Suggest a seven-day follow-up when creating a reminder from an Applied job
+- Filter upcoming and past interviews plus pending, completed, and overdue reminders
+- Surface interviews, reminders, deadlines, and today's action items on the dashboard
