@@ -18,4 +18,5 @@ public class Resume
     public DateTimeOffset UpdatedAt { get; set; }
     public string? ExtractedText { get; set; }
     public IdentityUser? User { get; set; }
+    public ICollection<JobApplication> JobApplications { get; set; } = [];
 }

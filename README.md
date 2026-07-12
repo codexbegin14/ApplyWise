@@ -37,4 +37,17 @@ Job seekers often apply to many jobs using different resume versions and later f
 
 ## Project Status
 
-Level 1: Repository setup and structure
+- Level 1: Repository setup and structure
+- Level 2: ASP.NET Core Identity and authenticated application shell
+- Level 3: ApplyWise dashboard and responsive navigation
+- Level 4: Private PDF resume upload and resume version management
+- Level 5: Job application tracking
+
+## Level 5 Features
+
+- Create, view, update, and delete job applications
+- Track progress from saved opportunities through offer, rejection, or withdrawal
+- Remember the resume version used or planned for every application
+- Search by company or role and filter by status or source
+- Sort applications by newest, oldest, deadline, or status
+- Keep application details, job links, deadlines, descriptions, and private notes together

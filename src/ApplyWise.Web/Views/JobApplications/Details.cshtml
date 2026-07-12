@@ -1,0 +1,47 @@
+@model ApplyWise.Web.ViewModels.JobApplications.JobApplicationDetailsViewModel
+@{
+    ViewData["Title"] = "Application Details";
+}
+
+<div class="page-heading application-details-heading">
+    <div>
+        <a class="back-link" asp-action="Index">Back to applications</a>
+        <div class="title-with-badge"><h2>@Model.JobTitle</h2><span class="badge @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span></div>
+        <p>@Model.CompanyName</p>
+    </div>
+    <div class="form-actions"><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
+</div>
+
+<section class="panel application-overview">
+    <div class="details-grid application-details-grid">
+        <div><dt>Source</dt><dd>@Model.Source.GetDisplayName()</dd></div>
+        <div><dt>Resume used</dt><dd><span class="resume-memory">@(Model.ResumeVersionName ?? "Not selected")</span></dd></div>
+        <div><dt>Applied date</dt><dd>@FormatDate(Model.AppliedDate)</dd></div>
+        <div><dt>Deadline</dt><dd>@FormatDate(Model.Deadline)</dd></div>
+        <div><dt>Location</dt><dd>@(Model.JobLocation ?? "Not specified")</dd></div>
+        <div><dt>Job type</dt><dd>@(Model.JobType?.GetDisplayName() ?? "Not specified")</dd></div>
+        <div><dt>Salary range</dt><dd>@(Model.SalaryRange ?? "Not specified")</dd></div>
+        <div><dt>Job post</dt><dd>@if (Model.JobUrl is not null) { <a href="@Model.JobUrl" target="_blank" rel="noopener noreferrer">Open original listing</a> } else { <span>Not added</span> }</dd></div>
+    </div>
+</section>
+
+<div class="application-detail-sections">
+    <section class="panel content-panel"><h3>Job description</h3><p>@(string.IsNullOrWhiteSpace(Model.JobDescription) ? "No job description added." : Model.JobDescription)</p></section>
+    <section class="panel content-panel"><h3>Notes</h3><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes added." : Model.Notes)</p></section>
+</div>
+
+<p class="record-timestamps">Created @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt") · Updated @Model.UpdatedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt")</p>
+
+@functions {
+    private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not specified";
+    private static string StatusClass(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved",
+        ApplicationStatus.Applied => "status-applied",
+        ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer",
+        ApplicationStatus.Interview => "status-shortlisted",
+        ApplicationStatus.TechnicalTest => "status-interview",
+        ApplicationStatus.Rejected => "status-rejected",
+        _ => "status-saved"
+    };
+}

@@ -175,8 +175,17 @@ public class ResumesController(
             return NotFound();
         }
 
+        var now = DateTimeOffset.UtcNow;
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await dbContext.JobApplications
+            .Where(application => application.UserId == resume.UserId && application.ResumeId == resume.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(application => application.ResumeId, (int?)null)
+                .SetProperty(application => application.UpdatedAt, now));
+
         dbContext.Resumes.Remove(resume);
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var absolutePath = ResolvePrivatePath(resume.FilePath);
         if (System.IO.File.Exists(absolutePath))

@@ -11,7 +11,7 @@
         <aside class="app-sidebar" id="appSidebar">
             <a class="brand" asp-controller="Dashboard" asp-action="Index"><span class="brand-mark">A</span><span>ApplyWise</span></a>
             <nav class="sidebar-nav" aria-label="Main navigation">
-                <a asp-controller="Dashboard" asp-action="Index">Dashboard</a><a asp-controller="Dashboard" asp-action="Applications">Applications</a>
+                <a asp-controller="Dashboard" asp-action="Index">Dashboard</a><a asp-controller="JobApplications" asp-action="Index">Applications</a>
                 <a asp-controller="Resumes" asp-action="Index">Resumes</a><a asp-controller="Dashboard" asp-action="ResumeAnalyzer">Resume Analyzer</a>
                 <a asp-controller="Dashboard" asp-action="SkillGaps">Skill Gaps</a><a asp-controller="Dashboard" asp-action="Interviews">Interviews</a>
                 <a asp-controller="Dashboard" asp-action="Reminders">Reminders</a><a asp-controller="Dashboard" asp-action="Reports">Reports</a>
@@ -21,7 +21,7 @@
         <div class="app-main"><header class="topbar">
             <button class="menu-button" type="button" data-sidebar-toggle aria-label="Toggle navigation"><span></span><span></span><span></span></button>
             <h1>@ViewData["Title"]</h1><div class="topbar-actions"><label class="search-box"><span class="visually-hidden">Search applications and resumes</span><input type="search" placeholder="Search applications, resumes..." /></label>
-            <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Applications">Add Application</a><partial name="_LoginPartial" /></div>
+            <a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add Application</a><partial name="_LoginPartial" /></div>
         </header><main class="app-content" role="main">@RenderBody()</main></div>
         <button class="sidebar-backdrop" type="button" data-sidebar-toggle aria-label="Close navigation"></button>
     </div>

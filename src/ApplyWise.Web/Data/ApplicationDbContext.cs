@@ -7,6 +7,7 @@ namespace ApplyWise.Web.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext(options)
 {
     public DbSet<Resume> Resumes => Set<Resume>();
+    public DbSet<JobApplication> JobApplications => Set<JobApplication>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -30,6 +31,31 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany()
                 .HasForeignKey(resume => resume.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<JobApplication>(entity =>
+        {
+            entity.Property(application => application.CompanyName).HasMaxLength(150);
+            entity.Property(application => application.JobTitle).HasMaxLength(150);
+            entity.Property(application => application.JobLocation).HasMaxLength(150);
+            entity.Property(application => application.SalaryRange).HasMaxLength(100);
+            entity.Property(application => application.JobUrl).HasMaxLength(2048);
+            entity.Property(application => application.JobDescription).HasMaxLength(8000);
+            entity.Property(application => application.Notes).HasMaxLength(2000);
+
+            entity.HasIndex(application => new { application.UserId, application.CreatedAt });
+            entity.HasIndex(application => new { application.UserId, application.Status });
+            entity.HasIndex(application => new { application.UserId, application.Source });
+
+            entity.HasOne(application => application.User)
+                .WithMany()
+                .HasForeignKey(application => application.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(application => application.Resume)
+                .WithMany(resume => resume.JobApplications)
+                .HasForeignKey(application => application.ResumeId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

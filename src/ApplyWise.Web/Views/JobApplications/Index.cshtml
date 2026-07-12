@@ -1,0 +1,73 @@
+@model ApplyWise.Web.ViewModels.JobApplications.JobApplicationIndexViewModel
+@{
+    ViewData["Title"] = "Applications";
+}
+
+<div class="page-heading">
+    <div><h2>Applications</h2><p>Track every job, status, platform, deadline, and resume version used.</p></div>
+    <a class="btn btn-primary" asp-action="Create">Add Application</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert app-alert" role="status">@successMessage</div>
+}
+
+<form method="get" class="application-filters" aria-label="Application filters">
+    <label class="filter-search"><span>Search</span><input asp-for="SearchTerm" class="form-control" placeholder="Company or job title" /></label>
+    <label><span>Status</span><select asp-for="StatusFilter" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"><option value="">All statuses</option></select></label>
+    <label><span>Source</span><select asp-for="SourceFilter" asp-items="Html.GetEnumSelectList<JobSource>()" class="form-select"><option value="">All sources</option></select></label>
+    <label><span>Sort</span><select asp-for="SortBy" class="form-select"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="deadline">Deadline</option><option value="status">Status</option></select></label>
+    <div class="filter-actions"><button class="btn btn-outline-secondary" type="submit">Apply</button><a class="btn btn-link" asp-action="Index">Clear</a></div>
+</form>
+
+@if (Model.Applications.Count == 0)
+{
+    <section class="panel empty-state">
+        <span class="empty-icon" aria-hidden="true">A</span>
+        <h3>@(HasFilters() ? "No matching applications" : "No applications tracked yet")</h3>
+        <p>@(HasFilters() ? "Try clearing or adjusting your search and filters." : "Add your first job so ApplyWise can remember where you applied and which resume you used.")</p>
+        @if (HasFilters()) { <a class="btn btn-outline-secondary" asp-action="Index">Clear Filters</a> }
+        else { <a class="btn btn-primary" asp-action="Create">Add Application</a> }
+    </section>
+}
+else
+{
+    <section class="panel applications-table-panel">
+        <div class="resume-list-header"><span>@Model.Applications.Count result@(Model.Applications.Count == 1 ? string.Empty : "s")</span><span>Private to your account</span></div>
+        <div class="table-responsive">
+            <table class="table app-table applications-table">
+                <thead><tr><th>Role</th><th>Status</th><th>Source</th><th>Resume used</th><th>Applied</th><th>Deadline</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody>
+                @foreach (var application in Model.Applications)
+                {
+                    <tr>
+                        <td><div class="application-role"><strong>@application.JobTitle</strong><span>@application.CompanyName</span></div></td>
+                        <td><span class="badge @StatusClass(application.Status)">@application.Status.GetDisplayName()</span></td>
+                        <td>@application.Source.GetDisplayName()</td>
+                        <td><span class="resume-memory">@(application.ResumeVersionName ?? "Not selected")</span></td>
+                        <td>@FormatDate(application.AppliedDate)</td>
+                        <td>@FormatDate(application.Deadline)</td>
+                        <td><div class="table-actions"><a asp-action="Details" asp-route-id="@application.Id">View</a><a asp-action="Edit" asp-route-id="@application.Id">Edit</a><a class="text-danger" asp-action="Delete" asp-route-id="@application.Id">Delete</a></div></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@functions {
+    private bool HasFilters() => !string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.StatusFilter.HasValue || Model.SourceFilter.HasValue;
+    private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "-";
+    private static string StatusClass(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved",
+        ApplicationStatus.Applied => "status-applied",
+        ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer",
+        ApplicationStatus.Interview => "status-shortlisted",
+        ApplicationStatus.TechnicalTest => "status-interview",
+        ApplicationStatus.Rejected => "status-rejected",
+        _ => "status-saved"
+    };
+}
