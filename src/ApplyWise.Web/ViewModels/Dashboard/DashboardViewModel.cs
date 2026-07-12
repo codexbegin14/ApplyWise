@@ -1,4 +1,5 @@
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Analytics;
 
 namespace ApplyWise.Web.ViewModels.Dashboard;
 
@@ -6,6 +7,8 @@ public sealed class DashboardViewModel
 {
     public DateTimeOffset CurrentTime { get; set; }
     public int TotalApplications { get; set; }
+    public int TotalInterviewCount { get; set; }
+    public double AverageMatchScore { get; set; }
     public int UpcomingInterviewCount { get; set; }
     public int PendingReminderCount { get; set; }
     public int OverdueReminderCount { get; set; }
@@ -14,6 +17,9 @@ public sealed class DashboardViewModel
     public IReadOnlyList<DashboardReminderItemViewModel> PendingReminders { get; set; } = [];
     public IReadOnlyList<DashboardDeadlineItemViewModel> UpcomingDeadlines { get; set; } = [];
     public IReadOnlyList<DashboardActionItemViewModel> TodayActions { get; set; } = [];
+    public IReadOnlyList<SkillGapTrendItem> TopSkillGaps { get; set; } = [];
+    public IReadOnlyList<RecentApplicationItem> RecentApplications { get; set; } = [];
+    public IReadOnlyList<RecentAnalysisItem> RecentAnalyses { get; set; } = [];
 }
 
 public sealed record DashboardInterviewItemViewModel(

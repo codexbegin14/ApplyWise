@@ -45,6 +45,7 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Level 6: Local resume-to-job analysis and saved match history
 - Level 7: Best resume comparison, ranking, and job assignment
 - Level 8: Interview scheduling, reminders, deadlines, and upcoming actions
+- Level 9: Job-search analytics, skill trends, and rule-based job post review
 
 ## Level 5 Features
 
@@ -78,3 +79,12 @@ Job seekers often apply to many jobs using different resume versions and later f
 - Suggest a seven-day follow-up when creating a reminder from an Applied job
 - Filter upcoming and past interviews plus pending, completed, and overdue reminders
 - Surface interviews, reminders, deadlines, and today's action items on the dashboard
+
+## Level 9 Features
+
+- Track application funnels, status distribution, interviews, offers, and match-score trends
+- Aggregate recurring missing skills with priority levels and honest suggested actions
+- Compare resume interview rates, application usage, and average analysis scores
+- Measure application and interview response rates by source platform
+- Review job posts for potential red flags using careful local rules
+- Score job-description quality and save private scam-check history

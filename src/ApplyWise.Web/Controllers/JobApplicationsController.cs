@@ -113,7 +113,15 @@ public class JobApplicationsController(
     public async Task<IActionResult> Details(int id)
     {
         var application = await FindOwnedApplicationAsync(id, true, true);
-        return application is null ? NotFound() : View(ToDetailsViewModel(application));
+        if (application is null) return NotFound();
+        var latestCheck = await dbContext.JobScamChecks.AsNoTracking()
+            .Where(check => check.UserId == application.UserId && check.JobApplicationId == application.Id)
+            .OrderByDescending(check => check.CreatedAt)
+            .Select(check => new JobScamCheckSummaryViewModel(
+                check.Id, check.RiskScore, check.RiskLevel, check.QualityScore,
+                check.Recommendation, check.CreatedAt))
+            .FirstOrDefaultAsync();
+        return View(ToDetailsViewModel(application, latestCheck));
     }
 
     [HttpGet("{id:int}/edit")]
@@ -203,6 +211,9 @@ public class JobApplicationsController(
         await dbContext.Reminders
             .Where(reminder => reminder.UserId == application.UserId && reminder.JobApplicationId == application.Id)
             .ExecuteDeleteAsync();
+        await dbContext.JobScamChecks
+            .Where(check => check.UserId == application.UserId && check.JobApplicationId == application.Id)
+            .ExecuteDeleteAsync();
         dbContext.JobApplications.Remove(application);
         await dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -285,10 +296,11 @@ public class JobApplicationsController(
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static JobApplicationDetailsViewModel ToDetailsViewModel(JobApplication application) =>
+    private static JobApplicationDetailsViewModel ToDetailsViewModel(
+        JobApplication application, JobScamCheckSummaryViewModel? latestScamCheck = null) =>
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
             application.AppliedDate, application.Deadline, application.Notes,
-            application.CreatedAt, application.UpdatedAt);
+            application.CreatedAt, application.UpdatedAt, latestScamCheck);
 }

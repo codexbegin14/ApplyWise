@@ -11,6 +11,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ResumeAnalysis> ResumeAnalyses => Set<ResumeAnalysis>();
     public DbSet<Interview> Interviews => Set<Interview>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
+    public DbSet<JobScamCheck> JobScamChecks => Set<JobScamCheck>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -127,6 +128,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasOne(reminder => reminder.JobApplication)
                 .WithMany(application => application.Reminders)
                 .HasForeignKey(reminder => reminder.JobApplicationId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<JobScamCheck>(entity =>
+        {
+            entity.Property(check => check.RedFlagsJson).HasColumnType("nvarchar(max)");
+            entity.Property(check => check.MissingInformationJson).HasColumnType("nvarchar(max)");
+            entity.Property(check => check.Recommendation).HasMaxLength(1000);
+
+            entity.HasIndex(check => new { check.UserId, check.CreatedAt });
+            entity.HasIndex(check => new { check.UserId, check.JobApplicationId });
+
+            entity.HasOne(check => check.User)
+                .WithMany()
+                .HasForeignKey(check => check.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(check => check.JobApplication)
+                .WithMany(application => application.ScamChecks)
+                .HasForeignKey(check => check.JobApplicationId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }

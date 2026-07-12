@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Services.BestResumePicker;
+using ApplyWise.Web.Services.Analytics;
+using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +20,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
+builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 var app = builder.Build();
 

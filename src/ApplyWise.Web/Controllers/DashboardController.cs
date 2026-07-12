@@ -1,5 +1,6 @@
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.ViewModels.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -11,7 +12,8 @@ namespace ApplyWise.Web.Controllers;
 [Authorize]
 public class DashboardController(
     ApplicationDbContext dbContext,
-    UserManager<IdentityUser> userManager) : Controller
+    UserManager<IdentityUser> userManager,
+    IAnalyticsService analyticsService) : Controller
 {
     public async Task<IActionResult> Index()
     {
@@ -22,19 +24,26 @@ public class DashboardController(
         var today = DateOnly.FromDateTime(localNow.DateTime);
         var todayStart = new DateTimeOffset(localNow.Date, localNow.Offset).ToUniversalTime();
         var tomorrowStart = todayStart.AddDays(1);
+        var analytics = await analyticsService.GetOverviewAsync(userId, HttpContext.RequestAborted);
 
         var model = new DashboardViewModel
         {
             CurrentTime = localNow,
-            TotalApplications = await dbContext.JobApplications.CountAsync(application => application.UserId == userId),
+            TotalApplications = analytics.TotalApplications,
+            TotalInterviewCount = analytics.InterviewCount,
+            AverageMatchScore = analytics.AverageMatchScore,
             UpcomingInterviewCount = await dbContext.Interviews.CountAsync(interview =>
                 interview.UserId == userId && interview.ScheduledAt >= now
                 && (interview.Status == InterviewStatus.Scheduled || interview.Status == InterviewStatus.Rescheduled)),
             PendingReminderCount = await dbContext.Reminders.CountAsync(reminder =>
                 reminder.UserId == userId && !reminder.IsCompleted),
             OverdueReminderCount = await dbContext.Reminders.CountAsync(reminder =>
-                reminder.UserId == userId && !reminder.IsCompleted && reminder.DueAt < now)
+                reminder.UserId == userId && !reminder.IsCompleted && reminder.DueAt < now),
+            RecentApplications = analytics.RecentApplications,
+            RecentAnalyses = analytics.RecentAnalyses
         };
+        model.TopSkillGaps = (await analyticsService.GetSkillGapTrendsAsync(
+            userId, cancellationToken: HttpContext.RequestAborted)).Take(4).ToArray();
 
         model.UpcomingInterviews = await dbContext.Interviews.AsNoTracking()
             .Where(interview => interview.UserId == userId && interview.ScheduledAt >= now
@@ -104,8 +113,6 @@ public class DashboardController(
         return View(model);
     }
 
-    [Route("skill-gaps")] public IActionResult SkillGaps() => Section("Skill Gaps", "See recurring skills across the roles you are targeting.");
-    [Route("reports")] public IActionResult Reports() => Section("Reports", "Review application activity and resume performance over time.");
     [Route("settings")] public IActionResult Settings() => Section("Settings", "Manage your ApplyWise account and preferences.");
 
     private IActionResult Section(string title, string description, string? actionLabel = null) =>

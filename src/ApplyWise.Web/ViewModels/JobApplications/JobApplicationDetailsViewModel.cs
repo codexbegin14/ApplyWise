@@ -18,4 +18,13 @@ public sealed record JobApplicationDetailsViewModel(
     DateOnly? Deadline,
     string? Notes,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    JobScamCheckSummaryViewModel? LatestScamCheck = null);
+
+public sealed record JobScamCheckSummaryViewModel(
+    int Id,
+    int RiskScore,
+    JobRiskLevel RiskLevel,
+    int QualityScore,
+    string Recommendation,
+    DateTimeOffset CreatedAt);

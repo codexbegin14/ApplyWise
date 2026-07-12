@@ -4,9 +4,9 @@
 
 <section class="metric-grid">
     <article class="metric-card"><span>Total Applications</span><strong>@Model.TotalApplications</strong><small><a asp-controller="JobApplications" asp-action="Index">View tracker</a></small></article>
-    <article class="metric-card"><span>Upcoming Interviews</span><strong>@Model.UpcomingInterviewCount</strong><small><a asp-controller="Interviews" asp-action="Index">View schedule</a></small></article>
-    <article class="metric-card"><span>Pending Reminders</span><strong>@Model.PendingReminderCount</strong><small>@Model.TodayActionCount action@(Model.TodayActionCount == 1 ? string.Empty : "s") today</small></article>
-    <article class="metric-card"><span>Overdue Reminders</span><strong class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount</strong><small><a asp-controller="Reminders" asp-action="Index" asp-route-filter="overdue">Review overdue</a></small></article>
+    <article class="metric-card"><span>Interviews</span><strong>@Model.TotalInterviewCount</strong><small>@Model.UpcomingInterviewCount upcoming</small></article>
+    <article class="metric-card"><span>Average Match Score</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><small><a asp-controller="Analytics" asp-action="ResumePerformance">Resume performance</a></small></article>
+    <article class="metric-card"><span>Pending Follow-ups</span><strong>@Model.PendingReminderCount</strong><small class="@(Model.OverdueReminderCount > 0 ? "danger-text" : null)">@Model.OverdueReminderCount overdue</small></article>
 </section>
 
 <div class="action-dashboard-grid">
@@ -30,3 +30,13 @@
         else { <div class="dashboard-deadline-list">@foreach (var deadline in Model.UpcomingDeadlines) { <a asp-controller="JobApplications" asp-action="Details" asp-route-id="@deadline.Id"><span><strong>@deadline.JobTitle</strong><small>@deadline.CompanyName</small></span><time>@deadline.Deadline.ToString("MMM d")</time></a> }</div> }
     </section>
 </div>
+
+<div class="dashboard-insights-grid">
+    <section class="panel"><div class="panel-header"><div><h3>Top Skill Gaps</h3><p>Recurring missing requirements</p></div><a asp-controller="Analytics" asp-action="SkillGaps">View trends</a></div>@if (Model.TopSkillGaps.Count == 0) { <div class="compact-empty"><strong>No analysis trends yet</strong><a asp-controller="ResumeAnalyzer" asp-action="Index">Analyze a resume</a></div> } else { <div class="insight-list">@foreach (var skill in Model.TopSkillGaps) { <div><span><strong>@skill.SkillName</strong><small>@skill.RelatedJobCount related jobs</small></span><span class="priority @(skill.Priority == "High" ? "priority-high" : skill.Priority == "Medium" ? "priority-medium" : "priority-low")">@skill.Priority</span><b>@skill.MissingCount×</b></div> }</div> }</section>
+    <section class="panel"><div class="panel-header"><div><h3>Recent Applications</h3><p>Latest tracker activity</p></div><a asp-controller="JobApplications" asp-action="Index">View all</a></div>@if (Model.RecentApplications.Count == 0) { <div class="compact-empty"><strong>No applications yet</strong></div> } else { <div class="recent-insight-list">@foreach (var application in Model.RecentApplications) { <a asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id"><span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span><span class="badge @StatusClass(application.Status)">@application.Status.GetDisplayName()</span></a> }</div> }</section>
+    <section class="panel"><div class="panel-header"><div><h3>Recent Analysis Scores</h3><p>Latest resume comparisons</p></div><a asp-controller="ResumeAnalyzer" asp-action="History">View history</a></div>@if (Model.RecentAnalyses.Count == 0) { <div class="compact-empty"><strong>No analyses yet</strong></div> } else { <div class="recent-insight-list">@foreach (var analysis in Model.RecentAnalyses) { <a asp-controller="ResumeAnalyzer" asp-action="Details" asp-route-id="@analysis.Id"><span><strong>@analysis.JobTitle</strong><small>@analysis.ResumeVersionName · @analysis.CompanyName</small></span><b>@analysis.MatchScore%</b></a> }</div> }</section>
+</div>
+
+@functions {
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "status-saved", ApplicationStatus.Applied => "status-applied", ApplicationStatus.Shortlisted or ApplicationStatus.Offer => "status-offer", ApplicationStatus.Interview => "status-shortlisted", ApplicationStatus.TechnicalTest => "status-interview", ApplicationStatus.Rejected => "status-rejected", _ => "status-saved" };
+}

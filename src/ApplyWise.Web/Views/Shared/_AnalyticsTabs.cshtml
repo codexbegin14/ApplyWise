@@ -1,0 +1,2 @@
+@model string
+<nav class="analyzer-tabs" aria-label="Analytics sections"><a class="@(Model == "overview" ? "active" : null)" asp-controller="Analytics" asp-action="Index">Overview</a><a class="@(Model == "skills" ? "active" : null)" asp-controller="Analytics" asp-action="SkillGaps">Skill Gaps</a><a class="@(Model == "resumes" ? "active" : null)" asp-controller="Analytics" asp-action="ResumePerformance">Resume Performance</a><a class="@(Model == "platforms" ? "active" : null)" asp-controller="Analytics" asp-action="Platforms">Platforms</a></nav>

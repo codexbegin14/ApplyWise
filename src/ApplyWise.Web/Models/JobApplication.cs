@@ -27,4 +27,5 @@ public class JobApplication
     public ICollection<ResumeAnalysis> Analyses { get; set; } = [];
     public ICollection<Interview> Interviews { get; set; } = [];
     public ICollection<Reminder> Reminders { get; set; } = [];
+    public ICollection<JobScamCheck> ScamChecks { get; set; } = [];
 }
