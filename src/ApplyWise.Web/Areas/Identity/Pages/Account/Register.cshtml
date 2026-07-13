@@ -15,11 +15,20 @@
         <form id="registerForm" method="post" class="aw-login-form">
             <div asp-validation-summary="ModelOnly" class="validation-summary aw-login-alert" role="alert"></div>
 
+            <label class="aw-login-field" asp-for="Input.FullName">
+                <span>Full name</span>
+                <span class="aw-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+                    <input asp-for="Input.FullName" autocomplete="name" placeholder="Your full name" autofocus />
+                </span>
+                <span asp-validation-for="Input.FullName" class="field-validation-error"></span>
+            </label>
+
             <label class="aw-login-field" asp-for="Input.Email">
                 <span>Email address</span>
                 <span class="aw-login-input">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6" /></svg>
-                    <input asp-for="Input.Email" autocomplete="username" placeholder="you@example.com" autofocus />
+                    <input asp-for="Input.Email" autocomplete="username" placeholder="you@example.com" />
                 </span>
                 <span asp-validation-for="Input.Email" class="field-validation-error"></span>
             </label>

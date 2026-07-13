@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,11 @@ public class RegisterModel(
 
     public sealed class InputModel
     {
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        [Display(Name = "Full name")]
+        public string FullName { get; set; } = string.Empty;
+
         [Required]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
@@ -55,6 +61,20 @@ public class RegisterModel(
         if (result.Succeeded)
         {
             logger.LogInformation("User created a new account with password.");
+            var displayNameResult = await userManager.AddClaimAsync(
+                user,
+                new Claim("display_name", Input.FullName.Trim()));
+            if (!displayNameResult.Succeeded)
+            {
+                await userManager.DeleteAsync(user);
+                foreach (var error in displayNameResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                return Page();
+            }
+
             var userId = await userManager.GetUserIdAsync(user);
             var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));

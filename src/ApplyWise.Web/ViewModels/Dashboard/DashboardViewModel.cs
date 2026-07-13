@@ -5,6 +5,7 @@ namespace ApplyWise.Web.ViewModels.Dashboard;
 
 public sealed class DashboardViewModel
 {
+    public string DisplayName { get; set; } = "there";
     public DateTimeOffset CurrentTime { get; set; }
     public int TotalApplications { get; set; }
     public int TotalInterviewCount { get; set; }

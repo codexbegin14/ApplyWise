@@ -19,6 +19,13 @@ public class DashboardController(
     {
         var userId = userManager.GetUserId(User)
             ?? throw new InvalidOperationException("The current user does not have an identifier.");
+        var currentUser = await userManager.GetUserAsync(User)
+            ?? throw new InvalidOperationException("The current user could not be loaded.");
+        var displayName = (await userManager.GetClaimsAsync(currentUser))
+            .FirstOrDefault(claim => claim.Type == "display_name")?.Value;
+        displayName = string.IsNullOrWhiteSpace(displayName)
+            ? currentUser.UserName?.Split('@')[0] ?? "there"
+            : displayName.Trim();
         var now = DateTimeOffset.UtcNow;
         var localNow = DateTimeOffset.Now;
         var today = DateOnly.FromDateTime(localNow.DateTime);
@@ -31,6 +38,7 @@ public class DashboardController(
 
         var model = new DashboardViewModel
         {
+            DisplayName = displayName,
             CurrentTime = localNow,
             TotalApplications = analytics.TotalApplications,
             TotalInterviewCount = analytics.InterviewCount,

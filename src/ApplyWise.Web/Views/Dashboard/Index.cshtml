@@ -2,11 +2,14 @@
 @{ ViewData["Title"] = "Dashboard"; }
 
 <div class="aw-page aw-dashboard-v2 aw-fade-in">
+    <header class="aw-dashboard-greeting">
+        <h1>Welcome, @Model.DisplayName</h1>
+        <p>@Model.CurrentTime.ToString("dddd, MMMM d")</p>
+    </header>
+
     <section class="aw-cockpit-hero aw-cockpit-hero-v2 aw-slide-up">
         <div class="aw-cockpit-copy">
-            <span class="aw-focus-pill"><svg class="ui-icon"><use href="#i-spark" /></svg>Today's focus <b>@(Model.TodayActionCount > 0 ? $"{Model.TodayActionCount} ready" : "Build momentum")</b></span>
             <h2>Ready to make your next application stronger?</h2>
-            <p>@Model.CurrentTime.ToString("dddd, MMMM d") · Choose one focused move and let ApplyWise keep the rest organized.</p>
             <div class="aw-hero-actions">
                 <a class="btn btn-primary" asp-controller="Resumes" asp-action="Create"><svg class="ui-icon"><use href="#i-file" /></svg>Upload Resume</a>
                 <a class="btn btn-secondary-soft" asp-controller="JobApplications" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a>
