@@ -6,22 +6,147 @@ using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
+using ApplyWise.Web.Services.Opportunities;
+using ApplyWise.Web.Services.Wiso;
+using ApplyWise.Web.Services.Email;
+using ApplyWise.Web.Services.Health;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using System.Threading.RateLimiting;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+
+if (PdfTextWorker.IsWorkerCommand(args))
+{
+    Environment.ExitCode = await PdfTextWorker.RunAsync(args);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
+var isProduction = builder.Environment.IsProduction();
+var publicOrigin = builder.Configuration["PublicOrigin"];
+var allowedHosts = builder.Configuration["AllowedHosts"];
+var resumeStorageRoot = builder.Configuration["ResumeStorage:RootPath"];
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+var dataProtectionCertificatePath = builder.Configuration["DataProtection:CertificatePath"];
+var dataProtectionCertificatePassword = builder.Configuration["DataProtection:CertificatePassword"];
+var smtpHost = builder.Configuration["Email:Host"];
+var smtpFrom = builder.Configuration["Email:From"];
+var connectionStringSetting = builder.Configuration.GetConnectionString("DefaultConnection");
+
+static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
+static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+    && uri.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment);
+
+if (isProduction &&
+    (IsUnset(connectionStringSetting)
+     || !IsHttpsOrigin(publicOrigin)
+     || IsUnset(allowedHosts)
+     || (allowedHosts?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(host => host == "*") ?? true)
+     || IsUnset(smtpHost)
+     || IsUnset(smtpFrom)
+     || IsUnset(resumeStorageRoot)
+     || !Path.IsPathRooted(resumeStorageRoot)
+     || IsUnset(dataProtectionKeysPath)
+     || !Path.IsPathRooted(dataProtectionKeysPath)
+     || IsUnset(dataProtectionCertificatePath)
+     || !Path.IsPathRooted(dataProtectionCertificatePath)))
+{
+    throw new InvalidOperationException(
+        "Production requires a SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
+}
+
+var resolvedDataProtectionKeysPath = Path.GetFullPath(
+    Path.IsPathRooted(dataProtectionKeysPath)
+        ? dataProtectionKeysPath
+        : Path.Combine(builder.Environment.ContentRootPath, dataProtectionKeysPath ?? Path.Combine("App_Data", "DataProtectionKeys")));
+Directory.CreateDirectory(resolvedDataProtectionKeysPath);
+var dataProtectionBuilder = builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(resolvedDataProtectionKeysPath))
+    .SetApplicationName("ApplyWise");
+
+if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
+{
+    var resolvedCertificatePath = Path.GetFullPath(
+        Path.IsPathRooted(dataProtectionCertificatePath)
+            ? dataProtectionCertificatePath
+            : Path.Combine(builder.Environment.ContentRootPath, dataProtectionCertificatePath));
+    if (!File.Exists(resolvedCertificatePath))
+        throw new InvalidOperationException("The configured Data Protection certificate file was not found.");
+
+    try
+    {
+        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+            resolvedCertificatePath,
+            dataProtectionCertificatePassword,
+            X509KeyStorageFlags.EphemeralKeySet);
+        dataProtectionBuilder.ProtectKeysWithCertificate(certificate);
+    }
+    catch (CryptographicException exception)
+    {
+        throw new InvalidOperationException("The configured Data Protection certificate could not be loaded.", exception);
+    }
+}
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = connectionStringSetting ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
-        options.SignIn.RequireConfirmedAccount = false;
+        options.SignIn.RequireConfirmedAccount = builder.Configuration.GetValue("Identity:RequireConfirmedAccount", isProduction);
         options.User.RequireUniqueEmail = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
     .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = isProduction ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.SlidingExpiration = true;
+});
 builder.Services.AddControllersWithViews();
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("RateLimiting:GlobalPermitLimit", 240),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("uploads", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+});
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("AnnouncementManager", policy =>
+        policy.RequireClaim(builder.Configuration["AnnouncementManager:ClaimType"] ?? "role",
+            builder.Configuration["AnnouncementManager:ClaimValue"] ?? "announcement-manager")));
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (System.Net.IPAddress.TryParse(proxy, out var address)) options.KnownProxies.Add(address);
+    }
+});
+builder.Services.AddOptions<EmailOptions>()
+    .Bind(builder.Configuration.GetSection(EmailOptions.SectionName))
+    .Validate(options => options.Port is > 0 and <= 65535, "Email:Port must be between 1 and 65535.")
+    .ValidateOnStart();
+builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
@@ -31,8 +156,12 @@ builder.Services.AddOptions<ResumeStorageOptions>()
     .Bind(builder.Configuration.GetSection(ResumeStorageOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
         "ResumeStorage:RootPath must be configured.")
+    .Validate(options => options.MaxFileSizeBytes is > 0 and <= 10 * 1024 * 1024 && options.MaxFilesPerUser > 0 && options.MaxBytesPerUser >= options.MaxFileSizeBytes && options.ExtractionTimeoutSeconds is >= 5 and <= 120,
+        "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
+builder.Services.AddScoped<IOpportunityService, OpportunityService>();
+builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();
 
@@ -48,6 +177,7 @@ else
     app.UseHsts();
 }
 
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.Use(async (context, next) =>
 {
@@ -57,11 +187,13 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
     context.Response.Headers.TryAdd(
         "Content-Security-Policy",
-        "base-uri 'self'; frame-ancestors 'none'; object-src 'none'");
+        "base-uri 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'");
     await next();
 });
 app.UseRouting();
 
+app.UseRateLimiter();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -73,5 +205,8 @@ app.MapControllerRoute(
 
 app.MapRazorPages()
    .WithStaticAssets();
+app.MapHealthChecks("/health");
 
 app.Run();
+
+public partial class Program { }

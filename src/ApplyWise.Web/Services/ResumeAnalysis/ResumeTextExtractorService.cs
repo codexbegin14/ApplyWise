@@ -1,12 +1,14 @@
-using System.Text;
-using UglyToad.PdfPig;
+using System.Diagnostics;
+using System.Reflection;
+using ApplyWise.Web.Services.ResumeStorage;
+using Microsoft.Extensions.Options;
 
 namespace ApplyWise.Web.Services.ResumeAnalysis;
 
-public sealed class ResumeTextExtractorService : IResumeTextExtractorService
+public sealed class ResumeTextExtractorService(
+    IOptions<ResumeStorageOptions> options,
+    ILogger<ResumeTextExtractorService> logger) : IResumeTextExtractorService
 {
-    private const int MaxPages = 50;
-    private const int MaxExtractedCharacters = 250_000;
     private static readonly SemaphoreSlim ExtractionSlots = new(initialCount: 2, maxCount: 2);
 
     public async Task<string?> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
@@ -14,7 +16,7 @@ public sealed class ResumeTextExtractorService : IResumeTextExtractorService
         await ExtractionSlots.WaitAsync(cancellationToken);
         try
         {
-            return await Task.Run(() => ExtractText(filePath, cancellationToken), cancellationToken);
+            return await ExtractInWorkerAsync(filePath, cancellationToken);
         }
         finally
         {
@@ -22,48 +24,59 @@ public sealed class ResumeTextExtractorService : IResumeTextExtractorService
         }
     }
 
-    private static string? ExtractText(string filePath, CancellationToken cancellationToken)
+    private async Task<string?> ExtractInWorkerAsync(string filePath, CancellationToken cancellationToken)
     {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"applywise-pdf-{Guid.NewGuid():N}.txt");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.ExtractionTimeoutSeconds));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        Process? process = null;
         try
         {
-            using var document = PdfDocument.Open(filePath);
-            if (document.NumberOfPages is <= 0 or > MaxPages)
+            var processPath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path is unavailable.");
+            var startInfo = new ProcessStartInfo(processPath)
             {
-                return null;
-            }
-
-            var text = new StringBuilder();
-            foreach (var page in document.GetPages())
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            if (string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!string.IsNullOrWhiteSpace(page.Text))
-                {
-                    var remaining = MaxExtractedCharacters - text.Length;
-                    if (remaining <= 0)
-                    {
-                        return null;
-                    }
-
-                    var pageText = page.Text;
-                    if (pageText.Length > remaining)
-                    {
-                        return null;
-                    }
-
-                    text.AppendLine(pageText);
-                }
+                startInfo.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location);
             }
+            startInfo.ArgumentList.Add(PdfTextWorker.Command);
+            startInfo.ArgumentList.Add(Path.GetFullPath(filePath));
+            startInfo.ArgumentList.Add(outputPath);
+            startInfo.Environment["DOTNET_GCHeapHardLimit"] = "0x08000000";
+            startInfo.Environment["DOTNET_GCConserveMemory"] = "9";
 
-            var extracted = text.ToString().Trim();
-            return string.IsNullOrWhiteSpace(extracted) ? null : extracted;
+            process = Process.Start(startInfo) ?? throw new InvalidOperationException("PDF worker could not start.");
+            await process.WaitForExitAsync(linked.Token);
+            if (process.ExitCode != 0 || !File.Exists(outputPath)) return null;
+            var info = new FileInfo(outputPath);
+            if (info.Length > PdfTextWorker.MaxExtractedCharacters * 4L) return null;
+            var extracted = (await File.ReadAllTextAsync(outputPath, cancellationToken)).Trim();
+            return extracted.Length is > 0 and <= PdfTextWorker.MaxExtractedCharacters ? extracted : null;
         }
         catch (OperationCanceledException)
         {
-            throw;
-        }
-        catch
-        {
+            TryKill(process);
+            if (cancellationToken.IsCancellationRequested) throw;
+            logger.LogWarning("PDF extraction exceeded the configured timeout.");
             return null;
         }
+        catch (Exception exception)
+        {
+            TryKill(process);
+            logger.LogWarning(exception, "PDF extraction failed in the isolated worker.");
+            return null;
+        }
+        finally { if (File.Exists(outputPath)) File.Delete(outputPath); }
+    }
+
+    private static void TryKill(Process? process)
+    {
+        try { if (process is { HasExited: false }) process.Kill(entireProcessTree: true); }
+        catch (InvalidOperationException) { }
     }
 }

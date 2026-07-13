@@ -69,7 +69,8 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, ILogger<Login
         if (result.IsLockedOut)
         {
             logger.LogWarning("User account locked out.");
-            return RedirectToPage("./Lockout");
+            ModelState.AddModelError(string.Empty, "We couldn’t log you in with those details. Check your email and password, then try again.");
+            return Page();
         }
 
         ModelState.AddModelError(string.Empty, "We couldn't log you in with those details. Check your email and password, then try again.");

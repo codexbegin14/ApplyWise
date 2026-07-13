@@ -52,7 +52,10 @@ public class JobApplicationsController(
 
         filters.SearchTerm = filters.SearchTerm?.Trim();
         filters.SortBy = filters.SortBy is "oldest" or "deadline" or "status" ? filters.SortBy : "newest";
-        filters.Applications = await query
+        filters.Page = Math.Max(1, filters.Page);
+        filters.PageSize = 20;
+        filters.Total = await query.CountAsync();
+        filters.Applications = await query.Skip((filters.Page - 1) * filters.PageSize).Take(filters.PageSize)
             .Select(application => new JobApplicationListItemViewModel(
                 application.Id,
                 application.CompanyName,
@@ -69,7 +72,7 @@ public class JobApplicationsController(
     }
 
     [HttpGet("create")]
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(int? opportunityId = null)
     {
         var userId = GetUserId();
         var model = new JobApplicationCreateViewModel
@@ -79,6 +82,21 @@ public class JobApplicationsController(
                 .Select(resume => (int?)resume.Id)
                 .SingleOrDefaultAsync()
         };
+        if (opportunityId.HasValue)
+        {
+            var opportunity = await dbContext.Opportunities.AsNoTracking().SingleOrDefaultAsync(item => item.Id == opportunityId && item.Status == OpportunityStatus.Published && (item.Deadline == null || item.Deadline >= DateTimeOffset.UtcNow));
+            if (opportunity != null)
+            {
+                model.CompanyName = opportunity.OrganizationName;
+                model.JobTitle = opportunity.Title;
+                model.JobLocation = opportunity.Location;
+                model.JobUrl = opportunity.ApplicationUrl;
+                model.JobDescription = opportunity.Description ?? opportunity.Summary;
+                model.JobType = opportunity.EmploymentType switch { OpportunityEmploymentType.Internship => JobType.Internship, OpportunityEmploymentType.PartTime => JobType.PartTime, OpportunityEmploymentType.Freelance => JobType.Contract, _ => JobType.FullTime };
+                model.Source = JobSource.Other;
+                ViewData["OpportunityTitle"] = opportunity.Title;
+            }
+        }
         await PopulateResumesAsync(model);
         return View(model);
     }

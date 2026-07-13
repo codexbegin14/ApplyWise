@@ -13,10 +13,22 @@ Add these application settings in the Azure portal:
 ```text
 ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__DefaultConnection=<Azure SQL connection string>
-ResumeStorage__RootPath=<private persistent directory>
+PublicOrigin=https://<public-host-name>
+AllowedHosts=<public-host-name>
+Email__Host=<SMTP host>
+Email__Port=587
+Email__UserName=<SMTP user>
+Email__Password=<SMTP password>
+Email__From=<verified sender address>
+ResumeStorage__RootPath=<absolute private persistent directory>
+DataProtection__KeysPath=<absolute persistent key directory>
+DataProtection__CertificatePath=<absolute path to a mounted PFX>
+DataProtection__CertificatePassword=<PFX password>
 ```
 
-For a single App Service instance, use a path under the host's persistent home/data directory. Do not use `wwwroot` for resumes. Azure Blob Storage is the recommended follow-up before scale-out because local files are not shared safely across multiple instances.
+For a single App Service instance, use paths under the host's persistent home/data directory. Do not use `wwwroot` for resumes or Data Protection keys. Mount a PFX from the platform's secret/certificate store and use it to encrypt the key ring. Azure Blob Storage (or another private shared store) is required before scale-out because local files are not shared safely across multiple instances. Back up the encrypted key directory and restrict access: it protects authentication cookies and account-recovery tokens.
+
+Production intentionally refuses to start with placeholder values, wildcard hosts, a non-HTTPS public origin, or relative storage/key paths. If TLS terminates at a proxy, set `ForwardedHeaders__KnownProxies__0` (and additional indexed values as needed) only to that proxy's trusted IP address.
 
 Mark secrets as deployment settings and keep them out of `appsettings.json`, shell history, screenshots, and Git.
 
@@ -54,3 +66,7 @@ Deploy the publish directory with an Azure-supported pipeline, ZIP deploy, or Vi
 - Confirm a second account receives 404/no data for the first account's record IDs.
 - Review App Service logs without logging resume contents or connection strings.
 - Configure backups, health monitoring, alerts, storage retention, and a rollback plan.
+- Confirm `/health` returns `Healthy` through the platform health probe after migrations are applied.
+- Keep the app container/site private behind the TLS proxy; do not expose the internal HTTP listener directly.
+
+See the repository-level [deployment notes](../DEPLOYMENT.md) for the Docker Compose flow and complete production checklist.

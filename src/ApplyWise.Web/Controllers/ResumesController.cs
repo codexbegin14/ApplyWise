@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
+using System.Data;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -16,7 +19,8 @@ public class ResumesController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
     IResumeStorageService resumeStorage,
-    IResumeTextExtractorService textExtractor) : Controller
+    IResumeTextExtractorService textExtractor,
+    IOptions<ResumeStorageOptions> storageOptions) : Controller
 {
     private const long MaxFileSize = 5 * 1024 * 1024;
     private static readonly byte[] PdfSignature = "%PDF-"u8.ToArray();
@@ -41,8 +45,9 @@ public class ResumesController(
     [HttpGet("upload")]
     public IActionResult Create() => View(new ResumeUploadViewModel());
 
-    [HttpPost("upload")]
-    [ValidateAntiForgeryToken]
+[HttpPost("upload")]
+[ValidateAntiForgeryToken]
+[EnableRateLimiting("uploads")]
     [RequestSizeLimit(MaxFileSize + 64 * 1024)]
     public async Task<IActionResult> Create(ResumeUploadViewModel model)
     {
@@ -53,6 +58,15 @@ public class ResumesController(
         }
 
         var userId = GetUserId();
+        var limits = storageOptions.Value;
+        var usage = await dbContext.Resumes.Where(resume => resume.UserId == userId)
+            .GroupBy(_ => 1).Select(group => new { Count = group.Count(), Bytes = group.Sum(resume => resume.FileSize) })
+            .SingleOrDefaultAsync() ?? new { Count = 0, Bytes = 0L };
+        if (usage.Count >= limits.MaxFilesPerUser || usage.Bytes > limits.MaxBytesPerUser - model.ResumeFile!.Length)
+        {
+            ModelState.AddModelError(nameof(model.ResumeFile), $"Your resume library is limited to {limits.MaxFilesPerUser} files and {limits.MaxBytesPerUser / (1024 * 1024)} MB.");
+            return View(model);
+        }
         var originalFileName = SanitizeFileName(model.ResumeFile!.FileName);
         var storedFileName = $"{Guid.NewGuid():N}.pdf";
         var relativePath = resumeStorage.CreateRelativePath(userId, storedFileName);
@@ -99,9 +113,19 @@ public class ResumesController(
             ExtractedText = extractedText
         };
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {
+            var currentUsage = await dbContext.Resumes.Where(resume => resume.UserId == userId)
+                .GroupBy(_ => 1).Select(group => new { Count = group.Count(), Bytes = group.Sum(resume => resume.FileSize) })
+                .SingleOrDefaultAsync() ?? new { Count = 0, Bytes = 0L };
+            if (currentUsage.Count >= limits.MaxFilesPerUser || currentUsage.Bytes > limits.MaxBytesPerUser - resume.FileSize)
+            {
+                await transaction.RollbackAsync();
+                System.IO.File.Delete(absolutePath);
+                ModelState.AddModelError(nameof(model.ResumeFile), "Your resume library reached its storage limit while this upload was being prepared.");
+                return View(model);
+            }
             if (resume.IsDefault)
             {
                 await dbContext.Resumes

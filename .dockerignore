@@ -1,0 +1,15 @@
+.git
+.vs
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+**/bin/
+**/obj/
+App_Data/Uploads/
+App_Data/DataProtectionKeys/
+tests/**/bin/
+tests/**/obj/
+*.user
+*.suo

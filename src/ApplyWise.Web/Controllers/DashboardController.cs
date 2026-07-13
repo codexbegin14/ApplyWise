@@ -21,8 +21,12 @@ public class DashboardController(
             ?? throw new InvalidOperationException("The current user does not have an identifier.");
         var currentUser = await userManager.GetUserAsync(User)
             ?? throw new InvalidOperationException("The current user could not be loaded.");
-        var displayName = (await userManager.GetClaimsAsync(currentUser))
-            .FirstOrDefault(claim => claim.Type == "display_name")?.Value;
+        var displayName = await dbContext.CareerProfiles.AsNoTracking().Where(profile => profile.UserId == userId).Select(profile => profile.FullName).SingleOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = (await userManager.GetClaimsAsync(currentUser))
+                .FirstOrDefault(claim => claim.Type == "display_name")?.Value;
+        }
         displayName = string.IsNullOrWhiteSpace(displayName)
             ? currentUser.UserName?.Split('@')[0] ?? "there"
             : displayName.Trim();

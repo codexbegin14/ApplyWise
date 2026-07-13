@@ -95,10 +95,14 @@ Production values should come from environment variables or the host's secret st
 | Setting | Environment variable | Purpose |
 |---|---|---|
 | `ConnectionStrings:DefaultConnection` | `ConnectionStrings__DefaultConnection` | Azure SQL / SQL Server connection |
-| `ResumeStorage:RootPath` | `ResumeStorage__RootPath` | Private resume storage outside `wwwroot` |
+| `PublicOrigin` | `PublicOrigin` | Canonical HTTPS public URL; required in Production |
+| `AllowedHosts` | `AllowedHosts` | Exact public host names; wildcard values are rejected in Production |
+| `Email:*` | `Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From` | SMTP for confirmation and account recovery |
+| `ResumeStorage:RootPath` | `ResumeStorage__RootPath` | Absolute private resume storage path; required in Production |
+| `DataProtection:*` | `DataProtection__KeysPath`, `DataProtection__CertificatePath`, `DataProtection__CertificatePassword` | Persistent key path plus PFX encryption; required in Production |
 | `ASPNETCORE_ENVIRONMENT` | `ASPNETCORE_ENVIRONMENT` | Use `Production` on a deployed host |
 
-The default private upload path is `App_Data/Uploads/Resumes`. It is configurable, canonicalized, and never mapped as a static web directory.
+The default private upload path is `App_Data/Uploads/Resumes`. It is configurable, canonicalized, and never mapped as a static web directory. Production rejects relative or placeholder storage/key paths, wildcard hosts, and a non-HTTPS public origin to prevent an accidental insecure launch.
 
 ## Security notes
 
@@ -116,7 +120,7 @@ This is application-level hardening, not a substitute for platform monitoring, b
 
 ## Deployment
 
-The documented release path is **Azure App Service + Azure SQL Database**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for configuration, migration, storage, publish, and verification steps.
+The documented release path is **Azure App Service + Azure SQL Database**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for configuration, migration, storage, container, and verification steps.
 
 Create a local release artifact outside the repository with:
 

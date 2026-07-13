@@ -36,6 +36,7 @@
                 </article>
             }
         </section>
+        @if (Model.TotalPages > 1) { <nav class="aw-pagination" aria-label="Application pages">@for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++) { <a class="@(pageNumber == Model.Page ? "active" : null)" asp-action="Index" asp-route-Page="@pageNumber" asp-route-SearchTerm="@Model.SearchTerm" asp-route-StatusFilter="@Model.StatusFilter" asp-route-SourceFilter="@Model.SourceFilter" asp-route-SortBy="@Model.SortBy">@pageNumber</a> }</nav> }
     }
 </div>
 

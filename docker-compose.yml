@@ -1,0 +1,66 @@
+x-application-environment: &application-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  ConnectionStrings__DefaultConnection: "Server=db,1433;Database=ApplyWise;User Id=sa;Password=${SA_PASSWORD:?set SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+  Email__Host: "${SMTP_HOST:?set SMTP_HOST}"
+  Email__Port: "${SMTP_PORT:-587}"
+  Email__UserName: "${SMTP_USERNAME:-}"
+  Email__Password: "${SMTP_PASSWORD:-}"
+  Email__From: "${SMTP_FROM:?set SMTP_FROM}"
+  PublicOrigin: "${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN}"
+  AllowedHosts: "${ALLOWED_HOSTS:?set ALLOWED_HOSTS}"
+  ResumeStorage__RootPath: "/app/App_Data/Uploads/Resumes"
+  DataProtection__KeysPath: "/app/App_Data/DataProtectionKeys"
+  DataProtection__CertificatePath: "/run/secrets/data-protection.pfx"
+  DataProtection__CertificatePassword: "${DATA_PROTECTION_CERTIFICATE_PASSWORD:?set DATA_PROTECTION_CERTIFICATE_PASSWORD}"
+
+services:
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment: *application-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - resumes:/app/App_Data/Uploads/Resumes
+      - data_protection_keys:/app/App_Data/DataProtectionKeys
+    secrets:
+      - source: data_protection_certificate
+        target: data-protection.pfx
+        mode: 0444
+  migrate:
+    profiles: ["migration"]
+    build:
+      context: .
+      target: build
+    working_dir: /src
+    environment: *application-environment
+    command: ["dotnet", "ef", "database", "update", "--project", "src/ApplyWise.Web/ApplyWise.Web.csproj", "--startup-project", "src/ApplyWise.Web/ApplyWise.Web.csproj", "--configuration", "Release", "--no-build"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    secrets:
+      - source: data_protection_certificate
+        target: data-protection.pfx
+        mode: 0444
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:?set SA_PASSWORD}"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+volumes:
+  sql_data:
+  resumes:
+  data_protection_keys:
+secrets:
+  data_protection_certificate:
+    file: "${DATA_PROTECTION_CERTIFICATE_FILE:?set DATA_PROTECTION_CERTIFICATE_FILE}"

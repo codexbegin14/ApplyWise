@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using ApplyWise.Web.Data;
+using ApplyWise.Web.Models;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -12,6 +14,8 @@ public class RegisterModel(
     UserManager<IdentityUser> userManager,
     SignInManager<IdentityUser> signInManager,
     IEmailSender<IdentityUser> emailSender,
+    ApplicationDbContext dbContext,
+    IConfiguration configuration,
     ILogger<RegisterModel> logger) : PageModel
 {
     [BindProperty]
@@ -75,14 +79,37 @@ public class RegisterModel(
                 return Page();
             }
 
+            try
+            {
+                dbContext.CareerProfiles.Add(new CareerProfile
+                {
+                    UserId = user.Id,
+                    FullName = Input.FullName.Trim(),
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+                await dbContext.SaveChangesAsync();
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Could not create the initial career profile for a new account.");
+                await userManager.DeleteAsync(user);
+                ModelState.AddModelError(string.Empty, "We couldn’t finish setting up your account. Please try again.");
+                return Page();
+            }
+
             var userId = await userManager.GetUserIdAsync(user);
             var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackUrl = Url.Page(
+            var callbackPath = Url.Page(
                 "/Account/ConfirmEmail",
                 pageHandler: null,
                 values: new { area = "Identity", userId, code, returnUrl },
-                protocol: Request.Scheme)!;
+                protocol: null)!;
+            var publicOrigin = configuration["PublicOrigin"]?.TrimEnd('/');
+            var callbackUrl = !string.IsNullOrWhiteSpace(publicOrigin)
+                ? new Uri(new Uri(publicOrigin + "/"), callbackPath.TrimStart('/')).ToString()
+                : new Uri(new Uri($"{Request.Scheme}://{Request.Host}/"), callbackPath.TrimStart('/')).ToString();
 
             await emailSender.SendConfirmationLinkAsync(user, Input.Email, callbackUrl);
 
@@ -92,13 +119,13 @@ public class RegisterModel(
             }
 
             await signInManager.SignInAsync(user, isPersistent: false);
-            return LocalRedirect(returnUrl);
+            return RedirectToAction("Index", "Onboarding");
         }
 
-        foreach (var error in result.Errors)
-        {
+        if (result.Errors.Any(error => error.Code is "DuplicateUserName" or "DuplicateEmail"))
+            ModelState.AddModelError(string.Empty, "An account may already exist for that email. Try logging in or use another address.");
+        else foreach (var error in result.Errors)
             ModelState.AddModelError(string.Empty, error.Description);
-        }
 
         return Page();
     }

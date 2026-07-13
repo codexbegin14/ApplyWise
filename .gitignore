@@ -8,6 +8,8 @@ obj/
 *.log
 appsettings.Development.json
 .env
+*.pfx
+*.p12
 [Bb]uild/
 [Dd]ebug/
 [Rr]elease/
@@ -16,3 +18,4 @@ TestResults/
 coverage/
 app.db
 **/App_Data/Uploads/
+**/App_Data/DataProtectionKeys/
