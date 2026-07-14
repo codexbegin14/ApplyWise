@@ -24,6 +24,7 @@ public class ResumesController(
 {
     private const long MaxFileSize = 5 * 1024 * 1024;
     private static readonly byte[] PdfSignature = "%PDF-"u8.ToArray();
+    private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     [HttpGet("")]
     public async Task<IActionResult> Index()
@@ -45,9 +46,9 @@ public class ResumesController(
     [HttpGet("upload")]
     public IActionResult Create() => View(new ResumeUploadViewModel());
 
-[HttpPost("upload")]
-[ValidateAntiForgeryToken]
-[EnableRateLimiting("uploads")]
+    [HttpPost("upload")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("uploads")]
     [RequestSizeLimit(MaxFileSize + 64 * 1024)]
     public async Task<IActionResult> Create(ResumeUploadViewModel model)
     {
@@ -73,14 +74,14 @@ public class ResumesController(
         var absolutePath = resumeStorage.ResolvePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
 
-        string? extractedText;
+        PdfTextExtractionResult inspection;
         try
         {
             await using (var output = System.IO.File.Create(absolutePath))
             {
                 await model.ResumeFile.CopyToAsync(output);
             }
-            extractedText = await textExtractor.ExtractTextAsync(absolutePath, HttpContext.RequestAborted);
+            inspection = await textExtractor.InspectAsync(absolutePath, HttpContext.RequestAborted);
         }
         catch
         {
@@ -88,11 +89,10 @@ public class ResumesController(
             throw;
         }
 
-        if (string.IsNullOrWhiteSpace(extractedText))
+        if (!inspection.IsValidDocument)
         {
             System.IO.File.Delete(absolutePath);
-            ModelState.AddModelError(nameof(model.ResumeFile),
-                "We could not safely read text from this PDF. Upload a text-based PDF with 50 pages or fewer.");
+            ModelState.AddModelError(nameof(model.ResumeFile), GetInspectionError(inspection.Status));
             return View(model);
         }
 
@@ -110,7 +110,7 @@ public class ResumesController(
             IsDefault = model.IsDefault,
             UploadedAt = now,
             UpdatedAt = now,
-            ExtractedText = extractedText
+            ExtractedText = inspection.Text
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
@@ -145,6 +145,11 @@ public class ResumesController(
         }
 
         TempData["SuccessMessage"] = $"{resume.VersionName} was uploaded.";
+        if (inspection.Status == PdfTextExtractionStatus.NoText)
+        {
+            TempData["WarningMessage"] =
+                "No selectable text was found. You can store and download this PDF, but resume analysis and matching require a text-based PDF.";
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -282,23 +287,44 @@ public class ResumesController(
             ModelState.AddModelError(nameof(ResumeUploadViewModel.ResumeFile), "Only PDF files are supported.");
         }
 
-        if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(file.ContentType, "application/x-pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            ModelState.AddModelError(nameof(ResumeUploadViewModel.ResumeFile), "The selected file is not recognized as a PDF.");
-        }
-
         if (file.Length > 0 && file.Length <= MaxFileSize)
         {
             await using var stream = file.OpenReadStream();
-            var header = new byte[PdfSignature.Length];
-            var bytesRead = await stream.ReadAsync(header);
-            if (bytesRead != PdfSignature.Length || !header.SequenceEqual(PdfSignature))
+            if (!await HasPdfSignatureAsync(stream))
             {
                 ModelState.AddModelError(nameof(ResumeUploadViewModel.ResumeFile), "The selected file does not contain a valid PDF header.");
             }
         }
     }
+
+    private static async Task<bool> HasPdfSignatureAsync(Stream stream)
+    {
+        var header = new byte[PdfSignature.Length + 8];
+        var bytesRead = await stream.ReadAsync(header);
+        var offset = header.AsSpan(0, bytesRead).StartsWith(Utf8Bom) ? Utf8Bom.Length : 0;
+        while (offset < bytesRead && header[offset] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n')
+        {
+            offset++;
+        }
+
+        return bytesRead - offset >= PdfSignature.Length
+               && header.AsSpan(offset, PdfSignature.Length).SequenceEqual(PdfSignature);
+    }
+
+    private static string GetInspectionError(PdfTextExtractionStatus status) => status switch
+    {
+        PdfTextExtractionStatus.Encrypted =>
+            "Password-protected or encrypted PDFs are not supported. Save an unprotected copy and try again.",
+        PdfTextExtractionStatus.PageLimitExceeded =>
+            $"The PDF must contain between 1 and {PdfTextWorker.MaxPages} pages.",
+        PdfTextExtractionStatus.TextLimitExceeded =>
+            "The PDF contains too much embedded text to process safely.",
+        PdfTextExtractionStatus.TimedOut =>
+            "The PDF took too long to inspect. Try exporting a simpler PDF and upload it again.",
+        PdfTextExtractionStatus.Unavailable =>
+            "The PDF could not be inspected right now. Please try again.",
+        _ => "The selected file is damaged or is not a valid PDF."
+    };
 
     private static string SanitizeFileName(string fileName)
     {

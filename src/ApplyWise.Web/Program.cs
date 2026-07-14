@@ -51,7 +51,8 @@ if (isProduction &&
      || IsUnset(dataProtectionKeysPath)
      || !Path.IsPathRooted(dataProtectionKeysPath)
      || IsUnset(dataProtectionCertificatePath)
-     || !Path.IsPathRooted(dataProtectionCertificatePath)))
+     || !Path.IsPathRooted(dataProtectionCertificatePath)
+     || IsUnset(dataProtectionCertificatePassword)))
 {
     throw new InvalidOperationException(
         "Production requires a SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
@@ -77,10 +78,15 @@ if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
 
     try
     {
-        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-            resolvedCertificatePath,
-            dataProtectionCertificatePassword,
-            X509KeyStorageFlags.EphemeralKeySet);
+        var certificate = Path.GetExtension(resolvedCertificatePath).Equals(".pem", StringComparison.OrdinalIgnoreCase)
+            ? X509Certificate2.CreateFromEncryptedPemFile(
+                resolvedCertificatePath,
+                dataProtectionCertificatePassword,
+                resolvedCertificatePath)
+            : X509CertificateLoader.LoadPkcs12FromFile(
+                resolvedCertificatePath,
+                dataProtectionCertificatePassword,
+                X509KeyStorageFlags.EphemeralKeySet);
         dataProtectionBuilder.ProtectKeysWithCertificate(certificate);
     }
     catch (CryptographicException exception)

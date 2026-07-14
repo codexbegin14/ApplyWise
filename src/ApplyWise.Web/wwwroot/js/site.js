@@ -93,3 +93,40 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         columns.forEach((column) => { column.hidden = selected !== 'all' && column.dataset.pipelineStage !== selected; });
     }));
 })();
+
+document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    const inputId = button.getAttribute('aria-controls');
+    const input = inputId ? document.getElementById(inputId) : null;
+    const text = button.querySelector('[data-password-toggle-text]');
+    if (!(input instanceof HTMLInputElement)) {
+        button.hidden = true;
+        return;
+    }
+
+    button.addEventListener('click', () => {
+        const willShow = input.type === 'password';
+        input.type = willShow ? 'text' : 'password';
+        button.setAttribute('aria-pressed', String(willShow));
+        button.setAttribute('aria-label', `${willShow ? 'Hide' : 'Show'} ${inputId.includes('Confirm') ? 'confirmation password' : 'password'}`);
+        if (text) text.textContent = willShow ? 'Hide' : 'Show';
+    });
+});
+
+document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
+    const target = container.dataset.confirmRedirect;
+    if (!target || !target.startsWith('/') || target.startsWith('//')) return;
+
+    const configuredSeconds = Number.parseInt(container.dataset.confirmRedirectSeconds ?? '5', 10);
+    let remaining = Number.isFinite(configuredSeconds) && configuredSeconds > 0 ? configuredSeconds : 5;
+    const countdown = container.querySelector('[data-confirm-redirect-countdown]');
+    if (countdown) countdown.textContent = String(remaining);
+
+    const interval = window.setInterval(() => {
+        remaining -= 1;
+        if (countdown) countdown.textContent = String(Math.max(remaining, 0));
+        if (remaining <= 0) {
+            window.clearInterval(interval);
+            window.location.assign(target);
+        }
+    }, 1000);
+});

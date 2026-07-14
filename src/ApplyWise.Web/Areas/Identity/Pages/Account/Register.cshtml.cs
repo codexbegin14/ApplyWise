@@ -46,12 +46,12 @@ public class RegisterModel(
 
     public void OnGet(string? returnUrl = null)
     {
-        ReturnUrl = returnUrl ?? Url.Content("~/");
+        ReturnUrl = GetSafeReturnUrl(returnUrl);
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl ??= Url.Content("~/");
+        returnUrl = GetSafeReturnUrl(returnUrl);
         ReturnUrl = returnUrl;
 
         if (!ModelState.IsValid)
@@ -129,4 +129,9 @@ public class RegisterModel(
 
         return Page();
     }
+
+    private string GetSafeReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Action("Index", "Onboarding") ?? "/onboarding";
 }

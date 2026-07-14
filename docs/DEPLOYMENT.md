@@ -22,11 +22,11 @@ Email__Password=<SMTP password>
 Email__From=<verified sender address>
 ResumeStorage__RootPath=<absolute private persistent directory>
 DataProtection__KeysPath=<absolute persistent key directory>
-DataProtection__CertificatePath=<absolute path to a mounted PFX>
-DataProtection__CertificatePassword=<PFX password>
+DataProtection__CertificatePath=<absolute path to a mounted PFX or encrypted PEM>
+DataProtection__CertificatePassword=<certificate password>
 ```
 
-For a single App Service instance, use paths under the host's persistent home/data directory. Do not use `wwwroot` for resumes or Data Protection keys. Mount a PFX from the platform's secret/certificate store and use it to encrypt the key ring. Azure Blob Storage (or another private shared store) is required before scale-out because local files are not shared safely across multiple instances. Back up the encrypted key directory and restrict access: it protects authentication cookies and account-recovery tokens.
+For a single App Service instance, use paths under the host's persistent home/data directory. Do not use `wwwroot` for resumes or Data Protection keys. Mount a PFX or encrypted PEM from the platform's secret/certificate store and use it to encrypt the key ring. Azure Blob Storage (or another private shared store) is required before scale-out because local files are not shared safely across multiple instances. Back up the encrypted key directory and restrict access: it protects authentication cookies and account-recovery tokens.
 
 Production intentionally refuses to start with placeholder values, wildcard hosts, a non-HTTPS public origin, or relative storage/key paths. If TLS terminates at a proxy, set `ForwardedHeaders__KnownProxies__0` (and additional indexed values as needed) only to that proxy's trusted IP address.
 
