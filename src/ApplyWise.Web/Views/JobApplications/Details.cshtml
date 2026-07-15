@@ -16,12 +16,19 @@
 
     <section class="aw-panel aw-timeline-panel aw-slide-up">
         <div class="aw-section-heading aw-status-heading"><div><span class="aw-kicker">Application progress</span><h3>Where this opportunity stands</h3></div><form class="aw-status-update-form" asp-action="UpdateStatus" asp-route-id="@Model.Id" method="post"><label class="visually-hidden" for="application-status">Application status</label><select id="application-status" name="status" class="form-select" asp-for="Status" asp-items="Html.GetEnumSelectList<ApplicationStatus>()"></select><button class="btn btn-primary btn-sm" type="submit">Update status</button></form></div>
-        <div class="aw-timeline" aria-label="Application status timeline">
-            @TimelineStep("Applied", 0)
-            @TimelineStep("Pending", 1)
-            @TimelineStep("Interview", 2)
-            @TimelineStep("Offered", 3)
-            @TimelineStep("Accepted", 4)
+        <div class="aw-journey-map" aria-label="Application journey from creation to outcome">
+            <div class="aw-journey-trunk">
+                <div class="aw-journey-node @JourneyClass("Application")"><span>1</span><b>Application</b><small>Added to ApplyWise</small></div>
+                <div class="aw-journey-node @JourneyClass("Applied")"><span>2</span><b>Applied</b><small>Application sent</small></div>
+                <div class="aw-journey-node @JourneyClass("Pending")"><span>3</span><b>Pending</b><small>Waiting for a response</small></div>
+                <div class="aw-journey-node @JourneyClass("Interview")"><span>4</span><b>Interview</b><small>Conversation in progress</small></div>
+            </div>
+            <div class="aw-journey-decision"><span>Outcome</span><small>An application can move to any destination from the active process</small></div>
+            <div class="aw-journey-outcomes">
+                <div class="aw-journey-branch aw-journey-branch-offered @JourneyClass("Offered")"><span class="aw-journey-branch-icon">O</span><div><b>Offered</b><small>Offer received</small></div><span class="aw-journey-accepted @JourneyClass("Accepted")">Accepted</span></div>
+                <div class="aw-journey-branch aw-journey-branch-rejected @JourneyClass("Rejected")"><span class="aw-journey-branch-icon">R</span><div><b>Rejected</b><small>Closed by employer or you</small></div></div>
+                <div class="aw-journey-branch aw-journey-branch-ignored @JourneyClass("Ignored")"><span class="aw-journey-branch-icon">I</span><div><b>Ignored</b><small>No longer being pursued</small></div></div>
+            </div>
         </div>
     </section>
 
@@ -71,8 +78,18 @@
     private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
     private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not specified";
     private static string DeadlineCopy(DateOnly? date) => !date.HasValue ? "Add a deadline to keep this role visible in upcoming actions." : date.Value < DateOnly.FromDateTime(DateTime.Today) ? "This deadline has passed." : $"{date.Value.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber} days remaining.";
-    private int CurrentStage() => Model.Status switch { ApplicationStatus.Applied => 0, ApplicationStatus.Pending => 1, ApplicationStatus.Interview => 2, ApplicationStatus.Offered => 3, ApplicationStatus.Accepted => 4, ApplicationStatus.Rejected or ApplicationStatus.UserRejected or ApplicationStatus.Ignored => 1, _ => 0 };
-    private Microsoft.AspNetCore.Html.IHtmlContent TimelineStep(string label, int step) { var css = step < CurrentStage() ? "is-done" : step == CurrentStage() ? "is-current" : ""; return Html.Raw($"<div class=\"aw-timeline-step {css}\"><span>{(step < CurrentStage() ? "✓" : (step + 1).ToString())}</span><b>{label}</b></div>"); }
+    private string JourneyClass(string node) => node switch
+    {
+        "Application" => "is-done",
+        "Applied" => Model.Status == ApplicationStatus.Applied ? "is-current" : "is-done",
+        "Pending" => Model.Status == ApplicationStatus.Pending ? "is-current" : Model.Status is ApplicationStatus.Interview or ApplicationStatus.Offered or ApplicationStatus.Accepted ? "is-done" : string.Empty,
+        "Interview" => Model.Status == ApplicationStatus.Interview ? "is-current" : Model.Status is ApplicationStatus.Offered or ApplicationStatus.Accepted ? "is-done" : string.Empty,
+        "Offered" => Model.Status == ApplicationStatus.Offered ? "is-current" : Model.Status == ApplicationStatus.Accepted ? "is-done" : string.Empty,
+        "Accepted" => Model.Status == ApplicationStatus.Accepted ? "is-current" : string.Empty,
+        "Rejected" => Model.Status is ApplicationStatus.Rejected or ApplicationStatus.UserRejected ? "is-current" : string.Empty,
+        "Ignored" => Model.Status == ApplicationStatus.Ignored ? "is-current" : string.Empty,
+        _ => string.Empty
+    };
     private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "aw-status-info", ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.Offered or ApplicationStatus.Accepted => "aw-status-success", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "aw-status-danger", ApplicationStatus.Ignored => "aw-status-neutral", _ => "aw-status-neutral" };
     private static string RiskClass(JobRiskLevel level) => level switch { JobRiskLevel.High => "aw-status-danger", JobRiskLevel.Medium => "aw-status-warning", _ => "aw-status-success" };
 }

@@ -3,8 +3,13 @@
 @{
     ViewData["Title"] = "Dashboard";
     var focus = Model.TodayActions.FirstOrDefault();
-    var activeStages = new[] { ApplicationStatus.Applied, ApplicationStatus.Pending, ApplicationStatus.Interview, ApplicationStatus.Offered };
-    var outcomeStages = new[] { ApplicationStatus.Accepted, ApplicationStatus.Rejected, ApplicationStatus.UserRejected, ApplicationStatus.Ignored };
+    var activeStages = new[] { ApplicationStatus.Applied, ApplicationStatus.Pending, ApplicationStatus.Interview };
+    var outcomeGroups = new[]
+    {
+        new { Label = "Offered", Statuses = new[] { ApplicationStatus.Offered, ApplicationStatus.Accepted } },
+        new { Label = "Rejected", Statuses = new[] { ApplicationStatus.Rejected, ApplicationStatus.UserRejected } },
+        new { Label = "Ignored", Statuses = new[] { ApplicationStatus.Ignored } }
+    };
     var activeCount = Model.PipelineApplications.Count(application => activeStages.Contains(application.Status));
 }
 <div class="aw-page aw-dashboard-v3 aw-fade-in" data-display-name="@Model.DisplayName">
@@ -73,21 +78,22 @@
             }
         </div>
 
-        <div class="aw-pipeline-group-heading aw-pipeline-group-heading-outcomes"><span>Outcomes</span><small>Finished decisions, kept for your history</small></div>
+        <div class="aw-pipeline-group-heading aw-pipeline-group-heading-outcomes"><span>Three destinations</span><small>Every application ends as offered, rejected, or ignored</small></div>
         <div class="aw-pipeline-grid aw-pipeline-grid-outcomes">
-            @foreach (var stage in outcomeStages)
+            @foreach (var group in outcomeGroups)
             {
-                <div class="aw-pipeline-column" data-pipeline-stage="@stage">
-                    <header><span>@stage.GetDisplayName()</span><strong>@Model.PipelineApplications.Count(application => application.Status == stage)</strong></header>
-                    @foreach (var application in Model.PipelineApplications.Where(application => application.Status == stage).Take(6))
+                var groupApplications = Model.PipelineApplications.Where(application => group.Statuses.Contains(application.Status)).ToArray();
+                <div class="aw-pipeline-column" data-pipeline-destination="@group.Label">
+                    <header><span>@group.Label</span><strong>@groupApplications.Length</strong></header>
+                    @foreach (var application in groupApplications.Take(6))
                     {
                         <a class="aw-pipeline-card" asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id">
                             <span class="aw-company-avatar">@Initial(application.CompanyName)</span>
-                            <span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span>
+                            <span><strong>@application.JobTitle</strong><small>@application.CompanyName</small><em>@application.Status.GetDisplayName()</em></span>
                             <span class="aw-pipeline-arrow">-></span>
                         </a>
                     }
-                    @if (!Model.PipelineApplications.Any(application => application.Status == stage))
+                    @if (groupApplications.Length == 0)
                     {
                         <div class="aw-pipeline-empty">No roles here yet</div>
                     }
