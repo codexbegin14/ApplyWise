@@ -10,6 +10,7 @@ using ApplyWise.Web.Services.Opportunities;
 using ApplyWise.Web.Services.Wiso;
 using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
+using ApplyWise.Web.Services.AccountSecurity;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
@@ -135,6 +136,10 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("account-security", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 8, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
 builder.Services.AddAuthorization(options =>
     options.AddPolicy("AnnouncementManager", policy =>
@@ -153,6 +158,8 @@ builder.Services.AddOptions<EmailOptions>()
     .Validate(options => options.Port is > 0 and <= 65535, "Email:Port must be between 1 and 65535.")
     .ValidateOnStart();
 builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
+builder.Services.AddTransient<IApplicationEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<IAccountSecurityCodeService, AccountSecurityCodeService>();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();

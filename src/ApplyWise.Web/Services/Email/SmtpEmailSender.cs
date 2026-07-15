@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace ApplyWise.Web.Services.Email;
 
 public sealed class SmtpEmailSender(IOptions<EmailOptions> options, IWebHostEnvironment environment,
-    ILogger<SmtpEmailSender> logger) : IEmailSender<IdentityUser>
+    ILogger<SmtpEmailSender> logger) : IEmailSender<IdentityUser>, IApplicationEmailSender
 {
     private readonly EmailOptions settings = options.Value;
 
@@ -18,6 +18,9 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, IWebHostEnvi
 
     public Task SendPasswordResetCodeAsync(IdentityUser user, string email, string resetCode) =>
         SendAsync(email, "Your ApplyWise password reset code", $"Your ApplyWise reset code is {resetCode}.");
+
+    public Task SendAccountSecurityCodeAsync(string email, string actionLabel, string code) =>
+        SendAsync(email, $"Your ApplyWise confirmation code", $"Use this code to {actionLabel}: {code}. It expires in 10 minutes. If you did not request this, you can safely ignore this email.");
 
     private async Task SendAsync(string recipient, string subject, string body)
     {

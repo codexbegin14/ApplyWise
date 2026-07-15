@@ -132,6 +132,18 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
 });
 
 (() => {
+    const key = 'applywise-theme';
+    const control = document.querySelector('[data-theme-toggle]');
+    const applyTheme = (dark) => {
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        try { localStorage.setItem(key, dark ? 'dark' : 'light'); } catch { }
+    };
+    if (!(control instanceof HTMLInputElement)) return;
+    control.checked = document.documentElement.dataset.theme === 'dark';
+    control.addEventListener('change', () => applyTheme(control.checked));
+})();
+
+(() => {
     const dialog = document.querySelector('[data-avatar-dialog]');
     const openButton = document.querySelector('[data-avatar-open]');
     if (!(dialog instanceof HTMLDialogElement) || !openButton) return;

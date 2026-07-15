@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
     public DbSet<Opportunity> Opportunities => Set<Opportunity>();
     public DbSet<SavedOpportunity> SavedOpportunities => Set<SavedOpportunity>();
+    public DbSet<AccountSecurityCode> AccountSecurityCodes => Set<AccountSecurityCode>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -226,6 +227,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(saved => saved.Opportunity).WithMany(item => item.SavedBy)
                 .HasForeignKey(saved => saved.OpportunityId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AccountSecurityCode>(entity =>
+        {
+            entity.HasIndex(code => new { code.UserId, code.Action, code.CreatedAt });
+            entity.Property(code => code.Action).HasConversion<string>().HasMaxLength(30);
+            entity.Property(code => code.Salt).HasMaxLength(16);
+            entity.Property(code => code.CodeHash).HasMaxLength(32);
+            entity.HasOne(code => code.User).WithMany().HasForeignKey(code => code.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
