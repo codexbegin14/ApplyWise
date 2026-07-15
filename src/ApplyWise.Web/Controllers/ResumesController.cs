@@ -316,7 +316,7 @@ public class ResumesController(
         PdfTextExtractionStatus.Encrypted =>
             "Password-protected or encrypted PDFs are not supported. Save an unprotected copy and try again.",
         PdfTextExtractionStatus.PageLimitExceeded =>
-            $"The PDF must contain between 1 and {PdfTextWorker.MaxPages} pages.",
+            $"The PDF must contain between 1 and {PdfTextInspector.MaxPages} pages.",
         PdfTextExtractionStatus.TextLimitExceeded =>
             "The PDF contains too much embedded text to process safely.",
         PdfTextExtractionStatus.TimedOut =>

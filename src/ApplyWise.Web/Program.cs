@@ -17,12 +17,6 @@ using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-if (PdfTextWorker.IsWorkerCommand(args))
-{
-    Environment.ExitCode = await PdfTextWorker.RunAsync(args);
-    return;
-}
-
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
 var publicOrigin = builder.Configuration["PublicOrigin"];
@@ -105,6 +99,12 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = builder.Configuration.GetValue("Identity:RequireConfirmedAccount", isProduction);
         options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequiredUniqueChars = 1;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })

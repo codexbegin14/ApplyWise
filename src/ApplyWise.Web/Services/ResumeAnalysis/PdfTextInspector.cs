@@ -5,42 +5,10 @@ using UglyToad.PdfPig.Exceptions;
 
 namespace ApplyWise.Web.Services.ResumeAnalysis;
 
-public static class PdfTextWorker
+public static class PdfTextInspector
 {
-    public const string Command = "--pdf-text-worker";
     public const int MaxPages = 50;
     public const int MaxExtractedCharacters = 250_000;
-
-    public const int SuccessExitCode = 0;
-    public const int FailureExitCode = 1;
-    public const int NoTextExitCode = 2;
-    public const int EncryptedExitCode = 3;
-    public const int PageLimitExitCode = 4;
-    public const int TextLimitExitCode = 5;
-    public const int InvalidExitCode = 6;
-
-    public static bool IsWorkerCommand(string[] args) => args.Length == 3 && args[0] == Command;
-
-    public static async Task<int> RunAsync(string[] args)
-    {
-        if (!IsWorkerCommand(args)) return 64;
-        var input = Path.GetFullPath(args[1]);
-        var output = Path.GetFullPath(args[2]);
-        try
-        {
-            var result = Inspect(input);
-            if (result.Status == PdfTextExtractionStatus.Success)
-            {
-                await File.WriteAllTextAsync(output, result.Text!, new UTF8Encoding(false));
-            }
-
-            return ToExitCode(result.Status);
-        }
-        catch
-        {
-            return FailureExitCode;
-        }
-    }
 
     public static PdfTextExtractionResult Inspect(
         string filePath,
@@ -102,28 +70,6 @@ public static class PdfTextWorker
             return new PdfTextExtractionResult(PdfTextExtractionStatus.Invalid);
         }
     }
-
-    public static PdfTextExtractionStatus FromExitCode(int exitCode) => exitCode switch
-    {
-        SuccessExitCode => PdfTextExtractionStatus.Success,
-        NoTextExitCode => PdfTextExtractionStatus.NoText,
-        EncryptedExitCode => PdfTextExtractionStatus.Encrypted,
-        PageLimitExitCode => PdfTextExtractionStatus.PageLimitExceeded,
-        TextLimitExitCode => PdfTextExtractionStatus.TextLimitExceeded,
-        InvalidExitCode => PdfTextExtractionStatus.Invalid,
-        _ => PdfTextExtractionStatus.Unavailable
-    };
-
-    private static int ToExitCode(PdfTextExtractionStatus status) => status switch
-    {
-        PdfTextExtractionStatus.Success => SuccessExitCode,
-        PdfTextExtractionStatus.NoText => NoTextExitCode,
-        PdfTextExtractionStatus.Encrypted => EncryptedExitCode,
-        PdfTextExtractionStatus.PageLimitExceeded => PageLimitExitCode,
-        PdfTextExtractionStatus.TextLimitExceeded => TextLimitExitCode,
-        PdfTextExtractionStatus.Invalid => InvalidExitCode,
-        _ => FailureExitCode
-    };
 
     private static string Sanitize(string value)
     {

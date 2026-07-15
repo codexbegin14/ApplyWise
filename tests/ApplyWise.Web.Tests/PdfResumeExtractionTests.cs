@@ -16,7 +16,7 @@ public sealed class PdfResumeExtractionTests
         "JVBERi0xLjYKJb/3ov4KMSAwIG9iago8PCAvUGFnZXMgMyAwIFIgL1R5cGUgL0NhdGFsb2cgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL0tleXdvcmRzICj//oAfA3n4fcVrxERQR1CpWaev35fIGk4f9gl1XG6LuXxccvxErJp11Y/BZPG8E4mcV0ASlk2g1OqSiKS3uDJ1KSAvUHJvZHVjZXIgPGFmYWZkMzE4MjU3MWU2PiAvVGl0bGUgPGFmYWZkMzE4NDI1MGU3NzJkNTI2Y2E0ZjVkPiA+PgplbmRvYmoKMyAwIG9iago8PCAvQ291bnQgMSAvS2lkcyBbIDQgMCBSIF0gL1R5cGUgL1BhZ2VzID4+CmVuZG9iago0IDAgb2JqCjw8IC9Db250ZW50cyA1IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgMyAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNiAwIFIgPj4gPj4gL1R5cGUgL1BhZGUgPj4KZW5kb2JqCjUgMCBvYmoKPDwgL0xlbmd0aCA0OCAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KZ92d/usiiWknnHIAJqEQ5EzajFw+BOxo5hVgJZ5tH1067UO1Ae14h5uZqfUlS4plZW5kc3RyZWFtCmVuZG9iago2IDAgb2JqCjw8IC9CYXNlRm9udCAvSGVsdmV0aWNhIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udCA+PgplbmRvYmoKNyAwIG9iago8PCAvRmlsdGVyIC9TdGFuZGFyZCAvTGVuZ3RoIDEyOCAvTyA8MzY0NTFiZDM5ZDc1M2I3YzFkMTA5MjJjMjhlNjY2NWFhNGYzMzUzZmIwMzQ4YjUzNjg5M2UzYjFkYjVjNTc5Yj4gL1AgLTQgL1IgMyAvVSA8MWM3MzU3YjMxNDJiOTMzNjRjOTE5ZTUzMTA5ZWQ1MDcwMTIyNDU2YTkxYmFlNTEzNDI3M2E2ZGIxMzRjODdjND4gL1YgMiA+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMDI4NSAwMDAwMCBuIAowMDAwMDAwMzQ0IDAwMDAwIG4gCjAwMDAwMDQ3MiAwMDAwMCBuIAowMDAwMDAwNTkwIDAwMDAwIG4gCjAwMDAwMDY2MCAwMDAwMCBuIAp0cmFpbGVyIDw8IC9JbmZvIDIgMCBSIC9Sb290IDEgMCBSIC9TaXplIDggL0lEIFs8MzkxOTM2YzQwYzRlMWY1MjYzODdkNDFlNDY3NmQ0MWI+PDM5MTkzNmM0MGM0ZTFmNTI2Mzg3ZDQxZTQ2NzZkNDFiPl0gL0VuY3J5cHQgNyAwIFIgPj4Kc3RhcnR4cmVmCjg2NwolJUVPRgo=";
 
     [Fact]
-    public async Task Legitimate_one_page_resume_is_extracted_by_the_isolated_worker()
+    public async Task Legitimate_one_page_resume_is_extracted_in_process()
     {
         var path = WriteTemporaryPdf(CreatePdf("Awais Shaikh - ASP.NET Core Developer"));
         try
@@ -88,7 +88,7 @@ public sealed class PdfResumeExtractionTests
     [Fact]
     public async Task Pdf_over_page_limit_is_rejected()
     {
-        var path = WriteTemporaryPdf(CreatePdf(pageCount: PdfTextWorker.MaxPages + 1));
+        var path = WriteTemporaryPdf(CreatePdf(pageCount: PdfTextInspector.MaxPages + 1));
         try
         {
             var result = await CreateExtractor().InspectAsync(path);

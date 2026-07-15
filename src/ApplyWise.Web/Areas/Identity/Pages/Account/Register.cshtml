@@ -40,7 +40,7 @@
                     <input asp-for="Input.Password" autocomplete="new-password" placeholder="Create a secure password" aria-describedby="password-requirements" />
                     <partial name="_PasswordToggle" model='"Input_Password"' />
                 </span>
-                <small id="password-requirements" class="aw-password-help">Use 6 or more characters with uppercase, lowercase, a number, and a symbol.</small>
+                <small id="password-requirements" class="aw-password-help">Use at least 6 characters and include one number.</small>
                 <span asp-validation-for="Input.Password" class="field-validation-error"></span>
             </div>
 
