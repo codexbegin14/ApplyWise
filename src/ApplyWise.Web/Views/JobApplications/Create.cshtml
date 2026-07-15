@@ -1,7 +1,7 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationCreateViewModel
 @{ ViewData["Title"] = "Add Application"; }
 
-<div class="page-heading"><div><h2>Add Application</h2><p>Record the role and the resume you plan to use.</p></div></div>
+<div class="page-heading"><div><h2>Add Application</h2><p>Save the essentials. Add extra details only when you need them.</p></div></div>
 @if (ViewData["OpportunityTitle"] is string opportunityTitle) { <div class="alert app-alert" role="status">Reviewing details from <strong>@opportunityTitle</strong>. Nothing is saved until you submit.</div> }
 <form asp-action="Create" method="post" class="application-form">
     <partial name="_ApplicationForm" model="Model" />

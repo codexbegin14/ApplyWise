@@ -30,7 +30,7 @@ public abstract class JobApplicationFormViewModel
 
     [Display(Name = "Source / platform")]
     [EnumDataType(typeof(JobSource))]
-    public JobSource Source { get; set; }
+    public JobSource Source { get; set; } = JobSource.Other;
 
     [Url]
     [StringLength(2048)]
@@ -42,7 +42,8 @@ public abstract class JobApplicationFormViewModel
     public string? JobDescription { get; set; }
 
     [EnumDataType(typeof(ApplicationStatus))]
-    public ApplicationStatus Status { get; set; } = ApplicationStatus.Saved;
+    [Display(Name = "Application status")]
+    public ApplicationStatus Status { get; set; } = ApplicationStatus.Applied;
 
     [Display(Name = "Resume used or planned")]
     public int? ResumeId { get; set; }
@@ -57,5 +58,16 @@ public abstract class JobApplicationFormViewModel
     [StringLength(2000)]
     public string? Notes { get; set; }
 
+    public List<CustomApplicationFieldInput> CustomFields { get; set; } = [];
+
     public IReadOnlyList<SelectListItem> AvailableResumes { get; set; } = [];
+}
+
+public sealed class CustomApplicationFieldInput
+{
+    [StringLength(80)]
+    public string? Label { get; set; }
+
+    [StringLength(500)]
+    public string? Value { get; set; }
 }

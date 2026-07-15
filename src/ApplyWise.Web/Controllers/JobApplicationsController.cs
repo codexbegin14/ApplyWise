@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -77,6 +78,7 @@ public class JobApplicationsController(
         var userId = GetUserId();
         var model = new JobApplicationCreateViewModel
         {
+            AppliedDate = DateOnly.FromDateTime(DateTime.UtcNow),
             ResumeId = await dbContext.Resumes
                 .Where(resume => resume.UserId == userId && resume.IsDefault)
                 .Select(resume => (int?)resume.Id)
@@ -181,7 +183,8 @@ public class JobApplicationsController(
             ResumeId = application.ResumeId,
             AppliedDate = application.AppliedDate,
             Deadline = application.Deadline,
-            Notes = application.Notes
+            Notes = application.Notes,
+            CustomFields = ReadCustomFields(application.CustomFieldsJson)
         };
         await PopulateResumesAsync(model);
         return View(model);
@@ -275,6 +278,20 @@ public class JobApplicationsController(
                 ModelState.AddModelError(nameof(model.ResumeId), "Select a resume from your own resume library.");
             }
         }
+
+        if (model.CustomFields.Count > 12)
+        {
+            ModelState.AddModelError(nameof(model.CustomFields), "Add up to 12 custom fields.");
+        }
+        for (var index = 0; index < model.CustomFields.Count; index++)
+        {
+            var field = model.CustomFields[index];
+            var label = Clean(field.Label);
+            var value = Clean(field.Value);
+            if (label is null && value is null) continue;
+            if (label is null) ModelState.AddModelError($"CustomFields[{index}].Label", "Add a field name.");
+            if (value is null) ModelState.AddModelError($"CustomFields[{index}].Value", "Add a value or remove this field.");
+        }
     }
 
     private async Task PopulateResumesAsync(JobApplicationFormViewModel model)
@@ -314,17 +331,11 @@ public class JobApplicationsController(
     {
         application.CompanyName = model.CompanyName.Trim();
         application.JobTitle = model.JobTitle.Trim();
-        application.JobLocation = Clean(model.JobLocation);
-        application.JobType = model.JobType;
-        application.SalaryRange = Clean(model.SalaryRange);
-        application.Source = model.Source;
-        application.JobUrl = Clean(model.JobUrl);
         application.JobDescription = Clean(model.JobDescription);
         application.Status = model.Status;
         application.ResumeId = model.ResumeId;
         application.AppliedDate = model.AppliedDate;
-        application.Deadline = model.Deadline;
-        application.Notes = Clean(model.Notes);
+        application.CustomFieldsJson = SerializeCustomFields(model.CustomFields);
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -336,6 +347,30 @@ public class JobApplicationsController(
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
-            application.AppliedDate, application.Deadline, application.Notes,
+            application.AppliedDate, application.Deadline, application.Notes, ReadCustomFieldsForDetails(application.CustomFieldsJson),
             application.CreatedAt, application.UpdatedAt, latestScamCheck, interviews, reminders);
+
+    private static List<CustomApplicationFieldInput> ReadCustomFields(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<CustomApplicationFieldInput>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<ApplicationCustomFieldViewModel> ReadCustomFieldsForDetails(string? json) =>
+        ReadCustomFields(json).Select(field => new ApplicationCustomFieldViewModel(Clean(field.Label) ?? string.Empty, Clean(field.Value) ?? string.Empty))
+            .Where(field => field.Label.Length > 0 && field.Value.Length > 0).ToArray();
+
+    private static string? SerializeCustomFields(IEnumerable<CustomApplicationFieldInput> fields)
+    {
+        var cleaned = fields.Select(field => new CustomApplicationFieldInput { Label = Clean(field.Label), Value = Clean(field.Value) })
+            .Where(field => field.Label is not null && field.Value is not null).ToArray();
+        return cleaned.Length == 0 ? null : JsonSerializer.Serialize(cleaned);
+    }
 }

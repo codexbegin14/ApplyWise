@@ -50,6 +50,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(application => application.JobUrl).HasMaxLength(2048);
             entity.Property(application => application.JobDescription).HasMaxLength(8000);
             entity.Property(application => application.Notes).HasMaxLength(2000);
+            entity.Property(application => application.CustomFieldsJson).HasColumnType("nvarchar(max)");
 
             entity.HasIndex(application => new { application.UserId, application.CreatedAt });
             entity.HasIndex(application => new { application.UserId, application.Status });

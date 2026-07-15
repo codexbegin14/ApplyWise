@@ -59,6 +59,10 @@
         <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Role context</span><h3>Job description</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.JobDescription) ? "No job description added yet. Add it to unlock resume matching." : Model.JobDescription)</p></section>
         <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Your context</span><h3>Notes</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes yet. Capture contacts, questions, or the next follow-up here." : Model.Notes)</p></section>
     </div>
+    @if (Model.CustomFields.Count > 0)
+    {
+        <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Your fields</span><h3>Custom details</h3></div></div><dl class="aw-custom-field-details">@foreach (var field in Model.CustomFields) { <div><dt>@field.Label</dt><dd>@field.Value</dd></div> }</dl></section>
+    }
     <p class="record-timestamps">Created @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") · Updated @Model.UpdatedAt.ToLocalTime().ToString("MMM d, yyyy")</p>
 </div>
 

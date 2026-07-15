@@ -132,6 +132,37 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
 });
 
 (() => {
+    const container = document.querySelector('[data-custom-fields]');
+    const add = document.querySelector('[data-custom-field-add]');
+    const list = document.querySelector('[data-custom-fields-list]');
+    const template = document.querySelector('[data-custom-field-template]');
+    if (!container || !add || !list || !(template instanceof HTMLTemplateElement)) return;
+
+    const reindex = () => {
+        list.querySelectorAll('[data-custom-field-row]').forEach((row, index) => {
+            row.querySelectorAll('input, label').forEach((item) => {
+                ['name', 'id', 'for'].forEach((attribute) => {
+                    const value = item.getAttribute(attribute);
+                    if (value) item.setAttribute(attribute, value.replace(/CustomFields\[\d+\]|CustomFields_\d+_/g, (match) => match.startsWith('CustomFields[') ? `CustomFields[${index}]` : `CustomFields_${index}_`));
+                });
+            });
+        });
+    };
+
+    add.addEventListener('click', () => {
+        const index = list.querySelectorAll('[data-custom-field-row]').length;
+        list.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__index__', String(index)));
+        list.querySelector('[data-custom-field-row]:last-child input')?.focus();
+    });
+    list.addEventListener('click', (event) => {
+        const remove = event.target.closest('[data-custom-field-remove]');
+        if (!remove) return;
+        remove.closest('[data-custom-field-row]')?.remove();
+        reindex();
+    });
+})();
+
+(() => {
     const key = 'applywise-theme';
     const control = document.querySelector('[data-theme-toggle]');
     const applyTheme = (dark) => {

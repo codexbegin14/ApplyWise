@@ -17,11 +17,14 @@ public sealed record JobApplicationDetailsViewModel(
     DateOnly? AppliedDate,
     DateOnly? Deadline,
     string? Notes,
+    IReadOnlyList<ApplicationCustomFieldViewModel> CustomFields,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     JobScamCheckSummaryViewModel? LatestScamCheck = null,
     IReadOnlyList<ApplicationInterviewSummaryViewModel>? Interviews = null,
     IReadOnlyList<ApplicationReminderSummaryViewModel>? Reminders = null);
+
+public sealed record ApplicationCustomFieldViewModel(string Label, string Value);
 
 public sealed record ApplicationInterviewSummaryViewModel(
     int Id, InterviewType InterviewType, InterviewStatus Status, DateTimeOffset ScheduledAt);
