@@ -24,6 +24,32 @@
                 <span asp-validation-for="Input.FullName" class="field-validation-error"></span>
             </label>
 
+            <div class="aw-register-demographics">
+                <label class="aw-login-field" asp-for="Input.Gender">
+                    <span>Gender</span>
+                    <span class="aw-login-input aw-login-select">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+                        <select asp-for="Input.Gender">
+                            <option value="">Choose gender</option>
+                            <option value="Woman">Woman</option>
+                            <option value="Man">Man</option>
+                            <option value="NonBinary">Non-binary</option>
+                            <option value="PreferNotToSay">Prefer not to say</option>
+                        </select>
+                    </span>
+                    <span asp-validation-for="Input.Gender" class="field-validation-error"></span>
+                </label>
+
+                <label class="aw-login-field" asp-for="Input.DateOfBirth">
+                    <span>Date of birth</span>
+                    <span class="aw-login-input">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
+                        <input asp-for="Input.DateOfBirth" type="date" autocomplete="bday" max="@DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")" />
+                    </span>
+                    <span asp-validation-for="Input.DateOfBirth" class="field-validation-error"></span>
+                </label>
+            </div>
+
             <label class="aw-login-field" asp-for="Input.Email">
                 <span>Email address</span>
                 <span class="aw-login-input">

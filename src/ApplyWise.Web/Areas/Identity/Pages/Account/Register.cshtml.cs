@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Profiles;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -29,6 +30,15 @@ public class RegisterModel(
         [StringLength(100, MinimumLength = 2)]
         [Display(Name = "Full name")]
         public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        [Display(Name = "Gender")]
+        public ProfileGender? Gender { get; set; }
+
+        [Required]
+        [DataType(DataType.Date)]
+        [Display(Name = "Date of birth")]
+        public DateOnly? DateOfBirth { get; set; }
 
         [Required]
         [EmailAddress]
@@ -54,6 +64,15 @@ public class RegisterModel(
     {
         returnUrl = GetSafeReturnUrl(returnUrl);
         ReturnUrl = returnUrl;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (Input.DateOfBirth is { } dateOfBirth
+            && (dateOfBirth > today || dateOfBirth < today.AddYears(-120)))
+        {
+            ModelState.AddModelError(
+                "Input.DateOfBirth",
+                "Enter a valid date of birth that is not in the future.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -86,6 +105,9 @@ public class RegisterModel(
                 {
                     UserId = user.Id,
                     FullName = Input.FullName.Trim(),
+                    Gender = Input.Gender,
+                    DateOfBirth = Input.DateOfBirth,
+                    SelectedAvatarId = AvatarCatalog.GetDefaultAvatarId(Input.Gender),
                     CreatedAt = DateTimeOffset.UtcNow,
                     UpdatedAt = DateTimeOffset.UtcNow
                 });

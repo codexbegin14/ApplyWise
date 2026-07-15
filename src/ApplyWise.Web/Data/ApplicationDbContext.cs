@@ -165,6 +165,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(profile => profile.CurrentSemester).HasMaxLength(80);
             entity.Property(profile => profile.PreferredLocations).HasColumnName("PreferredJobLocations");
             entity.Property(profile => profile.FullName).HasMaxLength(100);
+            entity.Property(profile => profile.Gender).HasConversion<string>().HasMaxLength(30);
+            entity.Property(profile => profile.DateOfBirth).HasColumnType("date");
             entity.Property(profile => profile.Institution).HasMaxLength(180);
             entity.Property(profile => profile.DegreeProgram).HasMaxLength(150);
             entity.Property(profile => profile.FieldOfStudy).HasMaxLength(150);
@@ -178,6 +180,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(profile => profile.OpportunityNotificationsEnabled).HasDefaultValue(true);
             entity.Property(profile => profile.OpportunitiesViewedAt);
             entity.Property(profile => profile.AvatarContentType).HasMaxLength(50);
+            entity.Property(profile => profile.SelectedAvatarId).HasMaxLength(80);
             entity.HasOne(profile => profile.User).WithOne().HasForeignKey<CareerProfile>(profile => profile.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

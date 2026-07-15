@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ApplyWise.Web.Models;
@@ -7,6 +8,8 @@ public class CareerProfile
 {
     public required string UserId { get; set; }
     public string FullName { get; set; } = string.Empty;
+    public ProfileGender? Gender { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
     public CareerStage? CareerStage { get; set; }
     public string? Institution { get; set; }
     public string? DegreeProgram { get; set; }
@@ -26,10 +29,21 @@ public class CareerProfile
     [NotMapped] public bool OnboardingCompleted { get => OnboardingCompletedAt.HasValue; set => OnboardingCompletedAt = value ? DateTimeOffset.UtcNow : null; }
     public byte[]? AvatarData { get; set; }
     public string? AvatarContentType { get; set; }
+    public string? SelectedAvatarId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
     public IdentityUser? User { get; set; }
+}
+
+public enum ProfileGender
+{
+    Woman,
+    Man,
+    [Display(Name = "Non-binary")]
+    NonBinary,
+    [Display(Name = "Prefer not to say")]
+    PreferNotToSay
 }
 
 public enum CareerStage

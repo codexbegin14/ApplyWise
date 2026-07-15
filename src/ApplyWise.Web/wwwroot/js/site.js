@@ -130,3 +130,84 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
         }
     }, 1000);
 });
+
+(() => {
+    const dialog = document.querySelector('[data-avatar-dialog]');
+    const openButton = document.querySelector('[data-avatar-open]');
+    if (!(dialog instanceof HTMLDialogElement) || !openButton) return;
+
+    const closeButton = dialog.querySelector('[data-avatar-close]');
+    const viewport = dialog.querySelector('[data-avatar-viewport]');
+    const slides = Array.from(dialog.querySelectorAll('[data-avatar-slide]'));
+    const previous = dialog.querySelector('[data-avatar-previous]');
+    const next = dialog.querySelector('[data-avatar-next]');
+    const position = dialog.querySelector('[data-avatar-position]');
+    const category = dialog.querySelector('[data-avatar-category]');
+    let currentIndex = Math.max(0, slides.findIndex((slide) => slide.dataset.avatarSelected === 'true'));
+    let scrollFrame = 0;
+
+    const updateControls = () => {
+        if (position) position.textContent = `${currentIndex + 1} of ${slides.length}`;
+        if (previous) previous.disabled = currentIndex === 0;
+        if (next) next.disabled = currentIndex === slides.length - 1;
+        slides.forEach((slide, index) => slide.setAttribute('aria-hidden', String(index !== currentIndex)));
+        const activeCategory = slides[currentIndex]?.dataset.avatarCategoryName ?? '';
+        if (category && category.value && category.value !== activeCategory) category.value = '';
+    };
+
+    const goTo = (index, behavior = 'smooth') => {
+        currentIndex = Math.max(0, Math.min(index, slides.length - 1));
+        viewport?.scrollTo({ left: currentIndex * viewport.clientWidth, behavior });
+        updateControls();
+    };
+
+    openButton.addEventListener('click', () => {
+        dialog.showModal();
+        window.requestAnimationFrame(() => goTo(currentIndex, 'auto'));
+    });
+    closeButton?.addEventListener('click', () => dialog.close());
+    previous?.addEventListener('click', () => goTo(currentIndex - 1));
+    next?.addEventListener('click', () => goTo(currentIndex + 1));
+    category?.addEventListener('change', () => {
+        if (!category.value) return;
+        const targetIndex = slides.findIndex((slide) => slide.dataset.avatarCategoryName === category.value);
+        if (targetIndex >= 0) goTo(targetIndex);
+    });
+    viewport?.addEventListener('scroll', () => {
+        window.cancelAnimationFrame(scrollFrame);
+        scrollFrame = window.requestAnimationFrame(() => {
+            currentIndex = Math.round(viewport.scrollLeft / Math.max(viewport.clientWidth, 1));
+            updateControls();
+        });
+    }, { passive: true });
+    dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close();
+    });
+    window.addEventListener('resize', () => {
+        if (dialog.open) goTo(currentIndex, 'auto');
+    });
+    updateControls();
+
+    const fileInput = document.querySelector('[data-avatar-upload-input]');
+    const fileName = document.querySelector('[data-avatar-file-name]');
+    const submit = document.querySelector('[data-avatar-upload-submit]');
+    const preview = document.querySelector('[data-avatar-preview]');
+    let previewUrl;
+
+    fileInput?.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        if (fileName) fileName.textContent = file?.name ?? 'No photo selected';
+        if (submit) submit.disabled = !file;
+        if (!file || !preview) return;
+
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(file);
+        const image = preview.querySelector('img');
+        const fallback = preview.querySelector('span');
+        if (image) {
+            image.src = previewUrl;
+            image.hidden = false;
+        }
+        if (fallback) fallback.hidden = true;
+    });
+})();

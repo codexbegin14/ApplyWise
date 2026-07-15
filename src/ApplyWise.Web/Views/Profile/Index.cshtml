@@ -2,7 +2,7 @@
 @using ApplyWise.Web.Models
 @{
     ViewData["Title"] = "Profile";
-    var avatarGroups = Model.AvatarOptions.GroupBy(option => option.Gender);
+    var avatarCategories = Model.AvatarOptions.Select(option => option.Category).Distinct();
 }
 
 <div class="aw-page">
@@ -23,78 +23,125 @@
         <div class="alert app-alert aw-profile-error" role="alert">@errorMessage</div>
     }
 
-    <section class="aw-panel aw-profile-panel">
-        <aside class="aw-profile-avatar-card" aria-labelledby="current-avatar-title">
-            <span class="aw-auth-kicker" id="current-avatar-title">Current picture</span>
-            <div class="aw-profile-avatar-preview">
-                @if (!string.IsNullOrWhiteSpace(Model.CurrentAvatarUrl))
-                {
-                    <img src="@Model.CurrentAvatarUrl" alt="Your current profile avatar" />
-                }
-                else
-                {
-                    <span aria-label="Profile initials">@Model.Initials</span>
-                }
+    <section class="aw-panel aw-profile-panel aw-profile-panel-v2">
+        <section class="aw-avatar-settings" aria-labelledby="profile-picture-title">
+            <div class="aw-profile-avatar-preview aw-profile-avatar-preview-compact" data-avatar-preview>
+                <img src="@Model.CurrentAvatarUrl" alt="Your current profile picture" onerror="this.hidden=true;this.nextElementSibling.hidden=false;" />
+                <span aria-label="Profile initials" hidden>@Model.Initials</span>
             </div>
-            <form asp-action="Avatar" method="post" enctype="multipart/form-data" class="aw-avatar-upload-form">
-                <label class="aw-avatar-file-label">
-                    <span>Upload your photo</span>
-                    <input type="file" name="file" accept="image/png,image/jpeg,image/webp" required />
-                </label>
+
+            <div class="aw-avatar-settings-copy">
+                <span class="aw-auth-kicker">Profile picture</span>
+                <h2 id="profile-picture-title">@Model.CurrentAvatarLabel</h2>
+                <p>Upload your own photo or choose one subject avatar. Every profession is available to everyone.</p>
+            </div>
+
+            <div class="aw-avatar-settings-actions">
+                <button class="btn btn-primary" type="button" data-avatar-open>Choose avatar</button>
+                <form asp-action="Avatar" method="post" enctype="multipart/form-data" class="aw-avatar-upload-form aw-avatar-upload-form-inline" data-avatar-upload-form>
+                    <label class="btn btn-secondary-soft" for="profile-photo">Choose photo</label>
+                    <input id="profile-photo" type="file" name="file" accept="image/png,image/jpeg,image/webp" required data-avatar-upload-input />
+                    <span class="aw-avatar-file-name" data-avatar-file-name>No photo selected</span>
+                    <button class="btn btn-secondary-soft" type="submit" disabled data-avatar-upload-submit>Save photo</button>
+                </form>
                 <small>PNG, JPEG, or WebP · maximum 2 MB</small>
-                <button class="btn btn-secondary-soft btn-sm" type="submit">Update picture</button>
-            </form>
-        </aside>
+            </div>
+        </section>
 
-        <div class="aw-profile-main">
-            <section class="aw-avatar-library" aria-labelledby="avatar-library-title">
-                <div class="aw-avatar-library-heading">
-                    <div>
-                        <span class="aw-auth-kicker">Profession avatars</span>
-                        <h2 id="avatar-library-title">Choose a character</h2>
-                    </div>
-                    <p>Select any avatar now; you can change it whenever you like.</p>
+        <form method="post" asp-action="Save" class="aw-profile-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <div class="form-grid">
+                <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" /></div>
+                <div>
+                    <label asp-for="Gender" class="form-label"></label>
+                    <select asp-for="Gender" class="form-select">
+                        <option value="">Choose gender</option>
+                        <option value="Woman">Woman</option>
+                        <option value="Man">Man</option>
+                        <option value="NonBinary">Non-binary</option>
+                        <option value="PreferNotToSay">Prefer not to say</option>
+                    </select>
                 </div>
-
-                @foreach (var group in avatarGroups)
-                {
-                    <fieldset class="aw-avatar-group">
-                        <legend>@group.Key</legend>
-                        <div class="aw-avatar-options">
-                            @foreach (var avatar in group)
-                            {
-                                <form asp-action="SelectAvatar" method="post">
-                                    <button type="submit" name="avatarId" value="@avatar.Id" class="aw-avatar-option" aria-label="Choose the @avatar.Profession avatar">
-                                        <img src="@avatar.ImageUrl" alt="" loading="lazy" />
-                                        <span>@avatar.Profession</span>
-                                    </button>
-                                </form>
-                            }
-                        </div>
-                    </fieldset>
-                }
-            </section>
-
-            <form method="post" asp-action="Save" class="aw-profile-form">
-                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
-                <div class="form-grid">
-                    <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" /></div>
-                    <div><label asp-for="CareerStage" class="form-label"></label><select asp-for="CareerStage" asp-items="Html.GetEnumSelectList<CareerStage>()" class="form-select"><option value="">Choose one</option></select></div>
-                    <div><label asp-for="Institution" class="form-label"></label><input asp-for="Institution" class="form-control" /></div>
-                    <div><label asp-for="DegreeProgram" class="form-label"></label><input asp-for="DegreeProgram" class="form-control" /></div>
-                    <div><label asp-for="FieldOfStudy" class="form-label"></label><input asp-for="FieldOfStudy" class="form-control" /></div>
-                    <div><label asp-for="GraduationYear" class="form-label"></label><input asp-for="GraduationYear" class="form-control" /></div>
-                    <div><label asp-for="CurrentSemester" class="form-label"></label><input asp-for="CurrentSemester" class="form-control" /></div>
-                    <div><label asp-for="PreferredLocations" class="form-label"></label><input asp-for="PreferredLocations" class="form-control" placeholder="Lahore, Islamabad, Remote" /></div>
-                    <div class="form-grid-wide"><label asp-for="OpportunityInterests" class="form-label"></label><input asp-for="OpportunityInterests" class="form-control" placeholder="Internships, data, design" /></div>
-                    <div class="form-grid-wide"><label asp-for="Skills" class="form-label"></label><textarea asp-for="Skills" class="form-control" rows="3" placeholder="Python, research, Figma"></textarea></div>
-                    <div class="form-grid-wide"><label asp-for="CareerInterests" class="form-label"></label><textarea asp-for="CareerInterests" class="form-control" rows="3"></textarea></div>
-                    <div class="form-grid-wide"><label asp-for="AcademicHighlights" class="form-label"></label><textarea asp-for="AcademicHighlights" class="form-control" rows="3"></textarea></div>
-                </div>
-                <button class="btn btn-primary" type="submit">Save profile</button>
-            </form>
-        </div>
+                <div><label asp-for="DateOfBirth" class="form-label"></label><input asp-for="DateOfBirth" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")" class="form-control" /></div>
+                <div><label asp-for="CareerStage" class="form-label"></label><select asp-for="CareerStage" asp-items="Html.GetEnumSelectList<CareerStage>()" class="form-select"><option value="">Choose one</option></select></div>
+                <div><label asp-for="Institution" class="form-label"></label><input asp-for="Institution" class="form-control" /></div>
+                <div><label asp-for="DegreeProgram" class="form-label"></label><input asp-for="DegreeProgram" class="form-control" /></div>
+                <div><label asp-for="FieldOfStudy" class="form-label"></label><input asp-for="FieldOfStudy" class="form-control" /></div>
+                <div><label asp-for="GraduationYear" class="form-label"></label><input asp-for="GraduationYear" class="form-control" /></div>
+                <div><label asp-for="CurrentSemester" class="form-label"></label><input asp-for="CurrentSemester" class="form-control" /></div>
+                <div><label asp-for="PreferredLocations" class="form-label"></label><input asp-for="PreferredLocations" class="form-control" placeholder="Lahore, Islamabad, Remote" /></div>
+                <div class="form-grid-wide"><label asp-for="OpportunityInterests" class="form-label"></label><input asp-for="OpportunityInterests" class="form-control" placeholder="Internships, data, design" /></div>
+                <div class="form-grid-wide"><label asp-for="Skills" class="form-label"></label><textarea asp-for="Skills" class="form-control" rows="3" placeholder="Python, research, Figma"></textarea></div>
+                <div class="form-grid-wide"><label asp-for="CareerInterests" class="form-label"></label><textarea asp-for="CareerInterests" class="form-control" rows="3"></textarea></div>
+                <div class="form-grid-wide"><label asp-for="AcademicHighlights" class="form-label"></label><textarea asp-for="AcademicHighlights" class="form-control" rows="3"></textarea></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Save profile</button>
+        </form>
     </section>
 </div>
+
+<dialog class="aw-avatar-dialog" data-avatar-dialog aria-labelledby="avatar-picker-title">
+    <div class="aw-avatar-dialog-shell">
+        <header class="aw-avatar-dialog-header">
+            <div>
+                <span class="aw-auth-kicker">Choose avatar</span>
+                <h2 id="avatar-picker-title">Find your subject</h2>
+                <p>Swipe or use the arrows. One avatar is shown at a time.</p>
+            </div>
+            <button class="aw-avatar-dialog-close" type="button" data-avatar-close aria-label="Close avatar picker">×</button>
+        </header>
+
+        <div class="aw-avatar-picker-tools">
+            <label>
+                <span>Jump to subject</span>
+                <select data-avatar-category>
+                    <option value="">All subjects</option>
+                    @foreach (var category in avatarCategories)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </select>
+            </label>
+            <span data-avatar-position>1 of @Model.AvatarOptions.Count</span>
+        </div>
+
+        <div class="aw-avatar-carousel">
+            <button class="aw-avatar-carousel-arrow" type="button" data-avatar-previous aria-label="Previous avatar">‹</button>
+            <div class="aw-avatar-carousel-viewport" data-avatar-viewport>
+                <div class="aw-avatar-carousel-track" data-avatar-track>
+                    @foreach (var avatar in Model.AvatarOptions)
+                    {
+                        <article class="aw-avatar-slide" data-avatar-slide data-avatar-id="@avatar.Id" data-avatar-category-name="@avatar.Category" data-avatar-selected="@avatar.IsSelected.ToString().ToLowerInvariant()">
+                            <div class="aw-avatar-slide-image">
+                                <img src="@avatar.ImageUrl" alt="@avatar.Label avatar" loading="lazy" />
+                                @if (avatar.IsRecommended)
+                                {
+                                    <span>Recommended for you</span>
+                                }
+                            </div>
+                            <div class="aw-avatar-slide-copy">
+                                <span>@avatar.Category</span>
+                                <h3>@avatar.Label</h3>
+                                <p>Choose this look now. You can switch subjects or upload a personal photo at any time.</p>
+                            </div>
+                            <form asp-action="SelectAvatar" method="post">
+                                <input type="hidden" name="avatarId" value="@avatar.Id" />
+                                @if (avatar.IsSelected)
+                                {
+                                    <button type="button" class="btn btn-secondary-soft" disabled>Currently selected</button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-primary">Use this avatar</button>
+                                }
+                            </form>
+                        </article>
+                    }
+                </div>
+            </div>
+            <button class="aw-avatar-carousel-arrow" type="button" data-avatar-next aria-label="Next avatar">›</button>
+        </div>
+    </div>
+</dialog>
 
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

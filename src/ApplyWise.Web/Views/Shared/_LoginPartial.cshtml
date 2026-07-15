@@ -8,7 +8,13 @@
 }
 <div class="account-links">
 @if (SignInManager.IsSignedIn(User)) {
-    <a class="account-button" asp-controller="Profile" asp-action="Index" title="Profile"><span class="account-avatar"><img src="/profile/avatar" alt="" onerror="this.style.display='none';" />@displayName[0].ToString().ToUpperInvariant()</span><span class="account-name">@displayName</span></a>
+    <a class="account-button" asp-controller="Profile" asp-action="Index" title="Profile">
+        <span class="account-avatar">
+            <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
+            <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="" onerror="this.hidden=true;" />
+        </span>
+        <span class="account-name">@displayName</span>
+    </a>
     <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"><button type="submit" class="btn btn-link logout-button">Log out</button></form>
 } else {
     <a class="btn btn-link" asp-area="Identity" asp-page="/Account/Login">Log in</a><a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Create account</a>

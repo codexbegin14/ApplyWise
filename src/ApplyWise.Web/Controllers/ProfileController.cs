@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Profiles;
 using ApplyWise.Web.ViewModels.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,25 +19,21 @@ public class ProfileController(
     IWebHostEnvironment environment) : Controller
 {
     private const int MaxAvatarSizeBytes = 2 * 1024 * 1024;
-    private static readonly BuiltInAvatar[] BuiltInAvatars =
-    [
-        new("woman-software-engineer", "Women", "Software engineer", "woman-software-engineer.jpg"),
-        new("woman-doctor", "Women", "Doctor", "woman-doctor.jpg"),
-        new("woman-architect", "Women", "Architect", "woman-architect.jpg"),
-        new("woman-scientist", "Women", "Scientist", "woman-scientist.jpg"),
-        new("woman-teacher", "Women", "Teacher", "woman-teacher.jpg"),
-        new("man-data-analyst", "Men", "Data analyst", "man-data-analyst.jpg"),
-        new("man-civil-engineer", "Men", "Civil engineer", "man-civil-engineer.jpg"),
-        new("man-lawyer", "Men", "Lawyer", "man-lawyer.jpg"),
-        new("man-product-designer", "Men", "Product designer", "man-product-designer.jpg"),
-        new("man-finance-professional", "Men", "Finance professional", "man-finance-professional.jpg")
-    ];
 
     [HttpGet("")] public async Task<IActionResult> Index() => View(await LoadModelAsync());
 
     [HttpPost("save"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(ProfileEditViewModel model)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (model.DateOfBirth is { } dateOfBirth
+            && (dateOfBirth > today || dateOfBirth < today.AddYears(-120)))
+        {
+            ModelState.AddModelError(
+                nameof(ProfileEditViewModel.DateOfBirth),
+                "Enter a valid date of birth that is not in the future.");
+        }
+
         if (!ModelState.IsValid)
         {
             await PopulateAvatarPresentationAsync(model);
@@ -57,8 +54,18 @@ public class ProfileController(
         Response.Headers.Pragma = "no-cache";
         Response.Headers["X-Content-Type-Options"] = "nosniff";
         var profile = await db.CareerProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == GetUserId());
-        if (profile?.AvatarData is null) return NotFound();
-        return File(profile.AvatarData, profile.AvatarContentType ?? "image/png");
+        if (profile?.AvatarData is not null)
+        {
+            return File(profile.AvatarData, profile.AvatarContentType ?? "image/png");
+        }
+
+        var avatar = AvatarCatalog.Find(profile?.SelectedAvatarId)
+            ?? AvatarCatalog.Find(AvatarCatalog.GetDefaultAvatarId(profile?.Gender));
+        if (avatar is null) return NotFound();
+
+        var avatarPath = GetAvatarPath(avatar);
+        if (!System.IO.File.Exists(avatarPath)) return NotFound();
+        return File(await System.IO.File.ReadAllBytesAsync(avatarPath, HttpContext.RequestAborted), "image/jpeg");
     }
 
     [HttpPost("avatar"), ValidateAntiForgeryToken, RequestSizeLimit(MaxAvatarSizeBytes + 64 * 1024)]
@@ -88,6 +95,7 @@ public class ProfileController(
         var profile = await GetOrCreateAsync();
         profile.AvatarData = bytes;
         profile.AvatarContentType = contentType;
+        profile.SelectedAvatarId = null;
         profile.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
         TempData["SuccessMessage"] = "Your custom profile picture was updated.";
@@ -97,15 +105,14 @@ public class ProfileController(
     [HttpPost("avatar/select"), ValidateAntiForgeryToken]
     public async Task<IActionResult> SelectAvatar(string? avatarId)
     {
-        var avatar = BuiltInAvatars.SingleOrDefault(option =>
-            string.Equals(option.Id, avatarId, StringComparison.Ordinal));
+        var avatar = AvatarCatalog.Find(avatarId);
         if (avatar is null)
         {
             TempData["ErrorMessage"] = "Choose one of the available profile avatars.";
             return RedirectToAction(nameof(Index));
         }
 
-        var path = Path.Combine(environment.WebRootPath, "images", "avatars", avatar.FileName);
+        var path = GetAvatarPath(avatar);
         if (!System.IO.File.Exists(path))
         {
             TempData["ErrorMessage"] = "That avatar is temporarily unavailable.";
@@ -113,11 +120,12 @@ public class ProfileController(
         }
 
         var profile = await GetOrCreateAsync();
-        profile.AvatarData = await System.IO.File.ReadAllBytesAsync(path, HttpContext.RequestAborted);
-        profile.AvatarContentType = "image/jpeg";
+        profile.AvatarData = null;
+        profile.AvatarContentType = null;
+        profile.SelectedAvatarId = avatar.Id;
         profile.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
-        TempData["SuccessMessage"] = $"{avatar.Profession} avatar selected.";
+        TempData["SuccessMessage"] = $"{avatar.Label} avatar selected.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -125,7 +133,7 @@ public class ProfileController(
     {
         var profile = await db.CareerProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == GetUserId());
         var model = profile is null ? new ProfileEditViewModel { FullName = User.Identity?.Name?.Split('@')[0] ?? string.Empty } : new ProfileEditViewModel
-        { FullName = profile.FullName, CareerStage = profile.CareerStage, Institution = profile.Institution, DegreeProgram = profile.DegreeProgram,
+        { FullName = profile.FullName, Gender = profile.Gender, DateOfBirth = profile.DateOfBirth, CareerStage = profile.CareerStage, Institution = profile.Institution, DegreeProgram = profile.DegreeProgram,
             FieldOfStudy = profile.FieldOfStudy, GraduationYear = profile.GraduationYear, CurrentSemester = profile.CurrentSemester,
             PreferredLocations = profile.PreferredLocations, PreferredWorkModes = profile.PreferredWorkModes, OpportunityInterests = profile.OpportunityInterests,
             Skills = profile.Skills, CareerInterests = profile.CareerInterests, AcademicHighlights = profile.AcademicHighlights,
@@ -144,14 +152,26 @@ public class ProfileController(
     private void PopulateAvatarPresentation(ProfileEditViewModel model, CareerProfile? profile)
     {
         model.Initials = CreateInitials(model.FullName);
-        model.CurrentAvatarUrl = profile?.AvatarData is null
-            ? null
-            : Url.Action(nameof(Avatar), "Profile", new { version = profile.UpdatedAt.ToUnixTimeMilliseconds() });
-        model.AvatarOptions = BuiltInAvatars.Select(option => new ProfileAvatarOption(
+        model.CurrentAvatarUrl = Url.Action(nameof(Avatar), "Profile", new
+        {
+            version = profile?.UpdatedAt.ToUnixTimeMilliseconds() ?? 0
+        });
+        var recommendedAvatarId = AvatarCatalog.GetDefaultAvatarId(profile?.Gender ?? model.Gender);
+        model.CurrentAvatarLabel = profile?.AvatarData is not null
+            ? "Custom photo"
+            : AvatarCatalog.Find(profile?.SelectedAvatarId)?.Label
+              ?? AvatarCatalog.Find(recommendedAvatarId)?.Label
+              ?? "Profile picture";
+        model.AvatarOptions = AvatarCatalog.All
+            .OrderByDescending(option => string.Equals(option.Id, recommendedAvatarId, StringComparison.Ordinal))
+            .Select(option => new ProfileAvatarOption(
             option.Id,
-            option.Gender,
-            option.Profession,
-            Url.Content($"~/images/avatars/{option.FileName}"))).ToArray();
+            option.Category,
+            option.Label,
+            Url.Content($"~/images/avatars/{option.FileName}"),
+            string.Equals(option.Id, profile?.SelectedAvatarId, StringComparison.Ordinal),
+            string.Equals(option.Id, recommendedAvatarId, StringComparison.Ordinal)))
+            .ToArray();
     }
 
     private async Task<CareerProfile> GetOrCreateAsync()
@@ -159,12 +179,12 @@ public class ProfileController(
         var userId = GetUserId(); var profile = await db.CareerProfiles.SingleOrDefaultAsync(p => p.UserId == userId);
         if (profile != null) return profile;
         var user = await users.GetUserAsync(User); var name = User.FindFirstValue("display_name") ?? user?.UserName?.Split('@')[0] ?? "";
-        profile = new CareerProfile { UserId = userId, FullName = name, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow }; db.CareerProfiles.Add(profile); await db.SaveChangesAsync(); return profile;
+        profile = new CareerProfile { UserId = userId, FullName = name, SelectedAvatarId = AvatarCatalog.GeneralNeutralId, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow }; db.CareerProfiles.Add(profile); await db.SaveChangesAsync(); return profile;
     }
 
     private void Apply(CareerProfile profile, ProfileEditViewModel model)
     {
-        profile.FullName = model.FullName.Trim(); profile.CareerStage = model.CareerStage; profile.Institution = Clean(model.Institution); profile.DegreeProgram = Clean(model.DegreeProgram);
+        profile.FullName = model.FullName.Trim(); profile.Gender = model.Gender; profile.DateOfBirth = model.DateOfBirth; profile.CareerStage = model.CareerStage; profile.Institution = Clean(model.Institution); profile.DegreeProgram = Clean(model.DegreeProgram);
         profile.FieldOfStudy = Clean(model.FieldOfStudy); profile.GraduationYear = model.GraduationYear; profile.CurrentSemester = model.CurrentSemester; profile.PreferredLocations = Clean(model.PreferredLocations);
         profile.PreferredWorkModes = Clean(model.PreferredWorkModes); profile.OpportunityInterests = Clean(model.OpportunityInterests); profile.Skills = Clean(model.Skills); profile.CareerInterests = Clean(model.CareerInterests);
         profile.AcademicHighlights = Clean(model.AcademicHighlights); profile.OpportunityNotificationsEnabled = model.OpportunityNotificationsEnabled;
@@ -176,6 +196,8 @@ public class ProfileController(
         if (existing != null) await users.RemoveClaimAsync(user, existing); await users.AddClaimAsync(user, new Claim("display_name", name)); await signInManager.RefreshSignInAsync(user);
     }
     private string GetUserId() => users.GetUserId(User) ?? throw new InvalidOperationException("Authenticated user is missing an identifier.");
+    private string GetAvatarPath(AvatarDefinition avatar) =>
+        Path.Combine(environment.WebRootPath, "images", "avatars", avatar.FileName);
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string CreateInitials(string? fullName)
@@ -199,6 +221,4 @@ public class ProfileController(
             && bytes.Slice(8, 4).SequenceEqual("WEBP"u8)) return "image/webp";
         return null;
     }
-
-    private sealed record BuiltInAvatar(string Id, string Gender, string Profession, string FileName);
 }

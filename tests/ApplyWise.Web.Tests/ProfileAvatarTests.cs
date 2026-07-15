@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ApplyWise.Web.Controllers;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Profiles;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -20,7 +21,7 @@ namespace ApplyWise.Web.Tests;
 public sealed class ProfileAvatarTests
 {
     [Fact]
-    public async Task Selecting_a_built_in_avatar_persists_its_bytes()
+    public async Task Selecting_a_built_in_avatar_persists_its_id_and_serves_its_file()
     {
         var webRoot = CreateTemporaryDirectory();
         var avatarDirectory = Path.Combine(webRoot, "images", "avatars");
@@ -32,13 +33,17 @@ public sealed class ProfileAvatarTests
         {
             await using var scope = await CreateControllerAsync(webRoot);
 
-            var result = await scope.Controller.SelectAvatar("woman-doctor");
+            var result = await scope.Controller.SelectAvatar("medicine-healthcare");
 
             Assert.IsType<RedirectToActionResult>(result);
             var profile = await scope.Db.CareerProfiles.SingleAsync();
-            Assert.Equal(expectedBytes, profile.AvatarData);
-            Assert.Equal("image/jpeg", profile.AvatarContentType);
-            Assert.Equal("Doctor avatar selected.", scope.Controller.TempData["SuccessMessage"]);
+            Assert.Equal("medicine-healthcare", profile.SelectedAvatarId);
+            Assert.Null(profile.AvatarData);
+            Assert.Null(profile.AvatarContentType);
+            var avatarResult = Assert.IsType<FileContentResult>(await scope.Controller.Avatar());
+            Assert.Equal(expectedBytes, avatarResult.FileContents);
+            Assert.Equal("image/jpeg", avatarResult.ContentType);
+            Assert.Equal("Medicine & healthcare avatar selected.", scope.Controller.TempData["SuccessMessage"]);
         }
         finally
         {
@@ -72,12 +77,23 @@ public sealed class ProfileAvatarTests
             var profile = await scope.Db.CareerProfiles.SingleAsync();
             Assert.Equal(pngBytes, profile.AvatarData);
             Assert.Equal("image/png", profile.AvatarContentType);
+            Assert.Null(profile.SelectedAvatarId);
             Assert.Equal("Your custom profile picture was updated.", scope.Controller.TempData["SuccessMessage"]);
         }
         finally
         {
             Directory.Delete(webRoot, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData(ProfileGender.Woman, AvatarCatalog.GeneralWomanId)]
+    [InlineData(ProfileGender.Man, AvatarCatalog.GeneralManId)]
+    [InlineData(ProfileGender.NonBinary, AvatarCatalog.GeneralNeutralId)]
+    [InlineData(ProfileGender.PreferNotToSay, AvatarCatalog.GeneralNeutralId)]
+    public void Default_avatar_matches_signup_gender(ProfileGender gender, string expectedAvatarId)
+    {
+        Assert.Equal(expectedAvatarId, AvatarCatalog.GetDefaultAvatarId(gender));
     }
 
     [Fact]
