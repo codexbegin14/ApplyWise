@@ -103,10 +103,12 @@ public class JobApplicationsController(
         var application = new JobApplication
         {
             UserId = GetUserId(),
+            Status = ApplicationStatus.Applied,
             CreatedAt = now,
             UpdatedAt = now
         };
         ApplyForm(application, model);
+        application.Status = ApplicationStatus.Applied;
 
         dbContext.JobApplications.Add(application);
         await dbContext.SaveChangesAsync();

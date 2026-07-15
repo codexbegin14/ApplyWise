@@ -8,7 +8,10 @@
         <div><label asp-for="CompanyName" class="form-label"></label><input asp-for="CompanyName" class="form-control" placeholder="e.g. Acme Inc." /><span asp-validation-for="CompanyName" class="field-validation-error"></span></div>
         <div><label asp-for="JobTitle" class="form-label"></label><input asp-for="JobTitle" class="form-control" placeholder="e.g. Software engineer" /><span asp-validation-for="JobTitle" class="field-validation-error"></span></div>
         <div><label asp-for="AppliedDate" class="form-label"></label><input asp-for="AppliedDate" class="form-control" /><span asp-validation-for="AppliedDate" class="field-validation-error"></span></div>
-        <div><label asp-for="Status" class="form-label"></label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"></select><span asp-validation-for="Status" class="field-validation-error"></span></div>
+        @if (Model is ApplyWise.Web.ViewModels.JobApplications.JobApplicationEditViewModel)
+        {
+            <div><label asp-for="Status" class="form-label"></label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"></select><span asp-validation-for="Status" class="field-validation-error"></span></div>
+        }
         <div class="form-grid-wide"><label asp-for="ResumeId" class="form-label"></label><select asp-for="ResumeId" asp-items="Model.AvailableResumes" class="form-select"><option value="">No CV version selected</option></select><span asp-validation-for="ResumeId" class="field-validation-error"></span></div>
         <div class="form-grid-wide"><label asp-for="JobDescription" class="form-label">Description</label><textarea asp-for="JobDescription" class="form-control" rows="5" placeholder="Paste a short job description or useful notes about the role"></textarea><span asp-validation-for="JobDescription" class="field-validation-error"></span></div>
     </div>

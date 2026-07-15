@@ -17,10 +17,11 @@
     <section class="aw-panel aw-timeline-panel aw-slide-up">
         <div class="aw-section-heading"><div><span class="aw-kicker">Application progress</span><h3>Where this opportunity stands</h3></div><a asp-action="Edit" asp-route-id="@Model.Id">Update status</a></div>
         <div class="aw-timeline" aria-label="Application status timeline">
-            @TimelineStep("Saved", 0)
-            @TimelineStep("Applied", 1)
+            @TimelineStep("Applied", 0)
+            @TimelineStep("Pending", 1)
             @TimelineStep("Interview", 2)
-            @TimelineStep("Offer", 3)
+            @TimelineStep("Offered", 3)
+            @TimelineStep("Accepted", 4)
         </div>
     </section>
 
@@ -70,8 +71,8 @@
     private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
     private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not specified";
     private static string DeadlineCopy(DateOnly? date) => !date.HasValue ? "Add a deadline to keep this role visible in upcoming actions." : date.Value < DateOnly.FromDateTime(DateTime.Today) ? "This deadline has passed." : $"{date.Value.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber} days remaining.";
-    private int CurrentStage() => Model.Status switch { ApplicationStatus.Saved => 0, ApplicationStatus.Applied => 1, ApplicationStatus.Shortlisted or ApplicationStatus.Interview or ApplicationStatus.TechnicalTest => 2, ApplicationStatus.Offer => 3, ApplicationStatus.Rejected or ApplicationStatus.Withdrawn => 1, _ => 0 };
+    private int CurrentStage() => Model.Status switch { ApplicationStatus.Applied => 0, ApplicationStatus.Pending => 1, ApplicationStatus.Interview => 2, ApplicationStatus.Offered => 3, ApplicationStatus.Accepted => 4, ApplicationStatus.Rejected or ApplicationStatus.UserRejected => 1, _ => 0 };
     private Microsoft.AspNetCore.Html.IHtmlContent TimelineStep(string label, int step) { var css = step < CurrentStage() ? "is-done" : step == CurrentStage() ? "is-current" : ""; return Html.Raw($"<div class=\"aw-timeline-step {css}\"><span>{(step < CurrentStage() ? "✓" : (step + 1).ToString())}</span><b>{label}</b></div>"); }
-    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "aw-status-neutral", ApplicationStatus.Applied => "aw-status-info", ApplicationStatus.Shortlisted or ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.TechnicalTest => "aw-status-warning", ApplicationStatus.Offer => "aw-status-success", ApplicationStatus.Rejected => "aw-status-danger", _ => "aw-status-neutral" };
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "aw-status-info", ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.Offered or ApplicationStatus.Accepted => "aw-status-success", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "aw-status-danger", _ => "aw-status-neutral" };
     private static string RiskClass(JobRiskLevel level) => level switch { JobRiskLevel.High => "aw-status-danger", JobRiskLevel.Medium => "aw-status-warning", _ => "aw-status-success" };
 }

@@ -20,12 +20,13 @@ public sealed record AnalyticsOverviewResult(
 public sealed record StatusCountItem(ApplicationStatus Status, int Count);
 
 public sealed record ApplicationFunnelResult(
-    int Saved,
     int Applied,
-    int Shortlisted,
+    int Pending,
     int Interview,
-    int Offer,
-    int Rejected);
+    int Offered,
+    int Accepted,
+    int Rejected,
+    int UserRejected);
 
 public sealed record RecentApplicationItem(
     int Id, string CompanyName, string JobTitle, ApplicationStatus Status, DateTimeOffset CreatedAt);

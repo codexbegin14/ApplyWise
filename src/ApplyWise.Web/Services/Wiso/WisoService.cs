@@ -15,7 +15,7 @@ public sealed class WisoService(ApplicationDbContext db) : IWisoService
         {
             var counts = await db.JobApplications.AsNoTracking().Where(a => a.UserId == userId).GroupBy(a => a.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToListAsync(cancellationToken);
             var total = counts.Sum(item => item.Count); int Count(ApplicationStatus status) => counts.FirstOrDefault(item => item.Status == status)?.Count ?? 0;
-            return new WisoReply($"You have **{total} applications**: {Count(ApplicationStatus.Saved)} saved, {Count(ApplicationStatus.Applied)} applied, {Count(ApplicationStatus.Interview)} interviews, and {Count(ApplicationStatus.Offer)} offers.", [new("View pipeline", "/applications")]);
+            return new WisoReply($"You have **{total} applications**: {Count(ApplicationStatus.Applied)} applied, {Count(ApplicationStatus.Pending)} pending, {Count(ApplicationStatus.Interview)} interviews, and {Count(ApplicationStatus.Offered)} offered.", [new("View pipeline", "/applications")]);
         }
         if (lowered.Contains("interview"))
         {

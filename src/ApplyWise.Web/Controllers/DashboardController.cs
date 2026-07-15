@@ -68,6 +68,12 @@ public class DashboardController(
             RecentApplications = analytics.RecentApplications,
             RecentAnalyses = analytics.RecentAnalyses
         };
+        model.PipelineApplications = await dbContext.JobApplications.AsNoTracking()
+            .Where(application => application.UserId == userId)
+            .OrderByDescending(application => application.UpdatedAt)
+            .Select(application => new RecentApplicationItem(
+                application.Id, application.CompanyName, application.JobTitle, application.Status, application.CreatedAt))
+            .ToListAsync();
         model.TopSkillGaps = (await analyticsService.GetSkillGapTrendsAsync(
             userId, cancellationToken: HttpContext.RequestAborted)).Take(4).ToArray();
 

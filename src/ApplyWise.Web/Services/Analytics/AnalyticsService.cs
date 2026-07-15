@@ -48,7 +48,7 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
         return new AnalyticsOverviewResult(
             total,
             interviewRows.Count,
-            applications.Count(application => application.Status == ApplicationStatus.Offer),
+            applications.Count(application => application.Status == ApplicationStatus.Offered),
             applications.Count(application => application.Status == ApplicationStatus.Rejected),
             analyses.Count == 0 ? 0 : Math.Round(analyses.Average(analysis => analysis.MatchScore), 1),
             pendingReminderCount,
@@ -195,24 +195,15 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
         IReadOnlySet<int> interviewedApplicationIds)
     {
         var rows = applications.ToArray();
-        var appliedStatuses = new HashSet<ApplicationStatus>
-        {
-            ApplicationStatus.Applied, ApplicationStatus.Shortlisted, ApplicationStatus.Interview,
-            ApplicationStatus.TechnicalTest, ApplicationStatus.Offer, ApplicationStatus.Rejected
-        };
-        var shortlistedStatuses = new HashSet<ApplicationStatus>
-        {
-            ApplicationStatus.Shortlisted, ApplicationStatus.Interview,
-            ApplicationStatus.TechnicalTest, ApplicationStatus.Offer
-        };
         return new ApplicationFunnelResult(
-            rows.Length,
-            rows.Count(row => appliedStatuses.Contains(row.Status)),
-            rows.Count(row => shortlistedStatuses.Contains(row.Status)),
+            rows.Count(row => row.Status == ApplicationStatus.Applied),
+            rows.Count(row => row.Status == ApplicationStatus.Pending),
             rows.Count(row => interviewedApplicationIds.Contains(row.Id)
-                || row.Status is ApplicationStatus.Interview or ApplicationStatus.Offer),
-            rows.Count(row => row.Status == ApplicationStatus.Offer),
-            rows.Count(row => row.Status == ApplicationStatus.Rejected));
+                || row.Status == ApplicationStatus.Interview),
+            rows.Count(row => row.Status == ApplicationStatus.Offered),
+            rows.Count(row => row.Status == ApplicationStatus.Accepted),
+            rows.Count(row => row.Status == ApplicationStatus.Rejected),
+            rows.Count(row => row.Status == ApplicationStatus.UserRejected));
     }
 
     private static string BuildSkillAction(string skill) => skill switch

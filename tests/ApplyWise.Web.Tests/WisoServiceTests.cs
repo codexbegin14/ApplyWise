@@ -14,7 +14,7 @@ public sealed class WisoServiceTests
         await using var db = CreateDb();
         db.JobApplications.AddRange(
             new JobApplication { UserId = "one", CompanyName = "A", JobTitle = "Designer", Status = ApplicationStatus.Applied },
-            new JobApplication { UserId = "two", CompanyName = "B", JobTitle = "Engineer", Status = ApplicationStatus.Offer });
+            new JobApplication { UserId = "two", CompanyName = "B", JobTitle = "Engineer", Status = ApplicationStatus.Offered });
         await db.SaveChangesAsync();
         var reply = await new WisoService(db).AskAsync("one", "How many applications do I have?");
         Assert.Contains("**1 applications**", reply.Message);
