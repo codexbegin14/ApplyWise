@@ -207,6 +207,28 @@ public class JobApplicationsController(
         return RedirectToAction(nameof(Details), new { id = application.Id });
     }
 
+    [HttpPost("{id:int}/status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(int id, ApplicationStatus status)
+    {
+        if (!Enum.IsDefined(status))
+        {
+            return BadRequest();
+        }
+
+        var application = await FindOwnedApplicationAsync(id);
+        if (application is null)
+        {
+            return NotFound();
+        }
+
+        application.Status = status;
+        application.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"{application.JobTitle} moved to {status.GetDisplayName()}.";
+        return RedirectToAction(nameof(Details), new { id = application.Id });
+    }
+
     [HttpGet("{id:int}/delete")]
     public async Task<IActionResult> Delete(int id)
     {

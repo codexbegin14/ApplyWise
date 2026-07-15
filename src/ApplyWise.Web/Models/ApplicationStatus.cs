@@ -11,5 +11,6 @@ public enum ApplicationStatus
     Accepted = 8,
     Rejected = 6,
     [Display(Name = "User rejected")]
-    UserRejected = 7
+    UserRejected = 7,
+    Ignored = 9
 }

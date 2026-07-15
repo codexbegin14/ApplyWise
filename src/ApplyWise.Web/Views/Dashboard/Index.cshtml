@@ -2,39 +2,137 @@
 @using ApplyWise.Web.Models
 @{
     ViewData["Title"] = "Dashboard";
-    var firstName = Model.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? Model.DisplayName;
     var focus = Model.TodayActions.FirstOrDefault();
+    var activeStages = new[] { ApplicationStatus.Applied, ApplicationStatus.Pending, ApplicationStatus.Interview, ApplicationStatus.Offered };
+    var outcomeStages = new[] { ApplicationStatus.Accepted, ApplicationStatus.Rejected, ApplicationStatus.UserRejected, ApplicationStatus.Ignored };
+    var activeCount = Model.PipelineApplications.Count(application => activeStages.Contains(application.Status));
 }
 <div class="aw-page aw-dashboard-v3 aw-fade-in" data-display-name="@Model.DisplayName">
-    <header class="aw-dashboard-greeting"><div><span class="aw-dashboard-greeting-line" data-local-greeting>Good afternoon, @Model.DisplayName</span><span class="aw-wiso-chip"><span class="aw-sparkle">✦</span> Wiso is ready</span><p>@Model.CurrentTime.ToLocalTime().ToString("dddd, MMMM d, yyyy")</p></div><a class="aw-avatar-chip" asp-controller="Profile" asp-action="Index"><img src="/profile/avatar" alt="" onerror="this.style.display='none';" /><span>@Model.DisplayName[..1].ToUpperInvariant()</span></a></header>
+    <header class="aw-dashboard-greeting">
+        <div>
+            <span class="aw-dashboard-greeting-line" data-local-greeting>Good afternoon, @Model.DisplayName</span>
+            <span class="aw-wiso-chip"><span class="aw-sparkle">*</span> Wiso is ready</span>
+            <p>@Model.CurrentTime.ToLocalTime().ToString("dddd, MMMM d, yyyy")</p>
+        </div>
+    </header>
 
     <section class="aw-dashboard-focus aw-slide-up" aria-labelledby="focus-title">
-        <div><span class="aw-kicker">Next step</span><h1 id="focus-title">@(focus is null ? "Keep your workspace moving" : focus.Title)</h1><p>@(focus is null ? "Keep your workspace ready with one small, useful move." : focus.Context)</p></div>
-        <div class="aw-focus-action">@if (focus is null) { <a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add application</a> } else { <a class="btn btn-primary" asp-controller="@focus.Controller" asp-action="@focus.Action" asp-route-id="@focus.Id">Open next step</a> }<span class="aw-focus-wiso"><img src="~/images/wiso.png" alt="Wiso" /></span></div>
-    </section>
-
-    <section class="aw-metric-grid" aria-label="Workspace metrics">
-        <a class="aw-metric-card is-blue" asp-controller="JobApplications" asp-action="Index"><span>Applications</span><strong>@Model.TotalApplications</strong><small>Across your pipeline</small></a>
-        <a class="aw-metric-card is-mint" asp-controller="Interviews" asp-action="Index"><span>Interviews</span><strong>@Model.UpcomingInterviewCount</strong><small>Scheduled ahead</small></a>
-        <a class="aw-metric-card is-violet" asp-controller="Analytics" asp-action="ResumePerformance"><span>Average match</span><strong>@Model.AverageMatchScore.ToString("0.#")%</strong><small>From resume analyses</small></a>
-        <a class="aw-metric-card is-amber" asp-controller="Reminders" asp-action="Index"><span>Follow-ups</span><strong>@Model.PendingReminderCount</strong><small>@Model.OverdueReminderCount overdue</small></a>
+        <div>
+            <span class="aw-kicker">Next step</span>
+            <h1 id="focus-title">@(focus is null ? "Keep your workspace moving" : focus.Title)</h1>
+            <p>@(focus is null ? "Keep your workspace ready with one small, useful move." : focus.Context)</p>
+        </div>
+        <div class="aw-focus-action">
+            @if (focus is null)
+            {
+                <a class="btn btn-primary" asp-controller="JobApplications" asp-action="Create">Add application</a>
+            }
+            else
+            {
+                <a class="btn btn-primary" asp-controller="@focus.Controller" asp-action="@focus.Action" asp-route-id="@focus.Id">Open next step</a>
+            }
+            <span class="aw-focus-wiso"><img src="~/images/wiso.png" alt="Wiso" /></span>
+        </div>
     </section>
 
     <section class="aw-panel aw-pipeline-panel aw-slide-up" aria-labelledby="pipeline-title">
-        <div class="aw-section-heading aw-section-heading-inline"><div><span class="aw-kicker">Keep moving</span><h2 id="pipeline-title">Application pipeline</h2></div><a asp-controller="JobApplications" asp-action="Index">View all</a></div>
-        <div class="aw-pipeline-filters" role="tablist" aria-label="Pipeline filters"><button class="is-selected" type="button" data-pipeline-filter="all">All</button><button type="button" data-pipeline-filter="Applied">Applied <span>@Model.Funnel.Applied</span></button><button type="button" data-pipeline-filter="Pending">Pending <span>@Model.Funnel.Pending</span></button><button type="button" data-pipeline-filter="Interview">Interview <span>@Model.Funnel.Interview</span></button><button type="button" data-pipeline-filter="Offered">Offered <span>@Model.Funnel.Offered</span></button><button type="button" data-pipeline-filter="Accepted">Accepted <span>@Model.Funnel.Accepted</span></button><button type="button" data-pipeline-filter="Rejected">Rejected <span>@Model.Funnel.Rejected</span></button><button type="button" data-pipeline-filter="UserRejected">User rejected <span>@Model.Funnel.UserRejected</span></button></div>
-        <div class="aw-pipeline-grid">
-            @foreach (var stage in new[] { ApplicationStatus.Applied, ApplicationStatus.Pending, ApplicationStatus.Interview, ApplicationStatus.Offered, ApplicationStatus.Accepted, ApplicationStatus.Rejected, ApplicationStatus.UserRejected }) {
-                <div class="aw-pipeline-column" data-pipeline-stage="@stage"><header><span>@stage.GetDisplayName()</span><strong>@Model.PipelineApplications.Count(a => a.Status == stage)</strong></header>
-                    @foreach (var app in Model.PipelineApplications.Where(a => a.Status == stage).Take(6)) { <a class="aw-pipeline-card" data-pipeline-card="@stage" asp-controller="JobApplications" asp-action="Details" asp-route-id="@app.Id"><span class="aw-company-avatar">@Initial(app.CompanyName)</span><span><strong>@app.JobTitle</strong><small>@app.CompanyName</small></span><span class="aw-pipeline-arrow">→</span></a> }
-                    @if (!Model.PipelineApplications.Any(a => a.Status == stage)) { <div class="aw-pipeline-empty">No roles here yet</div> }
+        <div class="aw-section-heading aw-section-heading-inline">
+            <div>
+                <span class="aw-kicker">Your job search at a glance</span>
+                <h2 id="pipeline-title">Application pipeline</h2>
+                <p>Every role stays in its current stage. Update an application to move it through the pipeline.</p>
+            </div>
+            <a asp-controller="JobApplications" asp-action="Index">Open application workspace</a>
+        </div>
+        <div class="aw-pipeline-overview" aria-label="Pipeline summary">
+            <span><strong>@Model.TotalApplications</strong> total applications</span>
+            <span><strong>@activeCount</strong> in progress</span>
+            <span><strong>@Model.UpcomingInterviewCount</strong> upcoming interviews</span>
+            <span><strong>@Model.PendingReminderCount</strong> follow-ups</span>
+        </div>
+
+        <div class="aw-pipeline-group-heading"><span>In progress</span><small>Roles that still need attention</small></div>
+        <div class="aw-pipeline-grid aw-pipeline-grid-progress">
+            @foreach (var stage in activeStages)
+            {
+                <div class="aw-pipeline-column" data-pipeline-stage="@stage">
+                    <header><span>@stage.GetDisplayName()</span><strong>@Model.PipelineApplications.Count(application => application.Status == stage)</strong></header>
+                    @foreach (var application in Model.PipelineApplications.Where(application => application.Status == stage).Take(6))
+                    {
+                        <a class="aw-pipeline-card" asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id">
+                            <span class="aw-company-avatar">@Initial(application.CompanyName)</span>
+                            <span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span>
+                            <span class="aw-pipeline-arrow">-></span>
+                        </a>
+                    }
+                    @if (!Model.PipelineApplications.Any(application => application.Status == stage))
+                    {
+                        <div class="aw-pipeline-empty">No roles here yet</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="aw-pipeline-group-heading aw-pipeline-group-heading-outcomes"><span>Outcomes</span><small>Finished decisions, kept for your history</small></div>
+        <div class="aw-pipeline-grid aw-pipeline-grid-outcomes">
+            @foreach (var stage in outcomeStages)
+            {
+                <div class="aw-pipeline-column" data-pipeline-stage="@stage">
+                    <header><span>@stage.GetDisplayName()</span><strong>@Model.PipelineApplications.Count(application => application.Status == stage)</strong></header>
+                    @foreach (var application in Model.PipelineApplications.Where(application => application.Status == stage).Take(6))
+                    {
+                        <a class="aw-pipeline-card" asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id">
+                            <span class="aw-company-avatar">@Initial(application.CompanyName)</span>
+                            <span><strong>@application.JobTitle</strong><small>@application.CompanyName</small></span>
+                            <span class="aw-pipeline-arrow">-></span>
+                        </a>
+                    }
+                    @if (!Model.PipelineApplications.Any(application => application.Status == stage))
+                    {
+                        <div class="aw-pipeline-empty">No roles here yet</div>
+                    }
                 </div>
             }
         </div>
     </section>
 
-    <section class="aw-quick-row" aria-label="Quick actions"><a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload resume</a><a class="btn btn-secondary-soft" asp-controller="JobApplications" asp-action="Create">Add application</a><a class="btn btn-secondary-soft" asp-controller="ResumeAnalyzer" asp-action="Index">Analyze resume</a><a class="btn btn-secondary-soft" asp-controller="BestResumePicker" asp-action="Index">Compare resumes</a></section>
+    <section class="aw-quick-row" aria-label="Quick actions">
+        <a class="btn btn-primary" asp-controller="Resumes" asp-action="Create">Upload resume</a>
+        <a class="btn btn-secondary-soft" asp-controller="JobApplications" asp-action="Create">Add application</a>
+        <a class="btn btn-secondary-soft" asp-controller="ResumeAnalyzer" asp-action="Index">Analyze resume</a>
+        <a class="btn btn-secondary-soft" asp-controller="BestResumePicker" asp-action="Index">Compare resumes</a>
+    </section>
 
-    <div class="aw-workspace-grid aw-dashboard-secondary"><section class="aw-panel"><div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-violet">Resume intelligence</span><h2>Readiness</h2></div><a asp-controller="Analytics" asp-action="ResumePerformance">View analytics</a></div><strong class="aw-score-large">@Model.BestResumeScore.ToString("0.#")%</strong><p>@(Model.BestResumeVersionName is null ? "Upload and analyze a resume to see your first benchmark." : $"Best match from {Model.BestResumeVersionName}.")</p><div class="aw-progress"><i style="--aw-progress:@Math.Clamp(Model.BestResumeScore, 0, 100)%"></i></div></section><section class="aw-panel"><div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-amber">Coming up</span><h2>Upcoming tasks</h2></div><a asp-controller="Reminders" asp-action="Index">View reminders</a></div>@if(Model.UpcomingInterviews.Count == 0 && Model.PendingReminders.Count == 0){<div class="aw-compact-state"><strong>Nothing scheduled yet</strong><p>Your next interview or reminder will show here.</p></div>}else{<div class="aw-mini-list">@foreach(var interview in Model.UpcomingInterviews.Take(2)){<a asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><strong>@interview.JobTitle</strong><small>@interview.ScheduledAt.ToLocalTime().ToString("MMM d, h:mm tt")</small></a>}@foreach(var reminder in Model.PendingReminders.Take(2)){<a asp-controller="Reminders" asp-action="Index"><strong>@reminder.Title</strong><small>@reminder.DueAt.ToLocalTime().ToString("MMM d")</small></a>}</div>}</section></div>
+    <div class="aw-workspace-grid aw-dashboard-secondary">
+        <section class="aw-panel">
+            <div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-violet">Resume intelligence</span><h2>Readiness</h2></div><a asp-controller="Analytics" asp-action="ResumePerformance">View analytics</a></div>
+            <strong class="aw-score-large">@Model.BestResumeScore.ToString("0.#")%</strong>
+            <p>@(Model.BestResumeVersionName is null ? "Upload and analyze a resume to see your first benchmark." : $"Best match from {Model.BestResumeVersionName}.")</p>
+            <div class="aw-progress"><i style="--aw-progress:@Math.Clamp(Model.BestResumeScore, 0, 100)%"></i></div>
+        </section>
+        <section class="aw-panel">
+            <div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-amber">Coming up</span><h2>Upcoming tasks</h2></div><a asp-controller="Reminders" asp-action="Index">View reminders</a></div>
+            @if (Model.UpcomingInterviews.Count == 0 && Model.PendingReminders.Count == 0)
+            {
+                <div class="aw-compact-state"><strong>Nothing scheduled yet</strong><p>Your next interview or reminder will show here.</p></div>
+            }
+            else
+            {
+                <div class="aw-mini-list">
+                    @foreach (var interview in Model.UpcomingInterviews.Take(2))
+                    {
+                        <a asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><strong>@interview.JobTitle</strong><small>@interview.ScheduledAt.ToLocalTime().ToString("MMM d, h:mm tt")</small></a>
+                    }
+                    @foreach (var reminder in Model.PendingReminders.Take(2))
+                    {
+                        <a asp-controller="Reminders" asp-action="Index"><strong>@reminder.Title</strong><small>@reminder.DueAt.ToLocalTime().ToString("MMM d")</small></a>
+                    }
+                </div>
+            }
+        </section>
+    </div>
 </div>
-@functions { private static string Initial(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant(); }
+@functions
+{
+    private static string Initial(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();
+}

@@ -203,7 +203,8 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             rows.Count(row => row.Status == ApplicationStatus.Offered),
             rows.Count(row => row.Status == ApplicationStatus.Accepted),
             rows.Count(row => row.Status == ApplicationStatus.Rejected),
-            rows.Count(row => row.Status == ApplicationStatus.UserRejected));
+            rows.Count(row => row.Status == ApplicationStatus.UserRejected),
+            rows.Count(row => row.Status == ApplicationStatus.Ignored));
     }
 
     private static string BuildSkillAction(string skill) => skill switch

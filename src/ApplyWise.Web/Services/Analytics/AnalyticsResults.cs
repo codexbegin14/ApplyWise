@@ -26,7 +26,8 @@ public sealed record ApplicationFunnelResult(
     int Offered,
     int Accepted,
     int Rejected,
-    int UserRejected);
+    int UserRejected,
+    int Ignored);
 
 public sealed record RecentApplicationItem(
     int Id, string CompanyName, string JobTitle, ApplicationStatus Status, DateTimeOffset CreatedAt);

@@ -1,5 +1,5 @@
 @model ApplyWise.Web.ViewModels.Analytics.AnalyticsIndexViewModel
-@{ ViewData["Title"] = "Analytics"; var activeTab = "overview"; var overview = Model.Overview; var funnelMax = Math.Max(Math.Max(Math.Max(overview.Funnel.Applied, overview.Funnel.Pending), Math.Max(overview.Funnel.Interview, overview.Funnel.Offered)), Math.Max(Math.Max(overview.Funnel.Accepted, overview.Funnel.Rejected), overview.Funnel.UserRejected)); funnelMax = Math.Max(funnelMax, 1); }
+@{ ViewData["Title"] = "Analytics"; var activeTab = "overview"; var overview = Model.Overview; var funnelMax = Math.Max(Math.Max(Math.Max(overview.Funnel.Applied, overview.Funnel.Pending), Math.Max(overview.Funnel.Interview, overview.Funnel.Offered)), Math.Max(Math.Max(overview.Funnel.Accepted, overview.Funnel.Rejected), Math.Max(overview.Funnel.UserRejected, overview.Funnel.Ignored))); funnelMax = Math.Max(funnelMax, 1); }
 <div class="page-heading"><div><h2>Analytics</h2><p>Understand your job search performance and skill gaps.</p></div></div>
 <partial name="_AnalyticsTabs" model="activeTab" />
 @if (overview.TotalApplications == 0)
@@ -19,7 +19,7 @@ else
     </div>
 }
 @functions {
-    private IEnumerable<(string Label, int Count)> FunnelItems() { yield return ("Applied", Model.Overview.Funnel.Applied); yield return ("Pending", Model.Overview.Funnel.Pending); yield return ("Interview", Model.Overview.Funnel.Interview); yield return ("Offered", Model.Overview.Funnel.Offered); yield return ("Accepted", Model.Overview.Funnel.Accepted); yield return ("Rejected", Model.Overview.Funnel.Rejected); yield return ("User rejected", Model.Overview.Funnel.UserRejected); }
+    private IEnumerable<(string Label, int Count)> FunnelItems() { yield return ("Applied", Model.Overview.Funnel.Applied); yield return ("Pending", Model.Overview.Funnel.Pending); yield return ("Interview", Model.Overview.Funnel.Interview); yield return ("Offered", Model.Overview.Funnel.Offered); yield return ("Accepted", Model.Overview.Funnel.Accepted); yield return ("Rejected", Model.Overview.Funnel.Rejected); yield return ("User rejected", Model.Overview.Funnel.UserRejected); yield return ("Ignored", Model.Overview.Funnel.Ignored); }
     private static string PriorityClass(string priority) => priority switch { "High" => "priority-high", "Medium" => "priority-medium", _ => "priority-low" };
-    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "status-applied", ApplicationStatus.Interview => "status-shortlisted", ApplicationStatus.Offered or ApplicationStatus.Accepted => "status-offer", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "status-rejected", _ => "status-saved" };
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "status-applied", ApplicationStatus.Interview => "status-shortlisted", ApplicationStatus.Offered or ApplicationStatus.Accepted => "status-offer", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "status-rejected", ApplicationStatus.Ignored => "status-saved", _ => "status-saved" };
 }
