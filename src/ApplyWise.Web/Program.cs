@@ -6,7 +6,6 @@ using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
-using ApplyWise.Web.Services.Opportunities;
 using ApplyWise.Web.Services.Wiso;
 using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
@@ -141,10 +140,7 @@ builder.Services.AddRateLimiter(options =>
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 8, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
-builder.Services.AddAuthorization(options =>
-    options.AddPolicy("AnnouncementManager", policy =>
-        policy.RequireClaim(builder.Configuration["AnnouncementManager:ClaimType"] ?? "role",
-            builder.Configuration["AnnouncementManager:ClaimValue"] ?? "announcement-manager")));
+builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -173,7 +169,6 @@ builder.Services.AddOptions<ResumeStorageOptions>()
         "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
-builder.Services.AddScoped<IOpportunityService, OpportunityService>();
 builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();

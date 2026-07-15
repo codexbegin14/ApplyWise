@@ -5,15 +5,8 @@ namespace ApplyWise.Web.ViewModels.Settings;
 public sealed class SettingsViewModel
 {
     public string Email { get; init; } = string.Empty;
-    public bool OpportunityNotificationsEnabled { get; set; }
-    public PreferencesInput Preferences { get; set; } = new();
     public ChangePasswordInput ChangePassword { get; set; } = new();
     public DeleteAccountInput DeleteAccount { get; set; } = new();
-}
-
-public sealed class PreferencesInput
-{
-    public bool OpportunityNotificationsEnabled { get; set; }
 }
 
 public sealed class ChangePasswordInput

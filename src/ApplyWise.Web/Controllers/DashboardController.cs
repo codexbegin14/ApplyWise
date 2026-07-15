@@ -142,17 +142,6 @@ public class DashboardController(
     [HttpGet("settings")]
     public async Task<IActionResult> Settings() => View(await BuildSettingsModelAsync());
 
-    [HttpPost("settings/preferences"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> SavePreferences([Bind(Prefix = "Preferences")] PreferencesInput input)
-    {
-        var profile = await GetOrCreateProfileAsync();
-        profile.OpportunityNotificationsEnabled = input.OpportunityNotificationsEnabled;
-        profile.UpdatedAt = DateTimeOffset.UtcNow;
-        await dbContext.SaveChangesAsync();
-        TempData["SettingsSuccess"] = "Your opportunity notification preference was saved.";
-        return RedirectToAction(nameof(Settings));
-    }
-
     [HttpPost("settings/security-code/{securityAction}"), ValidateAntiForgeryToken]
     [EnableRateLimiting("account-security")]
     public async Task<IActionResult> SendSecurityCode(string securityAction)
@@ -250,28 +239,14 @@ public class DashboardController(
     private async Task<SettingsViewModel> BuildSettingsModelAsync()
     {
         var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("The current user could not be loaded.");
-        var profile = await dbContext.CareerProfiles.AsNoTracking().SingleOrDefaultAsync(item => item.UserId == user.Id);
         if (TempData["SettingsOpenSection"] is string requestedSection)
         {
             ViewData["SettingsOpenSection"] = requestedSection;
         }
         return new SettingsViewModel
         {
-            Email = user.Email ?? user.UserName ?? string.Empty,
-            OpportunityNotificationsEnabled = profile?.OpportunityNotificationsEnabled ?? true,
-            Preferences = new PreferencesInput { OpportunityNotificationsEnabled = profile?.OpportunityNotificationsEnabled ?? true }
+            Email = user.Email ?? user.UserName ?? string.Empty
         };
-    }
-
-    private async Task<CareerProfile> GetOrCreateProfileAsync()
-    {
-        var userId = userManager.GetUserId(User) ?? throw new InvalidOperationException("The current user does not have an identifier.");
-        var profile = await dbContext.CareerProfiles.SingleOrDefaultAsync(item => item.UserId == userId);
-        if (profile is not null) return profile;
-        var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("The current user could not be loaded.");
-        profile = new CareerProfile { UserId = userId, FullName = user.UserName?.Split('@')[0] ?? "", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        dbContext.CareerProfiles.Add(profile);
-        return profile;
     }
 
     private async Task<IActionResult> SettingsWithErrorsAsync(string section)

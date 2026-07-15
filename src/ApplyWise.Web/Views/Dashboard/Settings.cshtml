@@ -27,14 +27,6 @@
         <label class="aw-settings-switch-row" for="theme-toggle"><span><strong>Dark mode</strong><small>Use a darker ApplyWise workspace on this device.</small></span><input id="theme-toggle" type="checkbox" data-theme-toggle role="switch" /><i aria-hidden="true"></i></label>
     </section>
 
-    <section class="panel aw-settings-card">
-        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Notifications</span><h3>Opportunity alerts</h3><p>Control email updates for opportunities that match your profile.</p></div><span class="aw-settings-icon">✦</span></div>
-        <form asp-action="SavePreferences" method="post">
-            <label class="aw-settings-switch-row" for="opportunity-alerts"><span><strong>Matching opportunities</strong><small>Send helpful alerts based on your selected interests.</small></span><input id="opportunity-alerts" asp-for="Preferences.OpportunityNotificationsEnabled" data-settings-switch type="checkbox" role="switch" /><i aria-hidden="true"></i></label>
-            <button type="submit" class="btn btn-secondary-soft aw-settings-save">Save preference</button>
-        </form>
-    </section>
-
     <section class="panel aw-settings-card aw-settings-account">
         <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h3>Sign-in details</h3><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div><span class="aw-settings-icon">⌁</span></div>
         <p class="aw-settings-security-note">For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.</p>

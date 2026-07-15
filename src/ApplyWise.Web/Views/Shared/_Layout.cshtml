@@ -43,7 +43,6 @@
             <nav class="sidebar-nav" aria-label="Main navigation">
                 <a class="@(controller == "Dashboard" && action != "Settings" ? "active" : null)" asp-controller="Dashboard" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Dashboard</a>
                 <a class="@(controller == "JobApplications" ? "active" : null)" asp-controller="JobApplications" asp-action="Index"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Applications</a>
-                <a class="@(controller is "Opportunities" or "OpportunityManagement" ? "active" : null)" asp-controller="Opportunities" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Opportunities</a>
                 <a class="@(controller == "Resumes" ? "active" : null)" asp-controller="Resumes" asp-action="Index"><svg class="ui-icon"><use href="#i-file" /></svg>Resumes</a>
                 <a class="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Resume tools</a>
                 <a class="@(controller == "Interviews" ? "active" : null)" asp-controller="Interviews" asp-action="Index"><svg class="ui-icon"><use href="#i-calendar" /></svg>Interviews</a>

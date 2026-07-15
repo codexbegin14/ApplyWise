@@ -18,12 +18,9 @@ public class CareerProfile
     public string? CurrentSemester { get; set; }
     public string? PreferredLocations { get; set; }
     public string? PreferredWorkModes { get; set; }
-    public string? OpportunityInterests { get; set; }
     public string? Skills { get; set; }
     public string? CareerInterests { get; set; }
     public string? AcademicHighlights { get; set; }
-    public bool OpportunityNotificationsEnabled { get; set; } = true;
-    public DateTimeOffset? OpportunitiesViewedAt { get; set; }
     public DateTimeOffset? OnboardingCompletedAt { get; set; }
     public DateTimeOffset? OnboardingSkippedAt { get; set; }
     [NotMapped] public bool OnboardingCompleted { get => OnboardingCompletedAt.HasValue; set => OnboardingCompletedAt = value ? DateTimeOffset.UtcNow : null; }

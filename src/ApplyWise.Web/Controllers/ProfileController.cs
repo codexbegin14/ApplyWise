@@ -135,9 +135,8 @@ public class ProfileController(
         var model = profile is null ? new ProfileEditViewModel { FullName = User.Identity?.Name?.Split('@')[0] ?? string.Empty } : new ProfileEditViewModel
         { FullName = profile.FullName, Gender = profile.Gender, DateOfBirth = profile.DateOfBirth, CareerStage = profile.CareerStage, Institution = profile.Institution, DegreeProgram = profile.DegreeProgram,
             FieldOfStudy = profile.FieldOfStudy, GraduationYear = profile.GraduationYear, CurrentSemester = profile.CurrentSemester,
-            PreferredLocations = profile.PreferredLocations, PreferredWorkModes = profile.PreferredWorkModes, OpportunityInterests = profile.OpportunityInterests,
-            Skills = profile.Skills, CareerInterests = profile.CareerInterests, AcademicHighlights = profile.AcademicHighlights,
-            OpportunityNotificationsEnabled = profile.OpportunityNotificationsEnabled };
+            PreferredLocations = profile.PreferredLocations, PreferredWorkModes = profile.PreferredWorkModes,
+            Skills = profile.Skills, CareerInterests = profile.CareerInterests, AcademicHighlights = profile.AcademicHighlights };
         PopulateAvatarPresentation(model, profile);
         return model;
     }
@@ -186,8 +185,8 @@ public class ProfileController(
     {
         profile.FullName = model.FullName.Trim(); profile.Gender = model.Gender; profile.DateOfBirth = model.DateOfBirth; profile.CareerStage = model.CareerStage; profile.Institution = Clean(model.Institution); profile.DegreeProgram = Clean(model.DegreeProgram);
         profile.FieldOfStudy = Clean(model.FieldOfStudy); profile.GraduationYear = model.GraduationYear; profile.CurrentSemester = model.CurrentSemester; profile.PreferredLocations = Clean(model.PreferredLocations);
-        profile.PreferredWorkModes = Clean(model.PreferredWorkModes); profile.OpportunityInterests = Clean(model.OpportunityInterests); profile.Skills = Clean(model.Skills); profile.CareerInterests = Clean(model.CareerInterests);
-        profile.AcademicHighlights = Clean(model.AcademicHighlights); profile.OpportunityNotificationsEnabled = model.OpportunityNotificationsEnabled;
+        profile.PreferredWorkModes = Clean(model.PreferredWorkModes); profile.Skills = Clean(model.Skills); profile.CareerInterests = Clean(model.CareerInterests);
+        profile.AcademicHighlights = Clean(model.AcademicHighlights);
     }
     private async Task RefreshDisplayNameAsync(string name)
     {
