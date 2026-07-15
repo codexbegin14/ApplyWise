@@ -13,8 +13,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<JobScamCheck> JobScamChecks => Set<JobScamCheck>();
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
-    public DbSet<Opportunity> Opportunities => Set<Opportunity>();
-    public DbSet<SavedOpportunity> SavedOpportunities => Set<SavedOpportunity>();
+    public DbSet<AccountSecurityCode> AccountSecurityCodes => Set<AccountSecurityCode>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -49,6 +48,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(application => application.JobUrl).HasMaxLength(2048);
             entity.Property(application => application.JobDescription).HasMaxLength(8000);
             entity.Property(application => application.Notes).HasMaxLength(2000);
+            entity.Property(application => application.CustomFieldsJson).HasColumnType("nvarchar(max)");
 
             entity.HasIndex(application => new { application.UserId, application.CreatedAt });
             entity.HasIndex(application => new { application.UserId, application.Status });
@@ -165,64 +165,32 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(profile => profile.CurrentSemester).HasMaxLength(80);
             entity.Property(profile => profile.PreferredLocations).HasColumnName("PreferredJobLocations");
             entity.Property(profile => profile.FullName).HasMaxLength(100);
+            entity.Property(profile => profile.Gender).HasConversion<string>().HasMaxLength(30);
+            entity.Property(profile => profile.DateOfBirth).HasColumnType("date");
             entity.Property(profile => profile.Institution).HasMaxLength(180);
             entity.Property(profile => profile.DegreeProgram).HasMaxLength(150);
             entity.Property(profile => profile.FieldOfStudy).HasMaxLength(150);
             entity.Property(profile => profile.PreferredLocations).HasMaxLength(500);
             entity.Property(profile => profile.PreferredWorkModes).HasMaxLength(100);
-            entity.Property(profile => profile.OpportunityInterests).HasMaxLength(500);
             entity.Property(profile => profile.Skills).HasMaxLength(2000);
             entity.Property(profile => profile.CareerInterests).HasMaxLength(1000);
             entity.Property(profile => profile.AcademicHighlights).HasMaxLength(2000);
             entity.Property(profile => profile.AcademicHighlights).HasColumnName("AcademicProjects");
-            entity.Property(profile => profile.OpportunityNotificationsEnabled).HasDefaultValue(true);
-            entity.Property(profile => profile.OpportunitiesViewedAt);
             entity.Property(profile => profile.AvatarContentType).HasMaxLength(50);
+            entity.Property(profile => profile.SelectedAvatarId).HasMaxLength(80);
             entity.HasOne(profile => profile.User).WithOne().HasForeignKey<CareerProfile>(profile => profile.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        builder.Entity<Opportunity>(entity =>
-        {
-            entity.Property(item => item.Category).HasColumnName("OrganizationType").HasConversion<string>().HasMaxLength(24);
-            entity.Property(item => item.EmploymentType).HasConversion<string>().HasMaxLength(24);
-            entity.Property(item => item.WorkMode).HasConversion<string>().HasMaxLength(16);
-            entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(20);
-            entity.Property(item => item.Deadline).HasColumnName("ApplicationDeadline");
-            entity.Property(item => item.Title).HasMaxLength(180);
-            entity.Property(item => item.OrganizationName).HasMaxLength(180);
-            entity.Property(item => item.Location).HasMaxLength(180);
-            entity.Property(item => item.Summary).HasMaxLength(600);
-            entity.Property(item => item.Description).HasColumnType("nvarchar(max)");
-            entity.Property(item => item.Requirements).HasMaxLength(4000);
-            entity.Property(item => item.Skills).HasMaxLength(2000);
-            entity.Property(item => item.Compensation).HasMaxLength(200);
-            entity.Property(item => item.ExperienceLevel).HasMaxLength(150);
-            entity.Property(item => item.EligibleDegrees).HasMaxLength(500);
-            entity.Property(item => item.EligibleGraduationYears).HasMaxLength(200);
-            entity.Property(item => item.StudentEligibility).HasMaxLength(1000);
-            entity.Property(item => item.ApplicationRequirements).HasMaxLength(2000);
-            entity.Property(item => item.SourceName).HasMaxLength(120);
-            entity.Property(item => item.SourceUrl).HasMaxLength(2048);
-            entity.Property(item => item.ApplicationUrl).HasMaxLength(2048);
-            entity.Property(item => item.NoExperienceRequired).HasColumnName("NoExperienceRequired");
-            entity.Property(item => item.StudentEligibility).HasColumnName("StudentEligibility");
-            entity.Property(item => item.NormalizedKey).HasMaxLength(450);
-            entity.HasIndex(item => item.NormalizedKey).IsUnique();
-            entity.HasIndex(item => item.SourceUrl).IsUnique().HasFilter("[SourceUrl] IS NOT NULL");
-            entity.HasIndex(item => new { item.Status, item.Category, item.PublishedAt });
-            entity.HasIndex(item => new { item.Status, item.Deadline });
-        });
 
-        builder.Entity<SavedOpportunity>(entity =>
+        builder.Entity<AccountSecurityCode>(entity =>
         {
-            entity.HasKey(saved => saved.Id);
-            entity.HasIndex(saved => new { saved.UserId, saved.OpportunityId }).IsUnique();
-            entity.HasIndex(saved => new { saved.UserId, saved.SavedAt });
-            entity.HasOne(saved => saved.User).WithMany().HasForeignKey(saved => saved.UserId)
+            entity.HasIndex(code => new { code.UserId, code.Action, code.CreatedAt });
+            entity.Property(code => code.Action).HasConversion<string>().HasMaxLength(30);
+            entity.Property(code => code.Salt).HasMaxLength(16);
+            entity.Property(code => code.CodeHash).HasMaxLength(32);
+            entity.HasOne(code => code.User).WithMany().HasForeignKey(code => code.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(saved => saved.Opportunity).WithMany(item => item.SavedBy)
-                .HasForeignKey(saved => saved.OpportunityId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

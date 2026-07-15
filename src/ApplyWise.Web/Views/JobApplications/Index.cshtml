@@ -1,7 +1,7 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationIndexViewModel
 @{
     ViewData["Title"] = "Applications";
-    var activeCount = Model.Applications.Count(a => a.Status is not ApplicationStatus.Rejected and not ApplicationStatus.Withdrawn);
+    var activeCount = Model.Applications.Count(a => a.Status is not ApplicationStatus.Rejected and not ApplicationStatus.UserRejected and not ApplicationStatus.Ignored and not ApplicationStatus.Accepted);
 }
 
 <div class="aw-page aw-fade-in">
@@ -20,7 +20,7 @@
 
     @if (Model.Applications.Count == 0)
     {
-        <section class="aw-panel aw-empty-state aw-slide-up"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your job tracking assistant" /><span class="aw-kicker">A fresh workspace</span><h3>@(HasFilters() ? "No matching applications" : "No applications yet")</h3><p>@(HasFilters() ? "Try clearing a filter to bring more roles back into view." : "Start by saving a job post, then ApplyWise will help track the resume, status, and next action.")</p>@if (HasFilters()) { <a class="btn btn-secondary-soft" asp-action="Index">Clear Filters</a> } else { <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a> }</section>
+        <section class="aw-panel aw-empty-state aw-slide-up"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your job tracking assistant" /><span class="aw-kicker">A fresh workspace</span><h3>@(HasFilters() ? "No matching applications" : "No applications yet")</h3><p>@(HasFilters() ? "Try clearing a filter to bring more roles back into view." : "Add an application and ApplyWise will track its resume, status, and next action.")</p>@if (HasFilters()) { <a class="btn btn-secondary-soft" asp-action="Index">Clear Filters</a> } else { <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Add Application</a> }</section>
     }
     else
     {
@@ -45,6 +45,6 @@
     private static string Initial(string company) => string.IsNullOrWhiteSpace(company) ? "?" : company[..1].ToUpperInvariant();
     private static string FormatDate(DateOnly? date) => date?.ToString("MMM d, yyyy") ?? "Not set";
     private static bool IsDeadlineSoon(DateOnly? date) => date.HasValue && date.Value <= DateOnly.FromDateTime(DateTime.Today.AddDays(7));
-    private static string NextAction(ApplicationStatus status, DateOnly? deadline) => status switch { ApplicationStatus.Saved => deadline.HasValue ? "Tailor a resume before the deadline" : "Review the role and choose a resume", ApplicationStatus.Applied => "Set a follow-up reminder", ApplicationStatus.Shortlisted => "Prepare your role story", ApplicationStatus.Interview => "Review interview notes", ApplicationStatus.TechnicalTest => "Track the test deadline", ApplicationStatus.Offer => "Review the offer details", ApplicationStatus.Rejected => "Capture a lesson and archive", ApplicationStatus.Withdrawn => "Keep for future reference", _ => "Open application details" };
-    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Saved or ApplicationStatus.Withdrawn => "aw-status-neutral", ApplicationStatus.Applied => "aw-status-info", ApplicationStatus.Shortlisted or ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.TechnicalTest => "aw-status-warning", ApplicationStatus.Offer => "aw-status-success", ApplicationStatus.Rejected => "aw-status-danger", _ => "aw-status-neutral" };
+    private static string NextAction(ApplicationStatus status, DateOnly? deadline) => status switch { ApplicationStatus.Applied => "Set a follow-up reminder", ApplicationStatus.Pending => "Check in with the hiring team", ApplicationStatus.Interview => "Prepare for the interview", ApplicationStatus.Offered => "Review the offer details", ApplicationStatus.Accepted => "Plan your first steps", ApplicationStatus.Rejected => "Capture a lesson and archive", ApplicationStatus.UserRejected => "Keep for future reference", ApplicationStatus.Ignored => "Review only if this role becomes relevant", _ => "Open application details" };
+    private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "aw-status-info", ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.Offered or ApplicationStatus.Accepted => "aw-status-success", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "aw-status-danger", ApplicationStatus.Ignored => "aw-status-neutral", _ => "aw-status-neutral" };
 }

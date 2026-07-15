@@ -1,8 +1,8 @@
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
-@{ ViewData["Title"] = "Analysis Details"; var activeTab = "history"; }
+@{ ViewData["Title"] = "Analysis Details"; var activeTab = "pasted"; }
 
 <div class="page-heading">
-    <div><a class="back-link" asp-action="History">Back to analysis history</a><h2>Analysis Details</h2><p>Saved keyword comparison for @Model.ContextTitle.</p></div>
+    <div><a class="back-link" asp-action="Index">Back to resume analyzer</a><h2>Analysis Details</h2><p>Saved keyword comparison for @Model.ContextTitle.</p></div>
     <a class="btn btn-primary" asp-action="Index" asp-route-analysisId="@Model.Id">Run Again</a>
 </div>
 <partial name="_AnalyzerTabs" model="activeTab" />

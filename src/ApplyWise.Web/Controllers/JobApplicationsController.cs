@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -72,31 +73,17 @@ public class JobApplicationsController(
     }
 
     [HttpGet("create")]
-    public async Task<IActionResult> Create(int? opportunityId = null)
+    public async Task<IActionResult> Create()
     {
         var userId = GetUserId();
         var model = new JobApplicationCreateViewModel
         {
+            AppliedDate = DateOnly.FromDateTime(DateTime.UtcNow),
             ResumeId = await dbContext.Resumes
                 .Where(resume => resume.UserId == userId && resume.IsDefault)
                 .Select(resume => (int?)resume.Id)
                 .SingleOrDefaultAsync()
         };
-        if (opportunityId.HasValue)
-        {
-            var opportunity = await dbContext.Opportunities.AsNoTracking().SingleOrDefaultAsync(item => item.Id == opportunityId && item.Status == OpportunityStatus.Published && (item.Deadline == null || item.Deadline >= DateTimeOffset.UtcNow));
-            if (opportunity != null)
-            {
-                model.CompanyName = opportunity.OrganizationName;
-                model.JobTitle = opportunity.Title;
-                model.JobLocation = opportunity.Location;
-                model.JobUrl = opportunity.ApplicationUrl;
-                model.JobDescription = opportunity.Description ?? opportunity.Summary;
-                model.JobType = opportunity.EmploymentType switch { OpportunityEmploymentType.Internship => JobType.Internship, OpportunityEmploymentType.PartTime => JobType.PartTime, OpportunityEmploymentType.Freelance => JobType.Contract, _ => JobType.FullTime };
-                model.Source = JobSource.Other;
-                ViewData["OpportunityTitle"] = opportunity.Title;
-            }
-        }
         await PopulateResumesAsync(model);
         return View(model);
     }
@@ -116,10 +103,12 @@ public class JobApplicationsController(
         var application = new JobApplication
         {
             UserId = GetUserId(),
+            Status = ApplicationStatus.Applied,
             CreatedAt = now,
             UpdatedAt = now
         };
         ApplyForm(application, model);
+        application.Status = ApplicationStatus.Applied;
 
         dbContext.JobApplications.Add(application);
         await dbContext.SaveChangesAsync();
@@ -132,13 +121,6 @@ public class JobApplicationsController(
     {
         var application = await FindOwnedApplicationAsync(id, true, true);
         if (application is null) return NotFound();
-        var latestCheck = await dbContext.JobScamChecks.AsNoTracking()
-            .Where(check => check.UserId == application.UserId && check.JobApplicationId == application.Id)
-            .OrderByDescending(check => check.CreatedAt)
-            .Select(check => new JobScamCheckSummaryViewModel(
-                check.Id, check.RiskScore, check.RiskLevel, check.QualityScore,
-                check.Recommendation, check.CreatedAt))
-            .FirstOrDefaultAsync();
         var interviews = await dbContext.Interviews.AsNoTracking()
             .Where(interview => interview.UserId == application.UserId && interview.JobApplicationId == application.Id)
             .OrderByDescending(interview => interview.ScheduledAt)
@@ -154,7 +136,7 @@ public class JobApplicationsController(
             .Select(reminder => new ApplicationReminderSummaryViewModel(
                 reminder.Id, reminder.Title, reminder.ReminderType, reminder.DueAt, reminder.IsCompleted))
             .ToListAsync();
-        return View(ToDetailsViewModel(application, latestCheck, interviews, reminders));
+        return View(ToDetailsViewModel(application, interviews, reminders));
     }
 
     [HttpGet("{id:int}/edit")]
@@ -181,7 +163,8 @@ public class JobApplicationsController(
             ResumeId = application.ResumeId,
             AppliedDate = application.AppliedDate,
             Deadline = application.Deadline,
-            Notes = application.Notes
+            Notes = application.Notes,
+            CustomFields = ReadCustomFields(application.CustomFieldsJson)
         };
         await PopulateResumesAsync(model);
         return View(model);
@@ -214,6 +197,28 @@ public class JobApplicationsController(
         await dbContext.SaveChangesAsync();
 
         TempData["SuccessMessage"] = $"{application.JobTitle} at {application.CompanyName} was updated.";
+        return RedirectToAction(nameof(Details), new { id = application.Id });
+    }
+
+    [HttpPost("{id:int}/status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(int id, ApplicationStatus status)
+    {
+        if (!Enum.IsDefined(status))
+        {
+            return BadRequest();
+        }
+
+        var application = await FindOwnedApplicationAsync(id);
+        if (application is null)
+        {
+            return NotFound();
+        }
+
+        application.Status = status;
+        application.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"{application.JobTitle} moved to {status.GetDisplayName()}.";
         return RedirectToAction(nameof(Details), new { id = application.Id });
     }
 
@@ -275,6 +280,20 @@ public class JobApplicationsController(
                 ModelState.AddModelError(nameof(model.ResumeId), "Select a resume from your own resume library.");
             }
         }
+
+        if (model.CustomFields.Count > 12)
+        {
+            ModelState.AddModelError(nameof(model.CustomFields), "Add up to 12 custom fields.");
+        }
+        for (var index = 0; index < model.CustomFields.Count; index++)
+        {
+            var field = model.CustomFields[index];
+            var label = Clean(field.Label);
+            var value = Clean(field.Value);
+            if (label is null && value is null) continue;
+            if (label is null) ModelState.AddModelError($"CustomFields[{index}].Label", "Add a field name.");
+            if (value is null) ModelState.AddModelError($"CustomFields[{index}].Value", "Add a value or remove this field.");
+        }
     }
 
     private async Task PopulateResumesAsync(JobApplicationFormViewModel model)
@@ -314,28 +333,46 @@ public class JobApplicationsController(
     {
         application.CompanyName = model.CompanyName.Trim();
         application.JobTitle = model.JobTitle.Trim();
-        application.JobLocation = Clean(model.JobLocation);
-        application.JobType = model.JobType;
-        application.SalaryRange = Clean(model.SalaryRange);
-        application.Source = model.Source;
-        application.JobUrl = Clean(model.JobUrl);
         application.JobDescription = Clean(model.JobDescription);
         application.Status = model.Status;
         application.ResumeId = model.ResumeId;
         application.AppliedDate = model.AppliedDate;
-        application.Deadline = model.Deadline;
-        application.Notes = Clean(model.Notes);
+        application.CustomFieldsJson = SerializeCustomFields(model.CustomFields);
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static JobApplicationDetailsViewModel ToDetailsViewModel(
-        JobApplication application, JobScamCheckSummaryViewModel? latestScamCheck = null,
+        JobApplication application,
         IReadOnlyList<ApplicationInterviewSummaryViewModel>? interviews = null,
         IReadOnlyList<ApplicationReminderSummaryViewModel>? reminders = null) =>
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
-            application.AppliedDate, application.Deadline, application.Notes,
-            application.CreatedAt, application.UpdatedAt, latestScamCheck, interviews, reminders);
+            application.AppliedDate, application.Deadline, application.Notes, ReadCustomFieldsForDetails(application.CustomFieldsJson),
+            application.CreatedAt, application.UpdatedAt, interviews, reminders);
+
+    private static List<CustomApplicationFieldInput> ReadCustomFields(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<CustomApplicationFieldInput>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<ApplicationCustomFieldViewModel> ReadCustomFieldsForDetails(string? json) =>
+        ReadCustomFields(json).Select(field => new ApplicationCustomFieldViewModel(Clean(field.Label) ?? string.Empty, Clean(field.Value) ?? string.Empty))
+            .Where(field => field.Label.Length > 0 && field.Value.Length > 0).ToArray();
+
+    private static string? SerializeCustomFields(IEnumerable<CustomApplicationFieldInput> fields)
+    {
+        var cleaned = fields.Select(field => new CustomApplicationFieldInput { Label = Clean(field.Label), Value = Clean(field.Value) })
+            .Where(field => field.Label is not null && field.Value is not null).ToArray();
+        return cleaned.Length == 0 ? null : JsonSerializer.Serialize(cleaned);
+    }
 }

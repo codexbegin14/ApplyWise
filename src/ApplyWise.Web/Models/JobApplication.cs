@@ -19,6 +19,7 @@ public class JobApplication
     public DateOnly? AppliedDate { get; set; }
     public DateOnly? Deadline { get; set; }
     public string? Notes { get; set; }
+    public string? CustomFieldsJson { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 

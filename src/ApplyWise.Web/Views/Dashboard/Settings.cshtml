@@ -1,0 +1,63 @@
+@model ApplyWise.Web.ViewModels.Settings.SettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+    var openSection = ViewData["SettingsOpenSection"]?.ToString();
+}
+
+<div class="page-heading aw-settings-heading">
+    <div><h2>Settings</h2><p>Manage your account, privacy, and workspace preferences.</p></div>
+</div>
+
+@if (TempData["SettingsSuccess"] is string success)
+{
+    <div class="alert app-alert aw-settings-alert" role="status">@success</div>
+}
+@if (TempData["SettingsError"] is string error)
+{
+    <div class="alert aw-settings-alert aw-settings-error" role="alert">@error</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="ModelOnly" class="alert aw-settings-alert aw-settings-error" role="alert"></div>
+}
+
+<div class="aw-settings-grid">
+    <section class="panel aw-settings-card">
+        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Appearance</span><h3>Workspace theme</h3><p>Choose the look that is most comfortable for you.</p></div><span class="aw-settings-icon">◐</span></div>
+        <label class="aw-settings-switch-row" for="theme-toggle"><span><strong>Dark mode</strong><small>Use a darker ApplyWise workspace on this device.</small></span><input id="theme-toggle" type="checkbox" data-theme-toggle role="switch" /><i aria-hidden="true"></i></label>
+    </section>
+
+    <section class="panel aw-settings-card aw-settings-account">
+        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h3>Sign-in details</h3><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div><span class="aw-settings-icon">⌁</span></div>
+        <p class="aw-settings-security-note">For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.</p>
+
+        <details class="aw-settings-disclosure" open="@(openSection == "password")">
+            <summary><span><strong>Change password</strong><small>Protect your account with a new password.</small></span><span>⌄</span></summary>
+            <div class="aw-settings-disclosure-body">
+                <form asp-action="SendSecurityCode" asp-route-securityAction="password" method="post" class="aw-security-request-form"><button class="btn btn-secondary-soft" type="submit">Email me a code</button><small>Codes expire after 10 minutes.</small></form>
+                <form asp-action="ChangePassword" method="post" class="aw-settings-form">
+                    <div><label asp-for="ChangePassword.CurrentPassword" class="form-label"></label><input asp-for="ChangePassword.CurrentPassword" class="form-control" autocomplete="current-password" /><span asp-validation-for="ChangePassword.CurrentPassword"></span></div>
+                    <div><label asp-for="ChangePassword.NewPassword" class="form-label"></label><input asp-for="ChangePassword.NewPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ChangePassword.NewPassword"></span></div>
+                    <div><label asp-for="ChangePassword.ConfirmPassword" class="form-label"></label><input asp-for="ChangePassword.ConfirmPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ChangePassword.ConfirmPassword"></span></div>
+                    <div><label asp-for="ChangePassword.Code" class="form-label"></label><input asp-for="ChangePassword.Code" class="form-control" inputmode="numeric" autocomplete="one-time-code" /><span asp-validation-for="ChangePassword.Code"></span></div>
+                    <button class="btn btn-primary" type="submit">Change password</button>
+                </form>
+            </div>
+        </details>
+
+        <details class="aw-settings-disclosure aw-settings-danger" open="@(openSection == "delete")">
+            <summary><span><strong>Delete account</strong><small>Permanently erase your account, applications, profiles, and private resumes.</small></span><span>⌄</span></summary>
+            <div class="aw-settings-disclosure-body">
+                <p class="aw-settings-danger-copy">This cannot be undone. First request a code at <strong>@Model.Email</strong>, then enter it along with DELETE.</p>
+                <form asp-action="SendSecurityCode" asp-route-securityAction="delete" method="post" class="aw-security-request-form"><button class="btn btn-danger-soft" type="submit">Email deletion code</button><small>Only use this if you want to permanently close your account.</small></form>
+                <form asp-action="DeleteAccount" method="post" class="aw-settings-form">
+                    <div><label asp-for="DeleteAccount.Code" class="form-label"></label><input asp-for="DeleteAccount.Code" class="form-control" inputmode="numeric" autocomplete="one-time-code" /><span asp-validation-for="DeleteAccount.Code"></span></div>
+                    <div><label asp-for="DeleteAccount.Confirmation" class="form-label"></label><input asp-for="DeleteAccount.Confirmation" class="form-control" autocomplete="off" /><span asp-validation-for="DeleteAccount.Confirmation"></span></div>
+                    <button class="btn btn-danger-soft" type="submit">Permanently delete account</button>
+                </form>
+            </div>
+        </details>
+    </section>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

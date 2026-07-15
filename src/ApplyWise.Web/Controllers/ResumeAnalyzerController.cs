@@ -156,28 +156,9 @@ public class ResumeAnalyzerController(
     }
 
     [HttpGet("history")]
-    public async Task<IActionResult> History()
+    public IActionResult History()
     {
-        var userId = GetUserId();
-        var analyses = await dbContext.ResumeAnalyses
-            .AsNoTracking()
-            .Where(analysis => analysis.UserId == userId)
-            .OrderByDescending(analysis => analysis.CreatedAt)
-            .Select(analysis => new AnalysisHistoryItemViewModel(
-                analysis.Id,
-                analysis.Resume!.VersionName,
-                analysis.JobApplication != null
-                    ? analysis.JobApplication.JobTitle + " at " + analysis.JobApplication.CompanyName
-                    : "Pasted job requirements",
-                analysis.AnalysisType == ResumeAnalysisType.SavedApplication
-                    ? "Saved application"
-                    : "Direct input",
-                analysis.AnalysisType,
-                analysis.MatchScore,
-                analysis.CreatedAt))
-            .ToListAsync(HttpContext.RequestAborted);
-
-        return View(new AnalysisHistoryViewModel { Analyses = analyses });
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet("{id:int}")]

@@ -22,6 +22,52 @@ namespace ApplyWise.Web.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ApplyWise.Web.Models.AccountSecurityCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varbinary(32)");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("FailedAttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Salt")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varbinary(16)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Action", "CreatedAt");
+
+                    b.ToTable("AccountSecurityCodes");
+                });
+
             modelBuilder.Entity("ApplyWise.Web.Models.CareerProfile", b =>
                 {
                     b.Property<string>("UserId")
@@ -54,6 +100,9 @@ namespace ApplyWise.Web.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
                     b.Property<string>("DegreeProgram")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
@@ -68,6 +117,10 @@ namespace ApplyWise.Web.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("DisplayName");
 
+                    b.Property<string>("Gender")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<int?>("GraduationYear")
                         .HasColumnType("int");
 
@@ -81,18 +134,6 @@ namespace ApplyWise.Web.Migrations
                     b.Property<DateTimeOffset?>("OnboardingSkippedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset?>("OpportunitiesViewedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("OpportunityInterests")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("OpportunityNotificationsEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<string>("PreferredLocations")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
@@ -101,6 +142,10 @@ namespace ApplyWise.Web.Migrations
                     b.Property<string>("PreferredWorkModes")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SelectedAvatarId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
                     b.Property<string>("Skills")
                         .HasMaxLength(2000)
@@ -193,6 +238,9 @@ namespace ApplyWise.Web.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CustomFieldsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateOnly?>("Deadline")
                         .HasColumnType("date");
@@ -303,147 +351,6 @@ namespace ApplyWise.Web.Migrations
                     b.HasIndex("UserId", "JobApplicationId");
 
                     b.ToTable("JobScamChecks");
-                });
-
-            modelBuilder.Entity("ApplyWise.Web.Models.Opportunity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ApplicationRequirements")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("ApplicationUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)")
-                        .HasColumnName("OrganizationType");
-
-                    b.Property<string>("Compensation")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("Deadline")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("ApplicationDeadline");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EligibleDegrees")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("EligibleGraduationYears")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("EmploymentType")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
-
-                    b.Property<string>("ExperienceLevel")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<bool>("IsPaid")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Location")
-                        .HasMaxLength(180)
-                        .HasColumnType("nvarchar(180)");
-
-                    b.Property<bool>("NoExperienceRequired")
-                        .HasColumnType("bit")
-                        .HasColumnName("NoExperienceRequired");
-
-                    b.Property<string>("NormalizedKey")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("OrganizationName")
-                        .IsRequired()
-                        .HasMaxLength(180)
-                        .HasColumnType("nvarchar(180)");
-
-                    b.Property<DateTimeOffset>("PublishedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Requirements")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<string>("Skills")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("SourceName")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("SourceUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("StudentEligibility")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("StudentEligibility");
-
-                    b.Property<string>("Summary")
-                        .IsRequired()
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(180)
-                        .HasColumnType("nvarchar(180)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("WorkMode")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedKey")
-                        .IsUnique();
-
-                    b.HasIndex("SourceUrl")
-                        .IsUnique()
-                        .HasFilter("[SourceUrl] IS NOT NULL");
-
-                    b.HasIndex("Status", "Deadline");
-
-                    b.HasIndex("Status", "Category", "PublishedAt");
-
-                    b.ToTable("Opportunities");
                 });
 
             modelBuilder.Entity("ApplyWise.Web.Models.Reminder", b =>
@@ -628,36 +535,6 @@ namespace ApplyWise.Web.Migrations
                     b.HasIndex("UserId", "ResumeId");
 
                     b.ToTable("ResumeAnalyses");
-                });
-
-            modelBuilder.Entity("ApplyWise.Web.Models.SavedOpportunity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("OpportunityId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("SavedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OpportunityId");
-
-                    b.HasIndex("UserId", "OpportunityId")
-                        .IsUnique();
-
-                    b.HasIndex("UserId", "SavedAt");
-
-                    b.ToTable("SavedOpportunities");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -862,6 +739,17 @@ namespace ApplyWise.Web.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ApplyWise.Web.Models.AccountSecurityCode", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ApplyWise.Web.Models.CareerProfile", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
@@ -984,25 +872,6 @@ namespace ApplyWise.Web.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ApplyWise.Web.Models.SavedOpportunity", b =>
-                {
-                    b.HasOne("ApplyWise.Web.Models.Opportunity", "Opportunity")
-                        .WithMany("SavedBy")
-                        .HasForeignKey("OpportunityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Opportunity");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1063,11 +932,6 @@ namespace ApplyWise.Web.Migrations
                     b.Navigation("Reminders");
 
                     b.Navigation("ScamChecks");
-                });
-
-            modelBuilder.Entity("ApplyWise.Web.Models.Opportunity", b =>
-                {
-                    b.Navigation("SavedBy");
                 });
 
             modelBuilder.Entity("ApplyWise.Web.Models.Resume", b =>

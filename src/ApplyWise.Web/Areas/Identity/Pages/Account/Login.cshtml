@@ -24,14 +24,15 @@
                 <span asp-validation-for="Input.Email" class="field-validation-error"></span>
             </label>
 
-            <label class="aw-login-field" asp-for="Input.Password">
-                <span>Password</span>
+            <div class="aw-login-field">
+                <label class="aw-login-field-label" asp-for="Input.Password">Password</label>
                 <span class="aw-login-input">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
                     <input asp-for="Input.Password" autocomplete="current-password" placeholder="Enter your password" />
+                    <partial name="_PasswordToggle" model='"Input_Password"' />
                 </span>
                 <span asp-validation-for="Input.Password" class="field-validation-error"></span>
-            </label>
+            </div>
 
             <div class="aw-login-options">
                 <label asp-for="Input.RememberMe"><input asp-for="Input.RememberMe" /> <span>Remember me</span></label>

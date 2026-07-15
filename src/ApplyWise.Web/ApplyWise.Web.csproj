@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-ApplyWise.Web-f7ca32a2-56ed-42b9-b764-aad5d7162353</UserSecretsId>
     <CompressionEnabled>false</CompressionEnabled>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>

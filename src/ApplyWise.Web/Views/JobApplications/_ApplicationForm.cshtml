@@ -2,31 +2,40 @@
 
 <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
 
-<section class="panel application-form-section">
-    <div class="form-section-heading"><span>1</span><div><h3>Role details</h3><p>Basic information about the opportunity.</p></div></div>
+<section class="panel application-form-section aw-simple-application-form">
+    <div class="form-section-heading"><span>+</span><div><h3>Application details</h3><p>Add the essentials now. You can add anything else as a custom field.</p></div></div>
     <div class="form-grid">
-        <div><label asp-for="CompanyName" class="form-label"></label><input asp-for="CompanyName" class="form-control" placeholder="Company name" /><span asp-validation-for="CompanyName" class="field-validation-error"></span></div>
-        <div><label asp-for="JobTitle" class="form-label"></label><input asp-for="JobTitle" class="form-control" placeholder="Role title" /><span asp-validation-for="JobTitle" class="field-validation-error"></span></div>
-        <div><label asp-for="JobLocation" class="form-label"></label><input asp-for="JobLocation" class="form-control" placeholder="City, country or remote" /><span asp-validation-for="JobLocation" class="field-validation-error"></span></div>
-        <div><label asp-for="JobType" class="form-label"></label><select asp-for="JobType" asp-items="Html.GetEnumSelectList<JobType>()" class="form-select"><option value="">Not specified</option></select><span asp-validation-for="JobType" class="field-validation-error"></span></div>
-        <div><label asp-for="SalaryRange" class="form-label"></label><input asp-for="SalaryRange" class="form-control" placeholder="e.g. PKR 150k - 200k" /><span asp-validation-for="SalaryRange" class="field-validation-error"></span></div>
+        <div><label asp-for="CompanyName" class="form-label"></label><input asp-for="CompanyName" class="form-control" placeholder="e.g. Acme Inc." /><span asp-validation-for="CompanyName" class="field-validation-error"></span></div>
+        <div><label asp-for="JobTitle" class="form-label"></label><input asp-for="JobTitle" class="form-control" placeholder="e.g. Software engineer" /><span asp-validation-for="JobTitle" class="field-validation-error"></span></div>
+        <div><label asp-for="AppliedDate" class="form-label"></label><input asp-for="AppliedDate" class="form-control" /><span asp-validation-for="AppliedDate" class="field-validation-error"></span></div>
+        @if (Model is ApplyWise.Web.ViewModels.JobApplications.JobApplicationEditViewModel)
+        {
+            <div><label asp-for="Status" class="form-label"></label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"></select><span asp-validation-for="Status" class="field-validation-error"></span></div>
+        }
+        <div class="form-grid-wide"><label asp-for="ResumeId" class="form-label"></label><select asp-for="ResumeId" asp-items="Model.AvailableResumes" class="form-select"><option value="">No CV version selected</option></select><span asp-validation-for="ResumeId" class="field-validation-error"></span></div>
+        <div class="form-grid-wide"><label asp-for="JobDescription" class="form-label">Description</label><textarea asp-for="JobDescription" class="form-control" rows="5" placeholder="Paste a short job description or useful notes about the role"></textarea><span asp-validation-for="JobDescription" class="field-validation-error"></span></div>
+    </div>
+
+    <div class="aw-custom-fields" data-custom-fields>
+        <div class="aw-custom-fields-heading"><div><h4>Custom fields</h4><p>Add anything else, such as location, referral, salary, contact, or link.</p></div><button class="btn btn-secondary-soft btn-sm" type="button" data-custom-field-add>+ Add custom field</button></div>
+        <div class="aw-custom-fields-list" data-custom-fields-list>
+            @for (var index = 0; index < Model.CustomFields.Count; index++)
+            {
+                <div class="aw-custom-field-row" data-custom-field-row>
+                    <div><label class="visually-hidden" asp-for="CustomFields[index].Label">Field name</label><input asp-for="CustomFields[index].Label" class="form-control" placeholder="Field name" /><span asp-validation-for="CustomFields[index].Label" class="field-validation-error"></span></div>
+                    <div><label class="visually-hidden" asp-for="CustomFields[index].Value">Value</label><input asp-for="CustomFields[index].Value" class="form-control" placeholder="Value" /><span asp-validation-for="CustomFields[index].Value" class="field-validation-error"></span></div>
+                    <button class="aw-custom-field-remove" type="button" data-custom-field-remove aria-label="Remove custom field">×</button>
+                </div>
+            }
+        </div>
+        <span asp-validation-for="CustomFields" class="field-validation-error"></span>
     </div>
 </section>
 
-<section class="panel application-form-section">
-    <div class="form-section-heading"><span>2</span><div><h3>Application details</h3><p>Remember where, when, and how you applied.</p></div></div>
-    <div class="form-grid">
-        <div><label asp-for="Source" class="form-label"></label><select asp-for="Source" asp-items="Html.GetEnumSelectList<JobSource>()" class="form-select"></select><span asp-validation-for="Source" class="field-validation-error"></span></div>
-        <div><label asp-for="Status" class="form-label"></label><select asp-for="Status" asp-items="Html.GetEnumSelectList<ApplicationStatus>()" class="form-select"></select><span asp-validation-for="Status" class="field-validation-error"></span></div>
-        <div><label asp-for="ResumeId" class="form-label"></label><select asp-for="ResumeId" asp-items="Model.AvailableResumes" class="form-select"><option value="">No resume selected</option></select><span asp-validation-for="ResumeId" class="field-validation-error"></span></div>
-        <div><label asp-for="AppliedDate" class="form-label"></label><input asp-for="AppliedDate" class="form-control" /><div class="form-hint">Recommended when the status is Applied.</div><span asp-validation-for="AppliedDate" class="field-validation-error"></span></div>
-        <div><label asp-for="Deadline" class="form-label"></label><input asp-for="Deadline" class="form-control" /><span asp-validation-for="Deadline" class="field-validation-error"></span></div>
-        <div class="form-grid-wide"><label asp-for="JobUrl" class="form-label"></label><input asp-for="JobUrl" class="form-control" placeholder="https://..." /><span asp-validation-for="JobUrl" class="field-validation-error"></span></div>
+<template data-custom-field-template>
+    <div class="aw-custom-field-row" data-custom-field-row>
+        <div><label class="visually-hidden" for="CustomFields___index___Label">Field name</label><input class="form-control" id="CustomFields___index___Label" name="CustomFields[__index__].Label" maxlength="80" placeholder="Field name" /></div>
+        <div><label class="visually-hidden" for="CustomFields___index___Value">Value</label><input class="form-control" id="CustomFields___index___Value" name="CustomFields[__index__].Value" maxlength="500" placeholder="Value" /></div>
+        <button class="aw-custom-field-remove" type="button" data-custom-field-remove aria-label="Remove custom field">×</button>
     </div>
-</section>
-
-<section class="panel application-form-section">
-    <div class="form-section-heading"><span>3</span><div><h3>Description and notes</h3><p>Keep useful context with the application.</p></div></div>
-    <div class="mb-4"><label asp-for="JobDescription" class="form-label"></label><textarea asp-for="JobDescription" class="form-control" rows="8" placeholder="Paste or summarize the job description"></textarea><span asp-validation-for="JobDescription" class="field-validation-error"></span></div>
-    <div><label asp-for="Notes" class="form-label"></label><textarea asp-for="Notes" class="form-control" rows="4" placeholder="Contacts, follow-up details, or preparation notes"></textarea><span asp-validation-for="Notes" class="field-validation-error"></span></div>
-</section>
+</template>

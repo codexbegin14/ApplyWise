@@ -6,22 +6,16 @@ using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
-using ApplyWise.Web.Services.Opportunities;
 using ApplyWise.Web.Services.Wiso;
 using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
+using ApplyWise.Web.Services.AccountSecurity;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-
-if (PdfTextWorker.IsWorkerCommand(args))
-{
-    Environment.ExitCode = await PdfTextWorker.RunAsync(args);
-    return;
-}
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
@@ -51,7 +45,8 @@ if (isProduction &&
      || IsUnset(dataProtectionKeysPath)
      || !Path.IsPathRooted(dataProtectionKeysPath)
      || IsUnset(dataProtectionCertificatePath)
-     || !Path.IsPathRooted(dataProtectionCertificatePath)))
+     || !Path.IsPathRooted(dataProtectionCertificatePath)
+     || IsUnset(dataProtectionCertificatePassword)))
 {
     throw new InvalidOperationException(
         "Production requires a SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
@@ -77,10 +72,15 @@ if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
 
     try
     {
-        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-            resolvedCertificatePath,
-            dataProtectionCertificatePassword,
-            X509KeyStorageFlags.EphemeralKeySet);
+        var certificate = Path.GetExtension(resolvedCertificatePath).Equals(".pem", StringComparison.OrdinalIgnoreCase)
+            ? X509Certificate2.CreateFromEncryptedPemFile(
+                resolvedCertificatePath,
+                dataProtectionCertificatePassword,
+                resolvedCertificatePath)
+            : X509CertificateLoader.LoadPkcs12FromFile(
+                resolvedCertificatePath,
+                dataProtectionCertificatePassword,
+                X509KeyStorageFlags.EphemeralKeySet);
         dataProtectionBuilder.ProtectKeysWithCertificate(certificate);
     }
     catch (CryptographicException exception)
@@ -99,6 +99,12 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = builder.Configuration.GetValue("Identity:RequireConfirmedAccount", isProduction);
         options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequiredUniqueChars = 1;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
@@ -129,11 +135,12 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("account-security", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 8, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
-builder.Services.AddAuthorization(options =>
-    options.AddPolicy("AnnouncementManager", policy =>
-        policy.RequireClaim(builder.Configuration["AnnouncementManager:ClaimType"] ?? "role",
-            builder.Configuration["AnnouncementManager:ClaimValue"] ?? "announcement-manager")));
+builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -147,6 +154,8 @@ builder.Services.AddOptions<EmailOptions>()
     .Validate(options => options.Port is > 0 and <= 65535, "Email:Port must be between 1 and 65535.")
     .ValidateOnStart();
 builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
+builder.Services.AddTransient<IApplicationEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<IAccountSecurityCodeService, AccountSecurityCodeService>();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
@@ -160,7 +169,6 @@ builder.Services.AddOptions<ResumeStorageOptions>()
         "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
-builder.Services.AddScoped<IOpportunityService, OpportunityService>();
 builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();

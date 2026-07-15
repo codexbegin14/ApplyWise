@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Reflection;
 using ApplyWise.Web.Services.ResumeStorage;
 using Microsoft.Extensions.Options;
 
@@ -9,74 +7,92 @@ public sealed class ResumeTextExtractorService(
     IOptions<ResumeStorageOptions> options,
     ILogger<ResumeTextExtractorService> logger) : IResumeTextExtractorService
 {
-    private static readonly SemaphoreSlim ExtractionSlots = new(initialCount: 2, maxCount: 2);
+    // The production host does not permit child processes. Keep PDF inspection in-process and
+    // serialize it so concurrent uploads cannot multiply parser memory usage.
+    private static readonly SemaphoreSlim ExtractionSlots = new(initialCount: 1, maxCount: 1);
 
-    public async Task<string?> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<string?> ExtractTextAsync(
+        string filePath,
+        CancellationToken cancellationToken = default) =>
+        (await InspectAsync(filePath, cancellationToken)).Text;
+
+    public async Task<PdfTextExtractionResult> InspectAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
     {
+        var file = new FileInfo(filePath);
+        if (!file.Exists || file.Length is <= 0 || file.Length > options.Value.MaxFileSizeBytes)
+        {
+            return new PdfTextExtractionResult(PdfTextExtractionStatus.Invalid);
+        }
+
         await ExtractionSlots.WaitAsync(cancellationToken);
+        var releaseSlotWhenInspectionCompletes = false;
         try
         {
-            return await ExtractInWorkerAsync(filePath, cancellationToken);
+            using var parserCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var timeout = TimeSpan.FromSeconds(options.Value.ExtractionTimeoutSeconds);
+            parserCancellation.CancelAfter(timeout);
+
+            var inspectionTask = Task.Run(
+                () => PdfTextInspector.Inspect(file.FullName, parserCancellation.Token),
+                CancellationToken.None);
+
+            try
+            {
+                // PdfPig is synchronous. WaitAsync keeps the request bounded even if a malformed
+                // page does not observe cancellation until its current parse operation completes.
+                return await inspectionTask.WaitAsync(timeout + TimeSpan.FromSeconds(1), cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                logger.LogWarning("PDF extraction exceeded the configured timeout.");
+                releaseSlotWhenInspectionCompletes = true;
+                _ = ReleaseSlotWhenCompleteAsync(inspectionTask);
+                return new PdfTextExtractionResult(PdfTextExtractionStatus.TimedOut);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning("PDF extraction exceeded the configured timeout.");
+                return new PdfTextExtractionResult(PdfTextExtractionStatus.TimedOut);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!inspectionTask.IsCompleted)
+                {
+                    releaseSlotWhenInspectionCompletes = true;
+                    _ = ReleaseSlotWhenCompleteAsync(inspectionTask);
+                }
+
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "PDF extraction failed.");
+                return new PdfTextExtractionResult(PdfTextExtractionStatus.Unavailable);
+            }
+        }
+        finally
+        {
+            if (!releaseSlotWhenInspectionCompletes)
+            {
+                ExtractionSlots.Release();
+            }
+        }
+    }
+
+    private static async Task ReleaseSlotWhenCompleteAsync(Task inspectionTask)
+    {
+        try
+        {
+            await inspectionTask.ConfigureAwait(false);
+        }
+        catch
+        {
         }
         finally
         {
             ExtractionSlots.Release();
         }
-    }
-
-    private async Task<string?> ExtractInWorkerAsync(string filePath, CancellationToken cancellationToken)
-    {
-        var outputPath = Path.Combine(Path.GetTempPath(), $"applywise-pdf-{Guid.NewGuid():N}.txt");
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.ExtractionTimeoutSeconds));
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-        Process? process = null;
-        try
-        {
-            var processPath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path is unavailable.");
-            var startInfo = new ProcessStartInfo(processPath)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            if (string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase))
-            {
-                startInfo.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location);
-            }
-            startInfo.ArgumentList.Add(PdfTextWorker.Command);
-            startInfo.ArgumentList.Add(Path.GetFullPath(filePath));
-            startInfo.ArgumentList.Add(outputPath);
-            startInfo.Environment["DOTNET_GCHeapHardLimit"] = "0x08000000";
-            startInfo.Environment["DOTNET_GCConserveMemory"] = "9";
-
-            process = Process.Start(startInfo) ?? throw new InvalidOperationException("PDF worker could not start.");
-            await process.WaitForExitAsync(linked.Token);
-            if (process.ExitCode != 0 || !File.Exists(outputPath)) return null;
-            var info = new FileInfo(outputPath);
-            if (info.Length > PdfTextWorker.MaxExtractedCharacters * 4L) return null;
-            var extracted = (await File.ReadAllTextAsync(outputPath, cancellationToken)).Trim();
-            return extracted.Length is > 0 and <= PdfTextWorker.MaxExtractedCharacters ? extracted : null;
-        }
-        catch (OperationCanceledException)
-        {
-            TryKill(process);
-            if (cancellationToken.IsCancellationRequested) throw;
-            logger.LogWarning("PDF extraction exceeded the configured timeout.");
-            return null;
-        }
-        catch (Exception exception)
-        {
-            TryKill(process);
-            logger.LogWarning(exception, "PDF extraction failed in the isolated worker.");
-            return null;
-        }
-        finally { if (File.Exists(outputPath)) File.Delete(outputPath); }
-    }
-
-    private static void TryKill(Process? process)
-    {
-        try { if (process is { HasExited: false }) process.Kill(entireProcessTree: true); }
-        catch (InvalidOperationException) { }
     }
 }

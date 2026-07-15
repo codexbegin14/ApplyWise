@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.Profiles;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -31,11 +32,21 @@ public class RegisterModel(
         public string FullName { get; set; } = string.Empty;
 
         [Required]
+        [Display(Name = "Gender")]
+        public ProfileGender? Gender { get; set; }
+
+        [Required]
+        [DataType(DataType.Date)]
+        [Display(Name = "Date of birth")]
+        public DateOnly? DateOfBirth { get; set; }
+
+        [Required]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
         [Required]
         [StringLength(100, ErrorMessage = "The password must be at least {2} characters long.", MinimumLength = 6)]
+        [RegularExpression(@".*\d.*", ErrorMessage = "The password must contain at least one number.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
 
@@ -46,13 +57,22 @@ public class RegisterModel(
 
     public void OnGet(string? returnUrl = null)
     {
-        ReturnUrl = returnUrl ?? Url.Content("~/");
+        ReturnUrl = GetSafeReturnUrl(returnUrl);
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl ??= Url.Content("~/");
+        returnUrl = GetSafeReturnUrl(returnUrl);
         ReturnUrl = returnUrl;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (Input.DateOfBirth is { } dateOfBirth
+            && (dateOfBirth > today || dateOfBirth < today.AddYears(-120)))
+        {
+            ModelState.AddModelError(
+                "Input.DateOfBirth",
+                "Enter a valid date of birth that is not in the future.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -85,6 +105,9 @@ public class RegisterModel(
                 {
                     UserId = user.Id,
                     FullName = Input.FullName.Trim(),
+                    Gender = Input.Gender,
+                    DateOfBirth = Input.DateOfBirth,
+                    SelectedAvatarId = AvatarCatalog.GetDefaultAvatarId(Input.Gender),
                     CreatedAt = DateTimeOffset.UtcNow,
                     UpdatedAt = DateTimeOffset.UtcNow
                 });
@@ -129,4 +152,9 @@ public class RegisterModel(
 
         return Page();
     }
+
+    private string GetSafeReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Action("Index", "Onboarding") ?? "/onboarding";
 }

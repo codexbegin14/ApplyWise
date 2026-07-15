@@ -1,8 +1,7 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationCreateViewModel
 @{ ViewData["Title"] = "Add Application"; }
 
-<div class="page-heading"><div><h2>Add Application</h2><p>Record the role and the resume you plan to use.</p></div></div>
-@if (ViewData["OpportunityTitle"] is string opportunityTitle) { <div class="alert app-alert" role="status">Reviewing details from <strong>@opportunityTitle</strong>. Nothing is saved until you submit.</div> }
+<div class="page-heading"><div><h2>Add Application</h2><p>Every new application starts as Applied. Update its status as the process moves forward.</p></div></div>
 <form asp-action="Create" method="post" class="application-form">
     <partial name="_ApplicationForm" model="Model" />
     <div class="form-actions"><button class="btn btn-primary" type="submit">Save Application</button><a class="btn btn-outline-secondary" asp-action="Index">Cancel</a></div>

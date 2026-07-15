@@ -99,7 +99,7 @@ Production values should come from environment variables or the host's secret st
 | `AllowedHosts` | `AllowedHosts` | Exact public host names; wildcard values are rejected in Production |
 | `Email:*` | `Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From` | SMTP for confirmation and account recovery |
 | `ResumeStorage:RootPath` | `ResumeStorage__RootPath` | Absolute private resume storage path; required in Production |
-| `DataProtection:*` | `DataProtection__KeysPath`, `DataProtection__CertificatePath`, `DataProtection__CertificatePassword` | Persistent key path plus PFX encryption; required in Production |
+| `DataProtection:*` | `DataProtection__KeysPath`, `DataProtection__CertificatePath`, `DataProtection__CertificatePassword` | Persistent key path plus PFX or encrypted PEM certificate; required in Production |
 | `ASPNETCORE_ENVIRONMENT` | `ASPNETCORE_ENVIRONMENT` | Use `Production` on a deployed host |
 
 The default private upload path is `App_Data/Uploads/Resumes`. It is configurable, canonicalized, and never mapped as a static web directory. Production rejects relative or placeholder storage/key paths, wildcard hosts, and a non-HTTPS public origin to prevent an accidental insecure launch.

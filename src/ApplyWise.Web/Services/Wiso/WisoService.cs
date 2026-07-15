@@ -15,7 +15,7 @@ public sealed class WisoService(ApplicationDbContext db) : IWisoService
         {
             var counts = await db.JobApplications.AsNoTracking().Where(a => a.UserId == userId).GroupBy(a => a.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToListAsync(cancellationToken);
             var total = counts.Sum(item => item.Count); int Count(ApplicationStatus status) => counts.FirstOrDefault(item => item.Status == status)?.Count ?? 0;
-            return new WisoReply($"You have **{total} applications**: {Count(ApplicationStatus.Saved)} saved, {Count(ApplicationStatus.Applied)} applied, {Count(ApplicationStatus.Interview)} interviews, and {Count(ApplicationStatus.Offer)} offers.", [new("View pipeline", "/applications")]);
+            return new WisoReply($"You have **{total} applications**: {Count(ApplicationStatus.Applied)} applied, {Count(ApplicationStatus.Pending)} pending, {Count(ApplicationStatus.Interview)} interviews, and {Count(ApplicationStatus.Offered)} offered.", [new("View pipeline", "/applications")]);
         }
         if (lowered.Contains("interview"))
         {
@@ -36,12 +36,6 @@ public sealed class WisoService(ApplicationDbContext db) : IWisoService
         {
             var reminder = await db.Reminders.AsNoTracking().Where(r => r.UserId == userId && !r.IsCompleted).OrderBy(r => r.DueAt).Select(r => r.Title).FirstOrDefaultAsync(cancellationToken);
             return reminder is null ? new WisoReply("You have no pending reminders. A good next step is reviewing your saved applications.", [new("View applications", "/applications")]) : new WisoReply($"Your next focus is **{reminder}**.", [new("View reminders", "/reminders")]);
-        }
-        if (lowered.Contains("opportunit") || lowered.Contains("internship") || lowered.Contains("freelance") || lowered.Contains("government") || lowered.Contains("remote job"))
-        {
-            var now = DateTimeOffset.UtcNow;
-            var opportunities = await db.Opportunities.AsNoTracking().Where(item => item.Status == OpportunityStatus.Published && (item.Deadline == null || item.Deadline >= now)).OrderByDescending(item => item.IsVerified).ThenByDescending(item => item.PublishedAt).Take(5).Select(item => item.Title).ToListAsync(cancellationToken);
-            return opportunities.Count == 0 ? new WisoReply("There are no active opportunities in the feed yet.", [new("Complete profile", "/profile")]) : new WisoReply($"I found **{opportunities.Count} active opportunities** matched from the current feed.", [new("Browse opportunities", "/opportunities")]);
         }
         return Fallback();
     }

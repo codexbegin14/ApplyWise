@@ -1,11 +1,15 @@
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.Analytics;
+using ApplyWise.Web.Services.AccountSecurity;
+using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.ViewModels.Dashboard;
+using ApplyWise.Web.ViewModels.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -13,7 +17,11 @@ namespace ApplyWise.Web.Controllers;
 public class DashboardController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
-    IAnalyticsService analyticsService) : Controller
+    IAnalyticsService analyticsService,
+    IAccountSecurityCodeService securityCodes,
+    IResumeStorageService resumeStorage,
+    SignInManager<IdentityUser> signInManager,
+    ILogger<DashboardController> logger) : Controller
 {
     public async Task<IActionResult> Index()
     {
@@ -60,6 +68,12 @@ public class DashboardController(
             RecentApplications = analytics.RecentApplications,
             RecentAnalyses = analytics.RecentAnalyses
         };
+        model.PipelineApplications = await dbContext.JobApplications.AsNoTracking()
+            .Where(application => application.UserId == userId)
+            .OrderByDescending(application => application.UpdatedAt)
+            .Select(application => new RecentApplicationItem(
+                application.Id, application.CompanyName, application.JobTitle, application.Status, application.CreatedAt))
+            .ToListAsync();
         model.TopSkillGaps = (await analyticsService.GetSkillGapTrendsAsync(
             userId, cancellationToken: HttpContext.RequestAborted)).Take(4).ToArray();
 
@@ -131,10 +145,137 @@ public class DashboardController(
         return View(model);
     }
 
-    [Route("settings")] public IActionResult Settings() => Section("Settings", "Manage your ApplyWise account and preferences.");
+    [HttpGet("settings")]
+    public async Task<IActionResult> Settings() => View(await BuildSettingsModelAsync());
+
+    [HttpPost("settings/security-code/{securityAction}"), ValidateAntiForgeryToken]
+    [EnableRateLimiting("account-security")]
+    public async Task<IActionResult> SendSecurityCode(string securityAction)
+    {
+        if (!TryParseAction(securityAction, out var accountSecurityAction)) return NotFound();
+        var user = await userManager.GetUserAsync(User);
+        if (user is null || string.IsNullOrWhiteSpace(user.Email)) return Challenge();
+
+        var issued = await securityCodes.IssueAsync(user.Id, user.Email, accountSecurityAction, HttpContext.RequestAborted);
+        if (issued.Succeeded)
+        {
+            TempData["SettingsSuccess"] = issued.Message;
+        }
+        else
+        {
+            TempData["SettingsError"] = issued.Message;
+        }
+        TempData["SettingsOpenSection"] = securityAction;
+        return RedirectToAction(nameof(Settings));
+    }
+
+    [HttpPost("settings/change-password"), ValidateAntiForgeryToken]
+    [EnableRateLimiting("account-security")]
+    public async Task<IActionResult> ChangePassword([Bind(Prefix = "ChangePassword")] ChangePasswordInput input)
+    {
+        if (!ModelState.IsValid) return await SettingsWithErrorsAsync("password");
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Challenge();
+
+        var verified = await securityCodes.VerifyAsync(user.Id, AccountSecurityAction.ChangePassword, input.Code, HttpContext.RequestAborted);
+        if (!verified.Succeeded)
+        {
+            ModelState.AddModelError("ChangePassword.Code", verified.Message);
+            return await SettingsWithErrorsAsync("password");
+        }
+
+        var result = await userManager.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors) ModelState.AddModelError("ChangePassword.CurrentPassword", error.Description);
+            return await SettingsWithErrorsAsync("password");
+        }
+
+        await securityCodes.ConsumeAsync(verified.CodeId!.Value, HttpContext.RequestAborted);
+        await signInManager.RefreshSignInAsync(user);
+        TempData["SettingsSuccess"] = "Your password was changed successfully.";
+        return RedirectToAction(nameof(Settings));
+    }
+
+    [HttpPost("settings/delete-account"), ValidateAntiForgeryToken]
+    [EnableRateLimiting("account-security")]
+    public async Task<IActionResult> DeleteAccount([Bind(Prefix = "DeleteAccount")] DeleteAccountInput input)
+    {
+        if (!ModelState.IsValid) return await SettingsWithErrorsAsync("delete");
+        var user = await userManager.GetUserAsync(User);
+        if (user is null) return Challenge();
+
+        var verified = await securityCodes.VerifyAsync(user.Id, AccountSecurityAction.DeleteAccount, input.Code, HttpContext.RequestAborted);
+        if (!verified.Succeeded)
+        {
+            ModelState.AddModelError("DeleteAccount.Code", verified.Message);
+            return await SettingsWithErrorsAsync("delete");
+        }
+
+        var resumePaths = await dbContext.Resumes.AsNoTracking().Where(resume => resume.UserId == user.Id)
+            .Select(resume => resume.FilePath).ToListAsync(HttpContext.RequestAborted);
+        var result = await userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
+            return await SettingsWithErrorsAsync("delete");
+        }
+
+        foreach (var path in resumePaths)
+        {
+            try
+            {
+                var filePath = resumeStorage.ResolvePath(path);
+                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Could not remove a private resume file while deleting account {UserId}.", user.Id);
+            }
+        }
+
+        await signInManager.SignOutAsync();
+        TempData["StatusMessage"] = "Your ApplyWise account and private data were deleted.";
+        return RedirectToPage("/Account/Login", new { area = "Identity" });
+    }
 
     private IActionResult Section(string title, string description, string? actionLabel = null) =>
         View("Section", new SectionViewModel(title, description, actionLabel));
+
+    private async Task<SettingsViewModel> BuildSettingsModelAsync()
+    {
+        var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("The current user could not be loaded.");
+        if (TempData["SettingsOpenSection"] is string requestedSection)
+        {
+            ViewData["SettingsOpenSection"] = requestedSection;
+        }
+        return new SettingsViewModel
+        {
+            Email = user.Email ?? user.UserName ?? string.Empty
+        };
+    }
+
+    private async Task<IActionResult> SettingsWithErrorsAsync(string section)
+    {
+        ViewData["SettingsOpenSection"] = section;
+        return View("Settings", await BuildSettingsModelAsync());
+    }
+
+    private static bool TryParseAction(string action, out AccountSecurityAction securityAction)
+    {
+        if (string.Equals(action, "password", StringComparison.OrdinalIgnoreCase))
+        {
+            securityAction = AccountSecurityAction.ChangePassword;
+            return true;
+        }
+        if (string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase))
+        {
+            securityAction = AccountSecurityAction.DeleteAccount;
+            return true;
+        }
+        securityAction = default;
+        return false;
+    }
 }
 
 public sealed record SectionViewModel(string Title, string Description, string? ActionLabel = null);
