@@ -112,6 +112,31 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     });
 });
 
+(() => {
+    const menu = document.querySelector('[data-account-menu]');
+    const trigger = menu?.querySelector('[data-account-menu-trigger]');
+    const panel = menu?.querySelector('[data-account-menu-panel]');
+    if (!menu || !trigger || !panel) return;
+
+    const close = (restoreFocus = false) => {
+        panel.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) trigger.focus();
+    };
+    const open = () => {
+        panel.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+    };
+
+    trigger.addEventListener('click', () => panel.hidden ? open() : close());
+    document.addEventListener('click', (event) => {
+        if (!menu.contains(event.target)) close();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden) close(true);
+    });
+})();
+
 document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
     const target = container.dataset.confirmRedirect;
     if (!target || !target.startsWith('/') || target.startsWith('//')) return;

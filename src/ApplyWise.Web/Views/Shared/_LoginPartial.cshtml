@@ -8,14 +8,31 @@
 }
 <div class="account-links">
 @if (SignInManager.IsSignedIn(User)) {
-    <a class="account-button" asp-controller="Profile" asp-action="Index" title="Profile">
-        <span class="account-avatar">
-            <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
-            <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="" onerror="this.hidden=true;" />
-        </span>
-        <span class="account-name">@displayName</span>
-    </a>
-    <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"><button type="submit" class="btn btn-link logout-button">Log out</button></form>
+    <div class="account-menu" data-account-menu>
+        <button class="account-menu-trigger" type="button" data-account-menu-trigger aria-expanded="false" aria-haspopup="menu" aria-controls="account-menu-panel" title="Open account menu">
+            <span class="account-avatar">
+                <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
+                <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="Your profile picture" onerror="this.hidden=true;" />
+            </span>
+            <span class="visually-hidden">Open account menu</span>
+        </button>
+        <div class="account-menu-panel" id="account-menu-panel" data-account-menu-panel role="menu" aria-label="Account menu" hidden>
+            <div class="account-menu-summary">
+                <span class="account-avatar account-avatar-large">
+                    <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
+                    <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="" onerror="this.hidden=true;" />
+                </span>
+                <span><strong>@displayName</strong><small>ApplyWise account</small></span>
+            </div>
+            <div class="account-menu-links">
+                <a asp-controller="Profile" asp-action="Index" role="menuitem">My profile</a>
+                <a asp-controller="Dashboard" asp-action="Settings" role="menuitem">Settings</a>
+            </div>
+            <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+                <button type="submit" role="menuitem">Log out</button>
+            </form>
+        </div>
+    </div>
 } else {
     <a class="btn btn-link" asp-area="Identity" asp-page="/Account/Login">Log in</a><a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Create account</a>
 }
