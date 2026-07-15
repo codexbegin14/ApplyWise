@@ -69,6 +69,8 @@
         </div>
         <button class="sidebar-backdrop" type="button" data-sidebar-toggle aria-label="Close navigation"></button>
     </div>
+    @* The Wiso assistant is intentionally removed from the authenticated layout. *@
+    @*
     <div class="wiso-widget" data-wiso-widget data-first-name="@(User.FindFirst("display_name")?.Value?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? User.Identity?.Name?.Split('@')[0] ?? "there")">
         <button class="wiso-launcher" type="button" data-wiso-open aria-label="Open Wiso assistant"><img src="~/images/wiso.png" alt="" /><span class="wiso-online-dot" aria-hidden="true"></span></button>
         <section class="wiso-panel" data-wiso-panel hidden aria-labelledby="wiso-title">
@@ -78,6 +80,7 @@
             <form class="wiso-form" data-wiso-form><input type="hidden" name="__RequestVerificationToken" value="@Antiforgery.GetTokens(Context).RequestToken" /><label class="visually-hidden" for="wiso-question">Ask Wiso</label><input id="wiso-question" name="question" maxlength="300" autocomplete="off" placeholder="Ask Wiso..." /><button type="submit" aria-label="Send question"><svg class="ui-icon"><use href="#i-arrow" /></svg></button></form>
         </section>
     </div>
+    *@
 }
 else
 {
