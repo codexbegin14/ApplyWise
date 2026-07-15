@@ -19,7 +19,16 @@ public class ProfileEditViewModel
     [StringLength(1000)] public string? CareerInterests { get; set; }
     [StringLength(2000)] public string? AcademicHighlights { get; set; }
     public bool OpportunityNotificationsEnabled { get; set; } = true;
+    public string Initials { get; set; } = "AW";
+    public string? CurrentAvatarUrl { get; set; }
+    public IReadOnlyList<ProfileAvatarOption> AvatarOptions { get; set; } = [];
 }
+
+public sealed record ProfileAvatarOption(
+    string Id,
+    string Gender,
+    string Profession,
+    string ImageUrl);
 
 public sealed class OnboardingViewModel : ProfileEditViewModel
 {

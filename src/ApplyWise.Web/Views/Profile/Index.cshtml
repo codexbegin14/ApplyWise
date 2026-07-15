@@ -1,5 +1,100 @@
 @model ApplyWise.Web.ViewModels.Profile.ProfileEditViewModel
 @using ApplyWise.Web.Models
-@{ ViewData["Title"] = "Profile"; }
-<div class="aw-page"><header class="aw-page-heading"><div><span class="aw-kicker">Your private profile</span><h1>Make your next match more useful</h1><p>Profile details stay private and help ApplyWise tailor opportunities and Wiso answers.</p></div></header><section class="aw-panel aw-profile-panel"><div class="aw-profile-avatar"><img src="@(Url.Action("Avatar", "Profile") ?? "")" alt="Your profile avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" /><span> AW </span><form asp-action="Avatar" method="post" enctype="multipart/form-data"><input type="file" name="file" accept="image/png,image/jpeg,image/webp" /><button class="btn btn-secondary-soft btn-sm" type="submit">Update avatar</button></form></div><form method="post" asp-action="Save"><div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div><div class="form-grid"><div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" /></div><div><label asp-for="CareerStage" class="form-label"></label><select asp-for="CareerStage" asp-items="Html.GetEnumSelectList<CareerStage>()" class="form-select"><option value="">Choose one</option></select></div><div><label asp-for="Institution" class="form-label"></label><input asp-for="Institution" class="form-control" /></div><div><label asp-for="DegreeProgram" class="form-label"></label><input asp-for="DegreeProgram" class="form-control" /></div><div><label asp-for="FieldOfStudy" class="form-label"></label><input asp-for="FieldOfStudy" class="form-control" /></div><div><label asp-for="GraduationYear" class="form-label"></label><input asp-for="GraduationYear" class="form-control" /></div><div><label asp-for="CurrentSemester" class="form-label"></label><input asp-for="CurrentSemester" class="form-control" /></div><div><label asp-for="PreferredLocations" class="form-label"></label><input asp-for="PreferredLocations" class="form-control" placeholder="Lahore, Islamabad, Remote" /></div><div class="form-grid-wide"><label asp-for="OpportunityInterests" class="form-label"></label><input asp-for="OpportunityInterests" class="form-control" placeholder="Internships, data, design" /></div><div class="form-grid-wide"><label asp-for="Skills" class="form-label"></label><textarea asp-for="Skills" class="form-control" rows="3" placeholder="Python, research, Figma"></textarea></div><div class="form-grid-wide"><label asp-for="CareerInterests" class="form-label"></label><textarea asp-for="CareerInterests" class="form-control" rows="3"></textarea></div><div class="form-grid-wide"><label asp-for="AcademicHighlights" class="form-label"></label><textarea asp-for="AcademicHighlights" class="form-control" rows="3"></textarea></div></div><button class="btn btn-primary" type="submit">Save profile</button></form></section></div>
+@{
+    ViewData["Title"] = "Profile";
+    var avatarGroups = Model.AvatarOptions.GroupBy(option => option.Gender);
+}
+
+<div class="aw-page">
+    <header class="aw-page-heading">
+        <div>
+            <span class="aw-kicker">Your private profile</span>
+            <h1>Make your next match more useful</h1>
+            <p>Profile details stay private and help ApplyWise tailor opportunities and Wiso answers.</p>
+        </div>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert app-alert aw-success-toast" role="status"><span>✓</span>@successMessage</div>
+    }
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert app-alert aw-profile-error" role="alert">@errorMessage</div>
+    }
+
+    <section class="aw-panel aw-profile-panel">
+        <aside class="aw-profile-avatar-card" aria-labelledby="current-avatar-title">
+            <span class="aw-auth-kicker" id="current-avatar-title">Current picture</span>
+            <div class="aw-profile-avatar-preview">
+                @if (!string.IsNullOrWhiteSpace(Model.CurrentAvatarUrl))
+                {
+                    <img src="@Model.CurrentAvatarUrl" alt="Your current profile avatar" />
+                }
+                else
+                {
+                    <span aria-label="Profile initials">@Model.Initials</span>
+                }
+            </div>
+            <form asp-action="Avatar" method="post" enctype="multipart/form-data" class="aw-avatar-upload-form">
+                <label class="aw-avatar-file-label">
+                    <span>Upload your photo</span>
+                    <input type="file" name="file" accept="image/png,image/jpeg,image/webp" required />
+                </label>
+                <small>PNG, JPEG, or WebP · maximum 2 MB</small>
+                <button class="btn btn-secondary-soft btn-sm" type="submit">Update picture</button>
+            </form>
+        </aside>
+
+        <div class="aw-profile-main">
+            <section class="aw-avatar-library" aria-labelledby="avatar-library-title">
+                <div class="aw-avatar-library-heading">
+                    <div>
+                        <span class="aw-auth-kicker">Profession avatars</span>
+                        <h2 id="avatar-library-title">Choose a character</h2>
+                    </div>
+                    <p>Select any avatar now; you can change it whenever you like.</p>
+                </div>
+
+                @foreach (var group in avatarGroups)
+                {
+                    <fieldset class="aw-avatar-group">
+                        <legend>@group.Key</legend>
+                        <div class="aw-avatar-options">
+                            @foreach (var avatar in group)
+                            {
+                                <form asp-action="SelectAvatar" method="post">
+                                    <button type="submit" name="avatarId" value="@avatar.Id" class="aw-avatar-option" aria-label="Choose the @avatar.Profession avatar">
+                                        <img src="@avatar.ImageUrl" alt="" loading="lazy" />
+                                        <span>@avatar.Profession</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </fieldset>
+                }
+            </section>
+
+            <form method="post" asp-action="Save" class="aw-profile-form">
+                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                <div class="form-grid">
+                    <div><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" /></div>
+                    <div><label asp-for="CareerStage" class="form-label"></label><select asp-for="CareerStage" asp-items="Html.GetEnumSelectList<CareerStage>()" class="form-select"><option value="">Choose one</option></select></div>
+                    <div><label asp-for="Institution" class="form-label"></label><input asp-for="Institution" class="form-control" /></div>
+                    <div><label asp-for="DegreeProgram" class="form-label"></label><input asp-for="DegreeProgram" class="form-control" /></div>
+                    <div><label asp-for="FieldOfStudy" class="form-label"></label><input asp-for="FieldOfStudy" class="form-control" /></div>
+                    <div><label asp-for="GraduationYear" class="form-label"></label><input asp-for="GraduationYear" class="form-control" /></div>
+                    <div><label asp-for="CurrentSemester" class="form-label"></label><input asp-for="CurrentSemester" class="form-control" /></div>
+                    <div><label asp-for="PreferredLocations" class="form-label"></label><input asp-for="PreferredLocations" class="form-control" placeholder="Lahore, Islamabad, Remote" /></div>
+                    <div class="form-grid-wide"><label asp-for="OpportunityInterests" class="form-label"></label><input asp-for="OpportunityInterests" class="form-control" placeholder="Internships, data, design" /></div>
+                    <div class="form-grid-wide"><label asp-for="Skills" class="form-label"></label><textarea asp-for="Skills" class="form-control" rows="3" placeholder="Python, research, Figma"></textarea></div>
+                    <div class="form-grid-wide"><label asp-for="CareerInterests" class="form-label"></label><textarea asp-for="CareerInterests" class="form-control" rows="3"></textarea></div>
+                    <div class="form-grid-wide"><label asp-for="AcademicHighlights" class="form-label"></label><textarea asp-for="AcademicHighlights" class="form-control" rows="3"></textarea></div>
+                </div>
+                <button class="btn btn-primary" type="submit">Save profile</button>
+            </form>
+        </div>
+    </section>
+</div>
+
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }
