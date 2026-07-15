@@ -20,7 +20,6 @@ public sealed record JobApplicationDetailsViewModel(
     IReadOnlyList<ApplicationCustomFieldViewModel> CustomFields,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    JobScamCheckSummaryViewModel? LatestScamCheck = null,
     IReadOnlyList<ApplicationInterviewSummaryViewModel>? Interviews = null,
     IReadOnlyList<ApplicationReminderSummaryViewModel>? Reminders = null);
 
@@ -31,11 +30,3 @@ public sealed record ApplicationInterviewSummaryViewModel(
 
 public sealed record ApplicationReminderSummaryViewModel(
     int Id, string Title, ReminderType ReminderType, DateTimeOffset DueAt, bool IsCompleted);
-
-public sealed record JobScamCheckSummaryViewModel(
-    int Id,
-    int RiskScore,
-    JobRiskLevel RiskLevel,
-    int QualityScore,
-    string Recommendation,
-    DateTimeOffset CreatedAt);

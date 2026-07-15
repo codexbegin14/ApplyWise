@@ -121,13 +121,6 @@ public class JobApplicationsController(
     {
         var application = await FindOwnedApplicationAsync(id, true, true);
         if (application is null) return NotFound();
-        var latestCheck = await dbContext.JobScamChecks.AsNoTracking()
-            .Where(check => check.UserId == application.UserId && check.JobApplicationId == application.Id)
-            .OrderByDescending(check => check.CreatedAt)
-            .Select(check => new JobScamCheckSummaryViewModel(
-                check.Id, check.RiskScore, check.RiskLevel, check.QualityScore,
-                check.Recommendation, check.CreatedAt))
-            .FirstOrDefaultAsync();
         var interviews = await dbContext.Interviews.AsNoTracking()
             .Where(interview => interview.UserId == application.UserId && interview.JobApplicationId == application.Id)
             .OrderByDescending(interview => interview.ScheduledAt)
@@ -143,7 +136,7 @@ public class JobApplicationsController(
             .Select(reminder => new ApplicationReminderSummaryViewModel(
                 reminder.Id, reminder.Title, reminder.ReminderType, reminder.DueAt, reminder.IsCompleted))
             .ToListAsync();
-        return View(ToDetailsViewModel(application, latestCheck, interviews, reminders));
+        return View(ToDetailsViewModel(application, interviews, reminders));
     }
 
     [HttpGet("{id:int}/edit")]
@@ -350,14 +343,14 @@ public class JobApplicationsController(
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static JobApplicationDetailsViewModel ToDetailsViewModel(
-        JobApplication application, JobScamCheckSummaryViewModel? latestScamCheck = null,
+        JobApplication application,
         IReadOnlyList<ApplicationInterviewSummaryViewModel>? interviews = null,
         IReadOnlyList<ApplicationReminderSummaryViewModel>? reminders = null) =>
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
             application.AppliedDate, application.Deadline, application.Notes, ReadCustomFieldsForDetails(application.CustomFieldsJson),
-            application.CreatedAt, application.UpdatedAt, latestScamCheck, interviews, reminders);
+            application.CreatedAt, application.UpdatedAt, interviews, reminders);
 
     private static List<CustomApplicationFieldInput> ReadCustomFields(string? json)
     {

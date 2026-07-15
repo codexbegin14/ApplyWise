@@ -51,18 +51,6 @@
         </section>
     </div>
 
-    <section class="aw-panel aw-scam-card aw-slide-up">
-        <div class="aw-section-heading"><div><span class="aw-kicker">Trust check</span><h3>Job post safety</h3><p>Review the listing for suspicious signals and missing information.</p></div><span class="aw-stat-icon green"><svg class="ui-icon"><use href="#i-search" /></svg></span></div>
-        @if (Model.LatestScamCheck is null)
-        {
-            <div class="aw-inline-notice"><div><strong>No safety check yet</strong><p>Run a quick rule-based review before sharing sensitive information.</p></div><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-primary" type="submit">Run Scam Check</button></form></div>
-        }
-        else
-        {
-            <div class="aw-scam-result"><div><span class="aw-status @RiskClass(Model.LatestScamCheck.RiskLevel)">@Model.LatestScamCheck.RiskLevel.GetDisplayName() risk</span><strong>@Model.LatestScamCheck.RiskScore/100</strong><small>risk score</small></div><div class="aw-scam-quality"><span>Listing quality <b>@Model.LatestScamCheck.QualityScore/100</b></span><div class="aw-progress"><i style="--aw-progress:@Model.LatestScamCheck.QualityScore%"></i></div><p>@Model.LatestScamCheck.Recommendation</p></div><div><a class="btn btn-secondary-soft btn-sm" asp-controller="JobScamChecks" asp-action="Details" asp-route-id="@Model.LatestScamCheck.Id">View Full Check</a><form asp-controller="JobScamChecks" asp-action="Analyze" method="post"><input type="hidden" name="JobApplicationId" value="@Model.Id" /><button class="btn btn-link btn-sm" type="submit">Run again</button></form></div></div>
-        }
-    </section>
-
     <div class="aw-detail-grid aw-detail-grid-two">
         <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Role context</span><h3>Job description</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.JobDescription) ? "No job description added yet. Add it to unlock resume matching." : Model.JobDescription)</p></section>
         <section class="aw-panel aw-content-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Your context</span><h3>Notes</h3></div></div><p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No notes yet. Capture contacts, questions, or the next follow-up here." : Model.Notes)</p></section>
@@ -91,5 +79,4 @@
         _ => string.Empty
     };
     private static string StatusClass(ApplicationStatus status) => status switch { ApplicationStatus.Applied or ApplicationStatus.Pending => "aw-status-info", ApplicationStatus.Interview => "aw-status-purple", ApplicationStatus.Offered or ApplicationStatus.Accepted => "aw-status-success", ApplicationStatus.Rejected or ApplicationStatus.UserRejected => "aw-status-danger", ApplicationStatus.Ignored => "aw-status-neutral", _ => "aw-status-neutral" };
-    private static string RiskClass(JobRiskLevel level) => level switch { JobRiskLevel.High => "aw-status-danger", JobRiskLevel.Medium => "aw-status-warning", _ => "aw-status-success" };
 }
