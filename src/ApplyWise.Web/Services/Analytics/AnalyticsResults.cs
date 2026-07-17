@@ -8,6 +8,10 @@ public sealed record AnalyticsOverviewResult(
     int OfferCount,
     int RejectedCount,
     double AverageMatchScore,
+    double AverageAtsReadinessScore,
+    int CurrentScoreAnalysisCount,
+    int LegacyAnalysisCount,
+    string? MostFrequentParsingWarning,
     int PendingReminderCount,
     int OverdueReminderCount,
     int UpcomingInterviewCount,
@@ -33,7 +37,8 @@ public sealed record RecentApplicationItem(
     int Id, string CompanyName, string JobTitle, ApplicationStatus Status, DateTimeOffset CreatedAt);
 
 public sealed record RecentAnalysisItem(
-    int Id, string ResumeVersionName, string CompanyName, string JobTitle, int MatchScore, DateTimeOffset CreatedAt);
+    int Id, string ResumeVersionName, string CompanyName, string JobTitle, int MatchScore,
+    int? AtsReadinessScore, int? JobMatchScore, string ScoreVersion, DateTimeOffset CreatedAt);
 
 public sealed record SkillGapTrendItem(
     string SkillName,
@@ -46,6 +51,8 @@ public sealed record ResumePerformanceItem(
     int ResumeId,
     string VersionName,
     double AverageMatchScore,
+    double AverageAtsReadinessScore,
+    double AverageEvidenceQuality,
     int AnalysisCount,
     int ApplicationsUsed,
     int InterviewsReceived,

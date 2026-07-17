@@ -139,6 +139,10 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 8, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("resume-analysis", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
 });
 builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -157,7 +161,16 @@ builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
 builder.Services.AddTransient<IApplicationEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAccountSecurityCodeService, AccountSecurityCodeService>();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
+builder.Services.AddOptions<SkillTaxonomyOptions>()
+    .Bind(builder.Configuration.GetSection("SkillTaxonomy"));
+builder.Services.AddSingleton<IResumeTextNormalizer, ResumeTextNormalizer>();
+builder.Services.AddSingleton<IResumeSectionDetector, ResumeSectionDetector>();
+builder.Services.AddSingleton<ISkillTaxonomyService, SkillTaxonomyService>();
+builder.Services.AddSingleton<IJobRequirementExtractor, JobRequirementExtractor>();
+builder.Services.AddSingleton<IAtsReadinessScorer, AtsReadinessScorer>();
+builder.Services.AddSingleton<IJobMatchScorer, JobMatchScorer>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
+builder.Services.AddScoped<IResumeAnalysisStore, ResumeAnalysisStore>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
@@ -172,6 +185,18 @@ builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
 builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();
+
+if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var migrationLogger = migrationScope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DatabaseMigration");
+    migrationLogger.LogWarning("Applying pending database migrations before startup.");
+    var migrationDb = migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await migrationDb.Database.MigrateAsync();
+    migrationLogger.LogInformation("Database migrations are current.");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -200,8 +225,8 @@ app.Use(async (context, next) =>
 });
 app.UseRouting();
 
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapStaticAssets();

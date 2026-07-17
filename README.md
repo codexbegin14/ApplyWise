@@ -12,9 +12,10 @@ Job searches quickly become fragmented across job boards, company websites, emai
 
 - ASP.NET Core Identity registration, login, logout, and account management
 - Private PDF resume library with version names, notes, and a default resume
+- Browser-local one-page resume builder with live A4 fit checks, section reordering, safe bold/italic/underline formatting, autosave, and selectable-text PDF download
 - Job application CRUD with status, source, deadline, job link, notes, and submitted-resume memory
 - Search, filters, sorting, responsive tables, polished empty states, and confirmation screens
-- Explainable local resume/job matching with matched skills, missing skills, suggestions, and history
+- Deterministic ATS Readiness, Job Match, and ApplyWise Fit analysis with evidence, prioritized reviews, history comparison, and no per-analysis AI call
 - Best-resume comparison and one-click assignment to a tracked application
 - Interview scheduling, outcome tracking, reminders, follow-ups, and dashboard actions
 - Application funnel, resume performance, platform response, and recurring skill-gap analytics
@@ -23,6 +24,8 @@ Job searches quickly become fragmented across job boards, company websites, emai
 
 The matching and scam-review features are deliberately explainable local heuristics in this release; they are not generative AI and do not send resume content to an external model.
 
+The current resume-analysis model, score formula, privacy boundaries, evaluation set, and benchmark commands are documented in [docs/ats-analysis.md](docs/ats-analysis.md). Taxonomy importing and provenance are documented separately in [docs/ats-taxonomy.md](docs/ats-taxonomy.md).
+
 ## Technology
 
 - .NET 10 / ASP.NET Core MVC
@@ -30,6 +33,7 @@ The matching and scam-review features are deliberately explainable local heurist
 - ASP.NET Core Identity
 - Entity Framework Core 10 and SQL Server / LocalDB
 - PdfPig for PDF text extraction
+- pdfmake 0.3.11 for client-side, selectable-text resume PDFs
 
 ## Screenshots
 
@@ -38,12 +42,13 @@ The screenshot checklist and safe demo-data guidance are in [docs/screenshots/RE
 1. Public home and branded sign-in
 2. Dashboard
 3. Resume library
-4. Applications list and details
-5. Resume analysis result
-6. Best resume picker
-7. Interviews and reminders
-8. Analytics
-9. Job-post review result
+4. Resume Builder editor and live PDF preview
+5. Applications list and details
+6. Resume analysis result
+7. Best resume picker
+8. Interviews and reminders
+9. Analytics
+10. Job-post review result
 
 No personal resume, email address, real employer notes, or production data should appear in portfolio screenshots.
 
@@ -145,6 +150,7 @@ Start with the dashboard, then show one complete story: upload two demo resumes,
 ## Resume bullets
 
 - Built a full-stack ASP.NET Core MVC application that helps job seekers track applications, manage resume versions, and remember which resume was submitted for each job.
+- Added a privacy-first resume studio with structured editing, browser autosave, responsive live preview, and direct A4 PDF generation without uploading draft content.
 - Implemented explainable resume-to-job analysis with match scoring, missing-skill detection, best-resume recommendation, and private analysis history.
 - Developed interview scheduling, follow-up reminders, dashboard analytics, platform response insights, and rule-based job-post risk detection.
 - Used ASP.NET Core Identity, Entity Framework Core, SQL Server, Razor Views, Bootstrap, secure private PDF storage, and per-user authorization to deliver a SaaS-style product.

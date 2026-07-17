@@ -1,12 +1,15 @@
 using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.ResumeAnalysis;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApplyWise.Web.Services.Analytics;
 
 public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalyticsService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     public async Task<AnalyticsOverviewResult> GetOverviewAsync(
         string userId, CancellationToken cancellationToken = default)
     {
@@ -21,17 +24,45 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             .Select(interview => new { interview.JobApplicationId, interview.ScheduledAt, interview.Status })
             .ToListAsync(cancellationToken);
 
-        var analyses = await dbContext.ResumeAnalyses.AsNoTracking()
+        var analysisRows = await dbContext.ResumeAnalyses.AsNoTracking()
             .Where(analysis => analysis.UserId == userId)
             .OrderByDescending(analysis => analysis.CreatedAt)
-            .Select(analysis => new RecentAnalysisItem(
+            .Select(analysis => new
+            {
                 analysis.Id,
-                analysis.Resume!.VersionName,
-                analysis.JobApplication != null ? analysis.JobApplication.CompanyName : "Direct input",
-                analysis.JobApplication != null ? analysis.JobApplication.JobTitle : "Pasted requirements",
+                ResumeVersionName = analysis.Resume!.VersionName,
+                CompanyName = analysis.JobApplication != null ? analysis.JobApplication.CompanyName : "Direct input",
+                JobTitle = analysis.JobApplication != null ? analysis.JobApplication.JobTitle : "Pasted requirements",
                 analysis.MatchScore,
-                analysis.CreatedAt))
+                analysis.AtsReadinessScore,
+                analysis.JobMatchScore,
+                analysis.ScoreVersion,
+                analysis.WarningsJson,
+                analysis.CreatedAt
+            })
             .ToListAsync(cancellationToken);
+        var analyses = analysisRows.Select(analysis => new RecentAnalysisItem(
+            analysis.Id,
+            analysis.ResumeVersionName,
+            analysis.CompanyName,
+            analysis.JobTitle,
+            analysis.MatchScore,
+            analysis.AtsReadinessScore,
+            analysis.JobMatchScore,
+            analysis.ScoreVersion ?? "legacy-v1",
+            analysis.CreatedAt)).ToArray();
+        var currentAnalyses = analysisRows
+            .Where(analysis => analysis.ScoreVersion == ResumeAnalysisResult.CurrentScoreVersion)
+            .ToArray();
+        var fitAnalyses = currentAnalyses.Where(analysis => analysis.JobMatchScore.HasValue).ToArray();
+        var mostFrequentWarning = currentAnalyses
+            .SelectMany(analysis => DeserializeWarnings(analysis.WarningsJson))
+            .Where(warning => warning.Code is AnalysisWarningCode.UnreadableText or AnalysisWarningCode.LimitedText or AnalysisWarningCode.ParsingOrder)
+            .GroupBy(warning => warning.Message, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Key)
+            .FirstOrDefault();
 
         var pendingReminderCount = await dbContext.Reminders.CountAsync(
             reminder => reminder.UserId == userId && !reminder.IsCompleted, cancellationToken);
@@ -50,7 +81,11 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             interviewRows.Count,
             applications.Count(application => application.Status == ApplicationStatus.Offered),
             applications.Count(application => application.Status == ApplicationStatus.Rejected),
-            analyses.Count == 0 ? 0 : Math.Round(analyses.Average(analysis => analysis.MatchScore), 1),
+            fitAnalyses.Length == 0 ? 0 : Math.Round(fitAnalyses.Average(analysis => analysis.MatchScore), 1),
+            currentAnalyses.Length == 0 ? 0 : Math.Round(currentAnalyses.Average(analysis => analysis.AtsReadinessScore ?? 0), 1),
+            currentAnalyses.Length,
+            analysisRows.Count - currentAnalyses.Length,
+            mostFrequentWarning,
             pendingReminderCount,
             overdueReminderCount,
             interviewRows.Count(interview => interview.ScheduledAt >= now
@@ -68,30 +103,43 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
     public async Task<IReadOnlyList<SkillGapTrendItem>> GetSkillGapTrendsAsync(
         string userId, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
     {
-        var query = dbContext.ResumeAnalyses.AsNoTracking().Where(analysis => analysis.UserId == userId);
+        var query = dbContext.ResumeAnalyses.AsNoTracking().Where(analysis =>
+            analysis.UserId == userId && analysis.ScoreVersion == ResumeAnalysisResult.CurrentScoreVersion);
         if (since.HasValue) query = query.Where(analysis => analysis.CreatedAt >= since.Value);
 
         var rows = await query.Select(analysis => new
         {
             analysis.JobApplicationId,
-            analysis.MissingKeywordsJson
+            analysis.MissingKeywordsJson,
+            analysis.ReviewJson
         }).ToListAsync(cancellationToken);
 
         var occurrences = rows
-            .SelectMany(row => Deserialize(row.MissingKeywordsJson)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(skill => new { Skill = skill, row.JobApplicationId }))
+            .SelectMany(row =>
+            {
+                var requirements = DeserializeMissingRequirements(row.ReviewJson)
+                    .Where(IsSkillRequirement)
+                    .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.OrderBy(item => PriorityRank(item.Priority)).First())
+                    .ToArray();
+                return requirements.Length > 0
+                    ? requirements.Select(item => new MissingOccurrence(item.Name, item.Priority, row.JobApplicationId))
+                    : Deserialize(row.MissingKeywordsJson).Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Select(skill => new MissingOccurrence(skill, RequirementPriority.Informational, row.JobApplicationId));
+            })
             .GroupBy(item => item.Skill, StringComparer.OrdinalIgnoreCase)
             .Select(group => new
             {
                 Skill = group.Key,
                 Count = group.Count(),
+                PriorityRank = group.Min(item => PriorityRank(item.Priority)),
                 JobCount = group.Select(item => item.JobApplicationId)
                     .Where(jobApplicationId => jobApplicationId.HasValue)
                     .Distinct()
                     .Count()
             })
-            .OrderByDescending(item => item.Count)
+            .OrderBy(item => item.PriorityRank)
+            .ThenByDescending(item => item.Count)
             .ThenBy(item => item.Skill)
             .ToArray();
 
@@ -99,7 +147,7 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             item.Skill,
             item.Count,
             item.JobCount,
-            item.Count >= 3 ? "High" : item.Count == 2 ? "Medium" : "Low",
+            item.PriorityRank switch { 0 => "Critical", 1 => "High", 2 => "Medium", _ => "Low" },
             BuildSkillAction(item.Skill))).ToArray();
     }
 
@@ -111,8 +159,17 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             .Select(resume => new { resume.Id, resume.VersionName })
             .ToListAsync(cancellationToken);
         var analyses = await dbContext.ResumeAnalyses.AsNoTracking()
-            .Where(analysis => analysis.UserId == userId)
-            .Select(analysis => new { analysis.ResumeId, analysis.MatchScore, analysis.CreatedAt })
+            .Where(analysis => analysis.UserId == userId
+                && analysis.ScoreVersion == ResumeAnalysisResult.CurrentScoreVersion)
+            .Select(analysis => new
+            {
+                analysis.ResumeId,
+                analysis.MatchScore,
+                analysis.AtsReadinessScore,
+                analysis.JobMatchScore,
+                analysis.EvidenceQuality,
+                analysis.CreatedAt
+            })
             .ToListAsync(cancellationToken);
         var applications = await dbContext.JobApplications.AsNoTracking()
             .Where(application => application.UserId == userId)
@@ -128,13 +185,16 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
         var raw = resumes.Select(resume =>
         {
             var resumeAnalyses = analyses.Where(analysis => analysis.ResumeId == resume.Id).ToArray();
+            var fitAnalyses = resumeAnalyses.Where(analysis => analysis.JobMatchScore.HasValue).ToArray();
             var linkedApplications = applications.Where(application => application.ResumeId == resume.Id).ToArray();
             var interviews = linkedApplications.Count(application => interviewedSet.Contains(application.Id));
             return new
             {
                 resume.Id,
                 resume.VersionName,
-                Average = resumeAnalyses.Length == 0 ? 0 : Math.Round(resumeAnalyses.Average(item => item.MatchScore), 1),
+                Average = fitAnalyses.Length == 0 ? 0 : Math.Round(fitAnalyses.Average(item => item.MatchScore), 1),
+                AverageAts = resumeAnalyses.Length == 0 ? 0 : Math.Round(resumeAnalyses.Average(item => item.AtsReadinessScore ?? 0), 1),
+                AverageEvidence = fitAnalyses.Length == 0 ? 0 : Math.Round(fitAnalyses.Average(item => (item.EvidenceQuality ?? 0) * 100), 1),
                 AnalysisCount = resumeAnalyses.Length,
                 Applications = linkedApplications.Length,
                 Interviews = interviews,
@@ -154,7 +214,7 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
 
         return raw.OrderByDescending(item => item.Rate).ThenByDescending(item => item.Average)
             .Select(item => new ResumePerformanceItem(
-                item.Id, item.VersionName, item.Average, item.AnalysisCount, item.Applications,
+                item.Id, item.VersionName, item.Average, item.AverageAts, item.AverageEvidence, item.AnalysisCount, item.Applications,
                 item.Interviews, item.Rate, item.Last, item.Id == bestId, item.Id == mostUsedId)).ToArray();
     }
 
@@ -216,9 +276,41 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
         _ => $"If you have genuine {skill} experience, add a specific example showing where and how you used it."
     };
 
+    private static int PriorityRank(RequirementPriority priority) => priority switch
+    {
+        RequirementPriority.MustHave => 0,
+        RequirementPriority.Required => 1,
+        RequirementPriority.Preferred => 2,
+        _ => 3
+    };
+
+    private static bool IsSkillRequirement(JobRequirement requirement) => requirement.Category is
+        RequirementCategory.TechnicalSkill or RequirementCategory.Tool or RequirementCategory.DomainSkill or
+        RequirementCategory.SoftSkill or RequirementCategory.Language;
+
+    private static IReadOnlyList<JobRequirement> DeserializeMissingRequirements(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return JsonSerializer.Deserialize<AnalyticsReviewPayload>(json, JsonOptions)?.MissingRequirements ?? []; }
+        catch (JsonException) { return []; }
+    }
+
+    private static IReadOnlyList<AnalysisWarning> DeserializeWarnings(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return JsonSerializer.Deserialize<AnalysisWarning[]>(json, JsonOptions) ?? []; }
+        catch (JsonException) { return []; }
+    }
+
     private static IReadOnlyList<string> Deserialize(string json)
     {
-        try { return JsonSerializer.Deserialize<string[]>(json) ?? []; }
+        try { return JsonSerializer.Deserialize<string[]>(json, JsonOptions) ?? []; }
         catch (JsonException) { return []; }
+    }
+
+    private sealed record MissingOccurrence(string Skill, RequirementPriority Priority, int? JobApplicationId);
+    private sealed class AnalyticsReviewPayload
+    {
+        public JobRequirement[] MissingRequirements { get; init; } = [];
     }
 }

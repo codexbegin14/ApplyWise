@@ -1,0 +1,414 @@
+@model ApplyWise.Web.ViewModels.ResumeBuilder.ResumeBuilderPageViewModel
+@{
+    ViewData["Title"] = "Resume Builder";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/resume-builder.css" asp-append-version="true" />
+}
+
+<div class="aw-page aw-resume-builder aw-fade-in"
+     data-resume-builder
+     data-draft-key="@Model.DraftStorageKey"
+     data-initial-section="@Model.InitialSection">
+    <textarea data-sample-resume hidden aria-hidden="true" tabindex="-1">@Model.SampleResumeJson</textarea>
+
+    <header class="aw-rb-hero aw-slide-up">
+        <div class="aw-rb-hero-copy">
+            <span class="aw-kicker">
+                <svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>
+                ATS-friendly resume studio
+            </span>
+            <h2>Build a resume that is ready to apply.</h2>
+            <p>Enter your details once, arrange every section, and review the polished PDF as you type.</p>
+        </div>
+        <div class="aw-rb-toolbar" aria-label="Resume actions">
+            <button class="btn btn-secondary-soft" type="button" data-action="load-sample">
+                <span aria-hidden="true">&#10022;</span>
+                Load Sample Data
+            </button>
+            <button class="btn aw-rb-danger-button" type="button" data-action="clear">
+                Clear Resume
+            </button>
+            <button class="btn btn-primary aw-rb-download" type="button" data-action="download" aria-describedby="rb-pdf-status" disabled>
+                <svg class="aw-rb-button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14" />
+                </svg>
+                <span>Download PDF</span>
+            </button>
+        </div>
+        <div class="aw-rb-status-line">
+            <span class="aw-rb-save-status" data-save-status role="status" aria-live="polite" aria-atomic="true">
+                Your draft is saved in this browser as you type.
+            </span>
+            <span id="rb-pdf-status" class="aw-rb-pdf-status" data-pdf-status role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+    </header>
+
+    <section class="aw-rb-one-page-guide" data-one-page-guide aria-labelledby="rb-one-page-title">
+        <div class="aw-rb-one-page-copy">
+            <span class="aw-rb-one-page-icon" aria-hidden="true">1</span>
+            <div>
+                <h3 id="rb-one-page-title">One-page resume target</h3>
+                <p>Keep descriptions concise. ApplyWise checks the generated A4 PDF and prevents a multi-page download.</p>
+            </div>
+        </div>
+        <div class="aw-rb-page-fit-status is-checking" data-page-fit-status role="status" aria-live="polite">Checking page fit…</div>
+        <div class="aw-rb-one-page-metrics" aria-label="Recommended one-page content limits">
+            <span data-guide-metric="professionalSummary">Summary <strong>0 / 3 lines</strong></span>
+            <span data-guide-metric="education">Education <strong>0 / 2</strong></span>
+            <span data-guide-metric="experience">Experience <strong>0 / 3</strong></span>
+            <span data-guide-metric="projects">Projects <strong>0 / 3</strong></span>
+            <span data-guide-metric="achievementsAndCertifications">Achievements <strong>0 / 3</strong></span>
+        </div>
+        <p class="aw-rb-one-page-warning" data-one-page-warning role="alert" hidden></p>
+    </section>
+
+    <div class="aw-rb-mobile-tabs" role="tablist" aria-label="Resume builder view">
+        <button id="rb-editor-tab"
+                class="is-active"
+                type="button"
+                role="tab"
+                data-tab="form"
+                aria-selected="true"
+                aria-controls="rb-editor-panel">
+            Editor
+        </button>
+        <button id="rb-preview-tab"
+                type="button"
+                role="tab"
+                data-tab="preview"
+                aria-selected="false"
+                aria-controls="rb-preview-panel"
+                tabindex="-1">
+            Preview
+        </button>
+    </div>
+
+    <div class="aw-rb-workspace">
+        <section id="rb-editor-panel"
+                 class="aw-panel aw-rb-editor is-active"
+                 data-tab-panel="form"
+                 role="tabpanel"
+                 aria-labelledby="rb-editor-tab"
+                 aria-hidden="false">
+            <div class="aw-rb-panel-heading">
+                <div>
+                    <span class="aw-kicker">Resume details</span>
+                    <h3>Tell your professional story</h3>
+                    <p>Required fields are marked with an asterisk. Your information stays on this device.</p>
+                </div>
+                <span class="aw-status aw-status-info">Auto-save on</span>
+            </div>
+
+            <form class="aw-rb-form" data-resume-form autocomplete="on" novalidate>
+                <fieldset class="aw-rb-form-section" data-editor-section="personalInformation">
+                    <legend>
+                        <span class="aw-rb-section-number">1</span>
+                        <span>
+                            <strong>Personal information</strong>
+                            <small>The contact details employers see first.</small>
+                        </span>
+                    </legend>
+
+                    <div class="aw-rb-field-grid">
+                        <div class="aw-rb-field aw-rb-field-wide">
+                            <label for="rb-full-name">Full name <span aria-hidden="true">*</span></label>
+                            <input id="rb-full-name"
+                                   class="form-control"
+                                   type="text"
+                                   data-field="personalInformation.fullName"
+                                   autocomplete="name"
+                                   maxlength="100"
+                                   placeholder="e.g. Jordan Lee"
+                                   aria-describedby="rb-full-name-error"
+                                   required />
+                            <span id="rb-full-name-error" class="aw-rb-error" data-error-for="personalInformation.fullName" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field aw-rb-field-wide">
+                            <label for="rb-professional-title">Professional title <span aria-hidden="true">*</span></label>
+                            <input id="rb-professional-title"
+                                   class="form-control"
+                                   type="text"
+                                   data-field="personalInformation.professionalTitle"
+                                   autocomplete="organization-title"
+                                   maxlength="120"
+                                   placeholder="e.g. Full-Stack Software Engineer"
+                                   aria-describedby="rb-professional-title-error"
+                                   required />
+                            <span id="rb-professional-title-error" class="aw-rb-error" data-error-for="personalInformation.professionalTitle" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field">
+                            <label for="rb-phone">Phone number</label>
+                            <input id="rb-phone"
+                                   class="form-control"
+                                   type="tel"
+                                   data-field="personalInformation.phoneNumber"
+                                   autocomplete="tel"
+                                   inputmode="tel"
+                                   maxlength="40"
+                                   placeholder="+92 300 1234567"
+                                   aria-describedby="rb-phone-error" />
+                            <span id="rb-phone-error" class="aw-rb-error" data-error-for="personalInformation.phoneNumber" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field">
+                            <label for="rb-email">Email address <span aria-hidden="true">*</span></label>
+                            <input id="rb-email"
+                                   class="form-control"
+                                   type="email"
+                                   data-field="personalInformation.emailAddress"
+                                   autocomplete="email"
+                                   maxlength="254"
+                                   placeholder="you@example.com"
+                                   aria-describedby="rb-email-error"
+                                   required />
+                            <span id="rb-email-error" class="aw-rb-error" data-error-for="personalInformation.emailAddress" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field aw-rb-field-wide">
+                            <label for="rb-location">Location</label>
+                            <input id="rb-location"
+                                   class="form-control"
+                                   type="text"
+                                   data-field="personalInformation.location"
+                                   autocomplete="address-level2"
+                                   maxlength="120"
+                                   placeholder="City, Country"
+                                   aria-describedby="rb-location-error" />
+                            <span id="rb-location-error" class="aw-rb-error" data-error-for="personalInformation.location" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field">
+                            <label for="rb-linkedin">LinkedIn URL</label>
+                            <input id="rb-linkedin"
+                                   class="form-control"
+                                   type="url"
+                                   data-field="personalInformation.linkedInUrl"
+                                   autocomplete="url"
+                                   inputmode="url"
+                                   maxlength="500"
+                                   placeholder="https://linkedin.com/in/your-name"
+                                   aria-describedby="rb-linkedin-error" />
+                            <span id="rb-linkedin-error" class="aw-rb-error" data-error-for="personalInformation.linkedInUrl" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field">
+                            <label for="rb-github">GitHub URL</label>
+                            <input id="rb-github"
+                                   class="form-control"
+                                   type="url"
+                                   data-field="personalInformation.gitHubUrl"
+                                   autocomplete="url"
+                                   inputmode="url"
+                                   maxlength="500"
+                                   placeholder="https://github.com/your-name"
+                                   aria-describedby="rb-github-error" />
+                            <span id="rb-github-error" class="aw-rb-error" data-error-for="personalInformation.gitHubUrl" aria-live="polite"></span>
+                        </div>
+
+                        <div class="aw-rb-field aw-rb-field-wide">
+                            <label for="rb-portfolio">Portfolio URL</label>
+                            <input id="rb-portfolio"
+                                   class="form-control"
+                                   type="url"
+                                   data-field="personalInformation.portfolioUrl"
+                                   autocomplete="url"
+                                   inputmode="url"
+                                   maxlength="500"
+                                   placeholder="https://yourportfolio.com"
+                                   aria-describedby="rb-portfolio-error" />
+                            <span id="rb-portfolio-error" class="aw-rb-error" data-error-for="personalInformation.portfolioUrl" aria-live="polite"></span>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="aw-rb-form-section" data-editor-section="professionalSummary">
+                    <legend>
+                        <span class="aw-rb-section-number">2</span>
+                        <span>
+                            <strong>Professional summary</strong>
+                            <small>A concise introduction tailored to the work you want.</small>
+                        </span>
+                    </legend>
+
+                    <div class="aw-rb-field">
+                        <label class="visually-hidden" for="rb-summary">Professional summary</label>
+                        <div class="aw-rb-format-toolbar" aria-label="Professional summary formatting">
+                            <span>Select words, then format them:</span>
+                            <div role="group" aria-label="Text formatting">
+                                <button type="button" data-format="bold" data-format-target="rb-summary" title="Bold selected text" aria-label="Bold selected summary text"><strong>B</strong></button>
+                                <button type="button" data-format="italic" data-format-target="rb-summary" title="Italicize selected text" aria-label="Italicize selected summary text"><span>I</span></button>
+                                <button type="button" data-format="underline" data-format-target="rb-summary" title="Underline selected text" aria-label="Underline selected summary text"><span class="aw-rb-underlined">U</span></button>
+                            </div>
+                        </div>
+                        <textarea id="rb-summary"
+                                  class="form-control aw-rb-summary"
+                                  data-field="professionalSummary"
+                                  rows="6"
+                                  maxlength="1200"
+                                  placeholder="Summarize your experience, strengths, and the value you bring..."
+                                  aria-describedby="rb-summary-help rb-summary-error"></textarea>
+                        <div id="rb-summary-help" class="aw-rb-field-meta">
+                            <span>Aim for about three compact lines. Formatting markers become styles in the PDF.</span>
+                            <span data-summary-count>0 / 1,200</span>
+                        </div>
+                        <span id="rb-summary-error" class="aw-rb-error" data-error-for="professionalSummary" aria-live="polite"></span>
+                    </div>
+                </fieldset>
+
+                @* Section order is intentionally rendered after the content editor. *@
+                @*
+                    <div class="aw-rb-section-heading">
+                        <div>
+                            <span class="aw-rb-section-number">3</span>
+                            <span>
+                                <h3 id="rb-section-order-title">Section order and visibility</h3>
+                                <p>Move sections into the order that best supports your application.</p>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="aw-rb-manager-list" data-section-manager>
+                        <div class="aw-rb-empty">
+                            <strong>Preparing section controls…</strong>
+                            <span>Your resume sections will appear here.</span>
+                        </div>
+                    </div>
+                *@
+
+                <section class="aw-rb-dynamic-sections" aria-labelledby="rb-content-sections-title">
+                    <div class="aw-rb-dynamic-heading">
+                        <div>
+                            <span class="aw-kicker">Resume content</span>
+                            <h3 id="rb-content-sections-title">Build each section</h3>
+                            <p>Add as many entries as you need, then fine-tune the order below.</p>
+                        </div>
+                        <button class="btn btn-secondary-soft btn-sm" type="button" data-action="add-custom-section">
+                            <svg class="ui-icon" aria-hidden="true"><use href="#i-plus" /></svg>
+                            Custom Section
+                        </button>
+                    </div>
+                    <div class="aw-rb-section-editor" data-section-editor>
+                        <div class="aw-rb-empty">
+                            <strong>Preparing your resume editor…</strong>
+                            <span>Education, experience, projects, skills, and optional sections will appear here.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="aw-rb-form-section" aria-labelledby="rb-section-order-title">
+                    <div class="aw-rb-section-heading">
+                        <div>
+                            <span class="aw-rb-section-number">3</span>
+                            <span>
+                                <h3 id="rb-section-order-title">Section order and visibility</h3>
+                                <p>After adding your content, move sections into the order that best supports your application.</p>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="aw-rb-manager-list" data-section-manager>
+                        <div class="aw-rb-empty">
+                            <strong>Preparing section controlsâ€¦</strong>
+                            <span>Your resume sections will appear here.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <noscript>
+                    <div class="aw-rb-noscript" role="alert">
+                        JavaScript is required for live preview, draft saving, and PDF generation.
+                    </div>
+                </noscript>
+            </form>
+        </section>
+
+        <aside id="rb-preview-panel"
+               class="aw-panel aw-rb-preview-panel"
+               data-tab-panel="preview"
+               role="tabpanel"
+               aria-labelledby="rb-preview-tab"
+               aria-hidden="true">
+            <div class="aw-rb-preview-heading">
+                <div>
+                    <span class="aw-kicker aw-kicker-green">Live PDF preview</span>
+                    <h3>Your ATS-ready resume</h3>
+                </div>
+                <div class="aw-rb-preview-actions">
+                    <span class="aw-rb-preview-badge" title="PDF text remains selectable">A4 · one page · selectable</span>
+                    <button class="aw-rb-preview-size-button" type="button" data-action="toggle-preview-size" aria-expanded="false" aria-controls="rb-preview-panel">
+                        <span data-preview-size-label>Expand preview</span>
+                    </button>
+                </div>
+            </div>
+
+            <section class="aw-rb-readiness" data-readiness-panel data-readiness-tone="starting" aria-labelledby="rb-readiness-title">
+                <header class="aw-rb-readiness-head">
+                    <div>
+                        <span class="aw-kicker aw-kicker-violet">Local draft check</span>
+                        <h3 id="rb-readiness-title">ATS readiness snapshot</h3>
+                        <p>Fast content checks in this browser - not a job-match score.</p>
+                    </div>
+                    <div class="aw-rb-readiness-meter" data-readiness-meter role="img" aria-label="Draft readiness score: 0 out of 100">
+                        <strong data-readiness-score>0</strong><span>/100</span>
+                    </div>
+                </header>
+                <p class="aw-rb-readiness-summary" data-readiness-summary role="status" aria-live="polite" aria-atomic="true">Checking this local draft...</p>
+                <div class="aw-rb-readiness-checks" data-readiness-checks aria-label="Draft readiness checks"></div>
+                <p class="aw-rb-readiness-next" data-readiness-next hidden></p>
+                <div class="aw-rb-readiness-cta">
+                    <span>
+                        <strong>Want role-specific feedback?</strong>
+                        <small>Download this PDF and add it to your Resume Library first. This local draft is not uploaded automatically.</small>
+                    </span>
+                    <a class="btn btn-secondary-soft btn-sm" asp-controller="ResumeAnalyzer" asp-action="Index">
+                        <svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg>
+                        Analyze against a job
+                    </a>
+                </div>
+            </section>
+
+            <div class="aw-rb-preview-shell" data-preview-shell>
+                <iframe class="aw-rb-preview-frame"
+                        data-resume-preview
+                        title="Resume PDF preview"
+                        aria-describedby="rb-preview-help"></iframe>
+                <div class="aw-rb-preview-state" data-preview-state role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+                    <span class="aw-rb-preview-spinner" aria-hidden="true"></span>
+                    <span data-preview-state-text>
+                        <strong>Preparing your preview…</strong>
+                        <small>ApplyWise is building a text-based PDF.</small>
+                    </span>
+                </div>
+            </div>
+
+            <p id="rb-preview-help" class="aw-rb-preview-help">
+                The preview and download use the same PDF. Download stays disabled until the content fits on one A4 page.
+            </p>
+        </aside>
+    </div>
+
+    <button class="aw-rb-preview-backdrop" type="button" data-preview-backdrop data-action="toggle-preview-size" aria-label="Close expanded preview" hidden></button>
+
+    <dialog class="aw-rb-clear-dialog" data-clear-dialog aria-labelledby="rb-clear-title" aria-describedby="rb-clear-description">
+        <form method="dialog" class="aw-rb-dialog-card">
+            <span class="aw-rb-dialog-icon" aria-hidden="true">!</span>
+            <div>
+                <span class="aw-kicker aw-kicker-amber">Clear local draft</span>
+                <h2 id="rb-clear-title">Start over with a blank resume?</h2>
+                <p id="rb-clear-description">This removes every field and section from this browser. This action cannot be undone.</p>
+            </div>
+            <div class="aw-rb-dialog-actions">
+                <button class="btn btn-secondary-soft" type="button" data-action="cancel-clear" autofocus>Keep Editing</button>
+                <button class="btn aw-rb-danger-button" type="button" data-action="confirm-clear">Clear Resume</button>
+            </div>
+        </form>
+    </dialog>
+</div>
+
+@section Scripts {
+    <script src="~/lib/pdfmake/pdfmake.min.js" asp-append-version="true"></script>
+    <script src="~/lib/pdfmake/vfs_fonts.js" asp-append-version="true"></script>
+    <script src="~/js/resume-builder.js" asp-append-version="true"></script>
+}

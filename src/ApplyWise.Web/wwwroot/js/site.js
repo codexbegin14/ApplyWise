@@ -2,20 +2,56 @@
 // for details on configuring this project to bundle and minify static web assets.
 
 // Write your JavaScript code.
-document.querySelectorAll('[data-sidebar-toggle]').forEach((button) => {
-    button.addEventListener('click', () => {
-        const isOpen = document.body.classList.toggle('sidebar-open');
-        document.querySelector('.menu-button')?.setAttribute('aria-expanded', String(isOpen));
-    });
-});
+(() => {
+    const sidebar = document.getElementById('appSidebar');
+    const menuButton = document.querySelector('.menu-button[data-sidebar-toggle]');
+    const toggles = document.querySelectorAll('[data-sidebar-toggle]');
+    const mobileQuery = window.matchMedia('(max-width: 800px)');
+    const storageKey = 'applywise.sidebar.collapsed';
+    if (!sidebar || !menuButton || !toggles.length) return;
 
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+    const storeCollapsed = (collapsed) => {
+        try { localStorage.setItem(storageKey, String(collapsed)); } catch { }
+    };
+    const readCollapsed = () => {
+        try { return localStorage.getItem(storageKey) === 'true'; } catch { return false; }
+    };
+    const syncButton = () => {
+        const expanded = mobileQuery.matches
+            ? document.body.classList.contains('sidebar-open')
+            : !document.body.classList.contains('sidebar-collapsed');
+        menuButton.setAttribute('aria-expanded', String(expanded));
+        menuButton.setAttribute('aria-label', `${expanded ? 'Close' : 'Open'} navigation sidebar`);
+        menuButton.title = `${expanded ? 'Close' : 'Open'} navigation sidebar`;
+    };
+    const applyViewportState = () => {
         document.body.classList.remove('sidebar-open');
-        document.querySelector('.menu-button')?.setAttribute('aria-expanded', 'false');
-        document.querySelector('.menu-button')?.focus();
-    }
-});
+        document.body.classList.toggle('sidebar-collapsed', !mobileQuery.matches && readCollapsed());
+        syncButton();
+    };
+
+    toggles.forEach((button) => {
+        button.addEventListener('click', () => {
+            if (mobileQuery.matches) {
+                document.body.classList.toggle('sidebar-open');
+            } else {
+                const collapsed = document.body.classList.toggle('sidebar-collapsed');
+                storeCollapsed(collapsed);
+            }
+            syncButton();
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+            document.body.classList.remove('sidebar-open');
+            syncButton();
+            menuButton.focus();
+        }
+    });
+    mobileQuery.addEventListener?.('change', applyViewportState);
+    applyViewportState();
+})();
 
 // Give repeated workspace cards a restrained entrance rhythm.
 if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -189,14 +225,36 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
 
 (() => {
     const key = 'applywise-theme';
-    const control = document.querySelector('[data-theme-toggle]');
-    const applyTheme = (dark) => {
-        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-        try { localStorage.setItem(key, dark ? 'dark' : 'light'); } catch { }
+    const controls = document.querySelectorAll('[data-theme-toggle]');
+    const isAuthenticatedWorkspace = document.documentElement.dataset.authenticatedWorkspace === 'true';
+    const syncControls = (theme) => {
+        const dark = theme === 'dark';
+        controls.forEach((control) => {
+            if (control instanceof HTMLInputElement) control.checked = dark;
+        });
     };
-    if (!(control instanceof HTMLInputElement)) return;
-    control.checked = document.documentElement.dataset.theme === 'dark';
-    control.addEventListener('change', () => applyTheme(control.checked));
+    const applyTheme = (theme, persist = true) => {
+        const nextTheme = isAuthenticatedWorkspace && theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = nextTheme;
+        document.documentElement.style.colorScheme = nextTheme;
+        if (persist) {
+            try { localStorage.setItem(key, nextTheme); } catch { }
+        }
+        syncControls(nextTheme);
+    };
+
+    if (!isAuthenticatedWorkspace) {
+        applyTheme('light', false);
+        return;
+    }
+
+    const initialTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    syncControls(initialTheme);
+    controls.forEach((control) => {
+        if (control instanceof HTMLInputElement) {
+            control.addEventListener('change', () => applyTheme(control.checked ? 'dark' : 'light'));
+        }
+    });
 })();
 
 (() => {

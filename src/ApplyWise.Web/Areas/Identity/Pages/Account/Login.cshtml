@@ -7,9 +7,7 @@
 <div class="aw-auth-shell aw-fade-in">
     <section class="aw-login-card aw-slide-up" aria-labelledby="login-title">
         <header class="aw-login-heading">
-            <span class="aw-auth-kicker">Welcome back</span>
             <h1 id="login-title">Continue your momentum</h1>
-            <p>Log in to open your private ApplyWise workspace.</p>
         </header>
 
         <form id="account" method="post" class="aw-login-form">
@@ -41,19 +39,14 @@
 
             <button id="login-submit" type="submit" class="btn btn-primary btn-lg aw-login-submit">Log in <svg class="ui-icon"><use href="#i-arrow" /></svg></button>
 
-            <div class="aw-login-divider"><span>New to ApplyWise?</span></div>
             <a class="btn btn-secondary-soft aw-create-account" asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Create your free account</a>
-            <a class="aw-confirmation-link" asp-page="./ResendEmailConfirmation">Resend email confirmation</a>
         </form>
 
-        <footer class="aw-login-footer"><span>✓</span> Your workspace is private to your account.</footer>
     </section>
 
     <aside class="aw-auth-visual" aria-label="ApplyWise motivation">
         <div class="aw-auth-quote">
-            <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>A note from Wiso</span>
             <blockquote>“Small, focused steps turn a job search into real momentum.”</blockquote>
-            <p>Come back to your plan, take the next useful action, and keep moving forward.</p>
         </div>
         <div class="aw-auth-avatar-wrap">
             <span>You've got this!</span>

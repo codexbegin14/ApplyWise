@@ -15,6 +15,7 @@ appsettings.Development.json
 [Rr]elease/
 .verify-build/
 .artifacts/
+tmp/
 TestResults/
 coverage/
 app.db

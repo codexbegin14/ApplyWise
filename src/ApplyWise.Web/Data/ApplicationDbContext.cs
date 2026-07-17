@@ -73,12 +73,30 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(analysis => analysis.MatchedKeywordsJson).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.MissingKeywordsJson).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.SuggestionsJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.ScoreVersion).HasMaxLength(30);
+            entity.Property(analysis => analysis.InputHash).HasMaxLength(64).IsFixedLength();
+            entity.Property(analysis => analysis.ScoreBreakdownJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.EvidenceJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.WarningsJson).HasColumnType("nvarchar(max)");
+            entity.Property(analysis => analysis.ReviewJson).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.ResumeTextSnapshot).HasColumnType("nvarchar(max)");
             entity.Property(analysis => analysis.JobDescriptionSnapshot).HasColumnType("nvarchar(max)");
 
             entity.HasIndex(analysis => new { analysis.UserId, analysis.CreatedAt });
             entity.HasIndex(analysis => new { analysis.UserId, analysis.ResumeId });
             entity.HasIndex(analysis => new { analysis.UserId, analysis.JobApplicationId });
+            entity.HasIndex(analysis => new
+            {
+                analysis.UserId,
+                analysis.ResumeId,
+                analysis.JobApplicationId,
+                analysis.AnalysisType,
+                analysis.InputHash,
+                analysis.ScoreVersion
+            })
+                .IsUnique()
+                .HasDatabaseName("UX_ResumeAnalyses_CurrentInput")
+                .HasFilter("[InputHash] IS NOT NULL AND [ScoreVersion] IS NOT NULL");
 
             entity.HasOne(analysis => analysis.User)
                 .WithMany()

@@ -1,10 +1,30 @@
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
-@{ ViewData["Title"] = "Analysis Details"; var activeTab = "pasted"; }
+@{
+    ViewData["Title"] = "Analysis Details";
+}
 
-<div class="page-heading">
-    <div><a class="back-link" asp-action="Index">Back to resume analyzer</a><h2>Analysis Details</h2><p>Saved keyword comparison for @Model.ContextTitle.</p></div>
-    <a class="btn btn-primary" asp-action="Index" asp-route-analysisId="@Model.Id">Run Again</a>
+@section Styles {
+    <link rel="stylesheet" href="~/css/resume-analyzer.css" asp-append-version="true" />
+}
+
+<div class="aw-page aw-ra-page aw-fade-in">
+    <header class="aw-ra-page-heading">
+        <div>
+            <a class="back-link" asp-action="Index">Back to resume analyzer</a>
+            <span class="aw-kicker">Saved result</span>
+            <h2>Analysis details</h2>
+            @if (Model.HasJobMatch)
+            {
+                <p>@Model.ResumeVersionName reviewed against @Model.ContextTitle.</p>
+            }
+            else
+            {
+                <p>@Model.ResumeVersionName reviewed for ATS Readiness without a job description.</p>
+            }
+        </div>
+        <a class="btn btn-primary" asp-action="Index" asp-route-analysisId="@Model.Id">Run again</a>
+    </header>
+
+    <partial name="_AnalyzerTabs" model='"pasted"' />
+    <partial name="_AnalysisResult" model="Model" />
 </div>
-<partial name="_AnalyzerTabs" model="activeTab" />
-
-<partial name="_AnalysisResult" model="Model" />
