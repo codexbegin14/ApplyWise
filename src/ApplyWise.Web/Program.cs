@@ -186,6 +186,18 @@ builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();
 
+if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var migrationLogger = migrationScope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DatabaseMigration");
+    migrationLogger.LogWarning("Applying pending database migrations before startup.");
+    var migrationDb = migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await migrationDb.Database.MigrateAsync();
+    migrationLogger.LogInformation("Database migrations are current.");
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
