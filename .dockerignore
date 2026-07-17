@@ -1,5 +1,7 @@
 .git
 .vs
+.artifacts/
+tmp/
 .env
 .env.*
 !.env.example

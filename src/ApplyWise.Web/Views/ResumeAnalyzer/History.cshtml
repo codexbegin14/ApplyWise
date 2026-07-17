@@ -1,26 +1,94 @@
+@using ApplyWise.Web.Services.ResumeAnalysis
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisHistoryViewModel
-@{ ViewData["Title"] = "Analysis History"; var activeTab = "history"; }
-
-<div class="page-heading"><div><h2>Analysis History</h2><p>Review past resume-to-job comparisons and see how your targeting changes.</p></div><a class="btn btn-primary" asp-action="Index">New Analysis</a></div>
-<partial name="_AnalyzerTabs" model="activeTab" />
-
-@if (Model.Analyses.Count == 0)
-{
-    <section class="panel empty-state"><span class="empty-icon" aria-hidden="true">%</span><h3>No analyses saved yet</h3><p>Paste job requirements and compare a resume to create your first result.</p><a class="btn btn-primary" asp-action="Index">Analyze Resume</a></section>
+@{
+    ViewData["Title"] = "Analysis History";
+    var activeTab = "history";
+    var currentCount = Model.Analyses.Count(item => !IsLegacyVersion(item.ScoreVersion));
+    var legacyCount = Model.Analyses.Count - currentCount;
 }
-else
-{
-    <section class="panel analysis-history-panel">
-        <div class="resume-list-header"><span>@Model.Analyses.Count saved result@(Model.Analyses.Count == 1 ? string.Empty : "s")</span><span>Private to your account</span></div>
-        <div class="table-responsive"><table class="table app-table analysis-history-table"><thead><tr><th>Date</th><th>Resume version</th><th>Requirements source</th><th>Match score</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
-        @foreach (var analysis in Model.Analyses)
-        {
-            <tr><td>@analysis.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</td><td><strong>@analysis.ResumeVersionName</strong></td><td><div class="application-role"><strong>@analysis.ContextTitle</strong><span>@analysis.ContextSubtitle</span></div></td><td><span class="history-score @ScoreClass(analysis.MatchScore)">@analysis.MatchScore%</span></td><td class="text-end"><a asp-action="Details" asp-route-id="@analysis.Id">View</a></td></tr>
-        }
-        </tbody></table></div>
-    </section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/resume-analyzer.css" asp-append-version="true" />
 }
+
+<div class="aw-page aw-ra-page aw-fade-in">
+    <header class="aw-ra-page-heading">
+        <div><span class="aw-kicker">Saved checks</span><h2>Analysis history</h2><p>Review ATS v2.0 results separately from legacy keyword scores.</p></div>
+        <a class="btn btn-primary" asp-action="Index">New analysis</a>
+    </header>
+
+    <partial name="_AnalyzerTabs" model="activeTab" />
+
+    @if (Model.Analyses.Count == 0)
+    {
+        <section class="aw-ra-panel aw-ra-history-empty">
+            <span class="aw-ra-empty-icon" aria-hidden="true">%</span>
+            <h3>No analyses saved yet</h3>
+            <p>Review ATS readiness by itself or add a real job description for requirement-specific matching.</p>
+            <a class="btn btn-primary" asp-action="Index">Analyze a resume</a>
+        </section>
+    }
+    else
+    {
+        <section class="aw-ra-panel aw-ra-history-panel" aria-labelledby="analysis-history-title">
+            <div class="aw-ra-panel-heading">
+                <div><span class="aw-kicker">Private to your account</span><h3 id="analysis-history-title">@Model.Analyses.Count saved result@(Model.Analyses.Count == 1 ? string.Empty : "s")</h3><p>Current and legacy scoring are clearly labelled and should not be compared as the same metric.</p></div>
+                <div class="aw-ra-history-counts">
+                    <span class="is-current">ATS v2.0 <strong>@currentCount</strong></span>
+                    @if (legacyCount > 0) { <span class="is-legacy">Legacy <strong>@legacyCount</strong></span> }
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table aw-ra-history-table">
+                    <caption class="visually-hidden">Saved resume analysis results</caption>
+                    <thead><tr><th scope="col">Date</th><th scope="col">Resume and context</th><th scope="col">Scoring model</th><th scope="col">Scores</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                    <tbody>
+                        @foreach (var analysis in Model.Analyses)
+                        {
+                            var isLegacy = IsLegacyVersion(analysis.ScoreVersion);
+                            var hasJobMatch = analysis.JobMatchScore.HasValue;
+                            <tr class="@(isLegacy ? "is-legacy" : hasJobMatch ? "is-current" : "is-current is-ats-only")">
+                                <td data-label="Date"><time datetime="@analysis.CreatedAt.ToString("O")">@analysis.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")<small>@analysis.CreatedAt.ToLocalTime().ToString("h:mm tt")</small></time></td>
+                                <td data-label="Resume and context"><strong>@analysis.ResumeVersionName</strong><div class="aw-ra-history-context"><span>@analysis.ContextTitle</span>@if (!string.IsNullOrWhiteSpace(analysis.ContextSubtitle)) { <small>@analysis.ContextSubtitle</small> }</div></td>
+                                <td data-label="Scoring model">
+                                    <span class="aw-ra-version-badge @(isLegacy ? "is-legacy" : "is-current")">@(isLegacy ? "Legacy scoring" : "ATS v2.0")</span>
+                                    @if (isLegacy) { <small class="aw-ra-history-note">Not comparable with ATS v2.0</small> }
+                                    else if (!hasJobMatch) { <small class="aw-ra-history-note">ATS Readiness only &middot; no job description</small> }
+                                </td>
+                                <td data-label="Scores">
+                                    @if (isLegacy)
+                                    {
+                                        <div class="aw-ra-history-scores"><span class="aw-ra-history-score @ScoreTone(analysis.MatchScore)"><small>Legacy score</small><strong>@analysis.MatchScore</strong></span></div>
+                                    }
+                                    else if (!hasJobMatch)
+                                    {
+                                        var atsScore = analysis.AtsReadinessScore ?? analysis.MatchScore;
+                                        <div class="aw-ra-history-scores is-ats-only">
+                                            <span class="aw-ra-history-score @ScoreTone(atsScore)"><small>ATS Readiness</small><strong>@atsScore</strong><span class="aw-ra-history-band">@ScoreBand(atsScore)</span></span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="aw-ra-history-scores">
+                                            <span class="aw-ra-history-score @ScoreTone(analysis.MatchScore)"><small>ApplyWise Fit</small><strong>@analysis.MatchScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.MatchScore)</span></span>
+                                            @if (analysis.AtsReadinessScore.HasValue) { <span class="aw-ra-history-score @ScoreTone(analysis.AtsReadinessScore.Value)"><small>ATS Readiness</small><strong>@analysis.AtsReadinessScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.AtsReadinessScore.Value)</span></span> }
+                                            <span class="aw-ra-history-score @ScoreTone(analysis.JobMatchScore!.Value)"><small>Job Match</small><strong>@analysis.JobMatchScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.JobMatchScore.Value)</span></span>
+                                        </div>
+                                    }
+                                </td>
+                                <td data-label="Action" class="aw-ra-history-action"><a class="btn btn-secondary-soft btn-sm" asp-action="Details" asp-route-id="@analysis.Id">View details</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>
 
 @functions {
-    private static string ScoreClass(int score) => score switch { >= 80 => "score-strong", >= 60 => "score-good", >= 40 => "score-fair", _ => "score-low" };
+    private static bool IsLegacyVersion(string? version) => !string.Equals(version, ResumeAnalysisResult.CurrentScoreVersion, StringComparison.Ordinal);
+    private static string ScoreTone(int score) => score switch { >= 85 => "is-strong", >= 70 => "is-good", >= 50 => "is-developing", _ => "is-low" };
+    private static string ScoreBand(int score) => score switch { >= 85 => "Strong alignment", >= 70 => "Good alignment", >= 50 => "Needs targeted improvement", _ => "Significant gaps" };
 }

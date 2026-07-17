@@ -486,8 +486,28 @@ namespace ApplyWise.Web.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<int?>("AtsReadinessScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ConfidenceScore")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("DetectedJobRequirementCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EvidenceJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("EvidenceQuality")
+                        .HasColumnType("float");
+
+                    b.Property<string>("InputHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
 
                     b.Property<int?>("JobApplicationId")
                         .HasColumnType("int");
@@ -495,6 +515,9 @@ namespace ApplyWise.Web.Migrations
                     b.Property<string>("JobDescriptionSnapshot")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("JobMatchScore")
+                        .HasColumnType("int");
 
                     b.Property<int>("MatchScore")
                         .HasColumnType("int");
@@ -507,12 +530,28 @@ namespace ApplyWise.Web.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<double?>("MustHaveCoverage")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("RequiredCoverage")
+                        .HasColumnType("float");
+
                     b.Property<int>("ResumeId")
                         .HasColumnType("int");
 
                     b.Property<string>("ResumeTextSnapshot")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScoreBreakdownJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScoreVersion")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("SuggestionsJson")
                         .IsRequired()
@@ -521,6 +560,9 @@ namespace ApplyWise.Web.Migrations
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("WarningsJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -533,6 +575,11 @@ namespace ApplyWise.Web.Migrations
                     b.HasIndex("UserId", "JobApplicationId");
 
                     b.HasIndex("UserId", "ResumeId");
+
+                    b.HasIndex("UserId", "ResumeId", "JobApplicationId", "AnalysisType", "InputHash", "ScoreVersion")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ResumeAnalyses_CurrentInput")
+                        .HasFilter("[InputHash] IS NOT NULL AND [ScoreVersion] IS NOT NULL");
 
                     b.ToTable("ResumeAnalyses");
                 });

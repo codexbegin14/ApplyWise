@@ -139,6 +139,10 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 8, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("resume-analysis", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
 });
 builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -157,7 +161,16 @@ builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
 builder.Services.AddTransient<IApplicationEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAccountSecurityCodeService, AccountSecurityCodeService>();
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
+builder.Services.AddOptions<SkillTaxonomyOptions>()
+    .Bind(builder.Configuration.GetSection("SkillTaxonomy"));
+builder.Services.AddSingleton<IResumeTextNormalizer, ResumeTextNormalizer>();
+builder.Services.AddSingleton<IResumeSectionDetector, ResumeSectionDetector>();
+builder.Services.AddSingleton<ISkillTaxonomyService, SkillTaxonomyService>();
+builder.Services.AddSingleton<IJobRequirementExtractor, JobRequirementExtractor>();
+builder.Services.AddSingleton<IAtsReadinessScorer, AtsReadinessScorer>();
+builder.Services.AddSingleton<IJobMatchScorer, JobMatchScorer>();
 builder.Services.AddSingleton<IResumeAnalysisService, ResumeAnalysisService>();
+builder.Services.AddScoped<IResumeAnalysisStore, ResumeAnalysisStore>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
@@ -200,8 +213,8 @@ app.Use(async (context, next) =>
 });
 app.UseRouting();
 
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapStaticAssets();

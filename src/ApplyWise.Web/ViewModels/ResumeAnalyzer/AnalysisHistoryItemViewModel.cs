@@ -9,4 +9,7 @@ public sealed record AnalysisHistoryItemViewModel(
     string? ContextSubtitle,
     ResumeAnalysisType AnalysisType,
     int MatchScore,
+    int? AtsReadinessScore,
+    int? JobMatchScore,
+    string ScoreVersion,
     DateTimeOffset CreatedAt);

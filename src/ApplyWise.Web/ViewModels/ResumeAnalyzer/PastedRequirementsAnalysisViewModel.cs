@@ -8,9 +8,7 @@ public sealed class PastedRequirementsAnalysisViewModel
     [Display(Name = "Resume version")]
     public int? ResumeId { get; set; }
 
-    [Required(ErrorMessage = "Paste the job requirements before analyzing.")]
-    [StringLength(8000, MinimumLength = 30,
-        ErrorMessage = "Job requirements must be between 30 and 8,000 characters.")]
-    [Display(Name = "Job Requirements / Job Description")]
+    [StringLength(8000, ErrorMessage = "Job requirements cannot exceed 8,000 characters.")]
+    [Display(Name = "Job Requirements / Job Description (optional)")]
     public string JobRequirements { get; set; } = string.Empty;
 }

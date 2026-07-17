@@ -1,25 +1,147 @@
-@{ ViewData["Title"] = "Your smarter job search"; }
+@{
+    ViewData["Title"] = "Track, match, and build your job search";
+    ViewData["MetaDescription"] = "Track every job application, choose the strongest resume for each opportunity, and build ATS-friendly resumes in one focused ApplyWise workspace.";
+}
 
-<section class="welcome">
-    <div class="welcome-copy">
-        <h1>Move your job search <span>forward.</span></h1>
-        <p class="welcome-tagline">Track every application. Choose the right resume. Apply smarter.</p>
-        <p>ApplyWise keeps opportunities, tailored resumes, interview prep, and follow-ups in one focused place—with Wiso beside you at every step.</p>
-        <div class="welcome-actions">
-            <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Get Started <svg class="ui-icon"><use href="#i-arrow" /></svg></a>
-            <a class="btn btn-outline-primary btn-lg" asp-area="Identity" asp-page="/Account/Login">Log in</a>
+@section Styles {
+    <link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
+}
+
+<main id="main-content" class="aw-home" role="main">
+    <section class="aw-home-hero" aria-labelledby="home-hero-title">
+        <div class="aw-home-container aw-home-hero-grid">
+            <div class="aw-home-hero-copy">
+                <h1 id="home-hero-title">Build the right resume. Apply with confidence. Track every opportunity.</h1>
+                <p class="aw-home-lead">Track applications, choose the right resume, and know your next step&mdash;all in one workspace.</p>
+            </div>
+
+            <figure class="aw-home-wiso-visual">
+                <div class="aw-home-wiso-orbit">
+                    <span class="aw-home-wiso-card aw-home-wiso-card-tracking"><b>Application tracked</b><small>Your next step stays clear</small></span>
+                    <img src="~/images/wiso.png" alt="Wiso, the ApplyWise career assistant, holding a resume checklist" />
+                    <span class="aw-home-wiso-card aw-home-wiso-card-reminder"><b>Interview ready</b><small>Reminder and preparation saved</small></span>
+                </div>
+                <figcaption class="visually-hidden">Wiso, the ApplyWise guide, helps organize applications, resumes, and interviews.</figcaption>
+            </figure>
         </div>
-    </div>
-    <div class="hero-visual">
-        <div class="wiso-orbit"><span class="float-card float-card-score"><b>84%</b><small>Strong match</small></span><img src="~/images/wiso.png" alt="Wiso, the ApplyWise career assistant, holding a resume checklist" /><span class="float-card float-card-reminder"><b>Interview ready</b><small>Prep checklist complete</small></span></div>
-    </div>
-</section>
+    </section>
 
-<section class="home-demo" id="demo">
-    <div class="home-section-heading"><span class="eyebrow">One thoughtful workspace</span><h2>Less job-search chaos. More confident next steps.</h2></div>
-    <div class="benefit-grid">
-        <article class="benefit-card blue"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span><h3>Stay on top of every role</h3><p>See applications, deadlines, interviews, and follow-ups at a glance.</p><a asp-area="Identity" asp-page="/Account/Register">Explore tracking <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
-        <article class="benefit-card green"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-spark" /></svg></span><h3>Choose your strongest resume</h3><p>Compare skill coverage and understand exactly where each version fits.</p><a asp-area="Identity" asp-page="/Account/Register">Explore matching <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
-        <article class="benefit-card purple"><span class="benefit-icon"><svg class="ui-icon"><use href="#i-chart" /></svg></span><h3>Turn gaps into a plan</h3><p>Spot recurring missing skills and focus your learning where it matters.</p><a asp-area="Identity" asp-page="/Account/Register">Explore insights <svg class="ui-icon"><use href="#i-arrow" /></svg></a></article>
+    <section class="aw-home-section aw-home-services" id="features" aria-labelledby="services-title">
+        <div class="aw-home-container">
+            <header class="aw-home-section-heading">
+                <span class="aw-home-kicker">One connected workspace</span>
+                <h2 id="services-title">Everything you need to apply smarter</h2>
+                <p>Track every opportunity, choose the strongest resume for each job, and build a polished version when you need one.</p>
+            </header>
+
+            <div class="aw-home-service-grid">
+                <article class="aw-home-service-card is-blue" id="job-tracker">
+                    <div class="aw-home-service-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-briefcase" /></svg></div>
+                    <span class="aw-home-card-number">01</span>
+                    <h3>Track your job search</h3>
+                    <p>Keep every application, deadline, interview, reminder, and submitted resume connected in one private workspace.</p>
+                    <ul>
+                        <li><span aria-hidden="true">&#10003;</span>Application status tracking</li>
+                        <li><span aria-hidden="true">&#10003;</span>Deadlines and reminders</li>
+                        <li><span aria-hidden="true">&#10003;</span>Interview scheduling</li>
+                        <li><span aria-hidden="true">&#10003;</span>Resume-used history</li>
+                        <li><span aria-hidden="true">&#10003;</span>Clear next actions</li>
+                    </ul>
+                    <a asp-area="Identity" asp-page="/Account/Register">Start Tracking <svg class="ui-icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                </article>
+
+                <article class="aw-home-service-card is-green" id="resume-match">
+                    <div class="aw-home-service-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg></div>
+                    <span class="aw-home-card-number">02</span>
+                    <h3>Choose the right resume</h3>
+                    <p>Compare your resume with a job description, understand important gaps, and select the strongest version for each application.</p>
+                    <ul>
+                        <li><span aria-hidden="true">&#10003;</span>ATS Readiness score</li>
+                        <li><span aria-hidden="true">&#10003;</span>Job Match score</li>
+                        <li><span aria-hidden="true">&#10003;</span>Matched and missing requirements</li>
+                        <li><span aria-hidden="true">&#10003;</span>Actionable improvement review</li>
+                        <li><span aria-hidden="true">&#10003;</span>Best-resume recommendation</li>
+                    </ul>
+                    <a asp-area="Identity" asp-page="/Account/Register">Improve Your Match <svg class="ui-icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                </article>
+
+                <article class="aw-home-service-card is-purple" id="resume-builder">
+                    <div class="aw-home-service-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-edit-file" /></svg></div>
+                    <span class="aw-home-card-number">03</span>
+                    <h3>Make your resume</h3>
+                    <p>Build a professional, ATS-friendly resume with structured sections, live preview, local draft saving, and selectable-text PDF download.</p>
+                    <ul>
+                        <li><span aria-hidden="true">&#10003;</span>Guided resume sections</li>
+                        <li><span aria-hidden="true">&#10003;</span>Live A4 preview</li>
+                        <li><span aria-hidden="true">&#10003;</span>ATS-friendly formatting</li>
+                        <li><span aria-hidden="true">&#10003;</span>Download as PDF</li>
+                        <li><span aria-hidden="true">&#10003;</span>Save multiple resume versions</li>
+                    </ul>
+                    <a asp-area="Identity" asp-page="/Account/Register">Build Your Resume <svg class="ui-icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="aw-home-section aw-home-process" id="how-it-works" aria-labelledby="process-title">
+        <div class="aw-home-container">
+            <header class="aw-home-section-heading is-centered">
+                <span class="aw-home-kicker">A clearer way to apply</span>
+                <h2 id="process-title">From resume to interview, in three simple steps</h2>
+            </header>
+            <ol class="aw-home-process-list">
+                <li>
+                    <div class="aw-home-step-marker"><span>1</span><svg class="ui-icon" aria-hidden="true"><use href="#i-edit-file" /></svg></div>
+                    <div><h3>Create or upload your resume</h3><p>Build a new resume with ApplyWise or add the resume versions you already use.</p></div>
+                </li>
+                <li>
+                    <div class="aw-home-step-marker"><span>2</span><svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg></div>
+                    <div><h3>Match it to the job</h3><p>Paste a job description to review ATS readiness, requirement coverage, and the strongest resume version.</p></div>
+                </li>
+                <li>
+                    <div class="aw-home-step-marker"><span>3</span><svg class="ui-icon" aria-hidden="true"><use href="#i-briefcase" /></svg></div>
+                    <div><h3>Track your application</h3><p>Save the opportunity, remember which resume you submitted, and manage every deadline, reminder, and interview.</p></div>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="aw-home-section aw-home-video" id="how-to-use" aria-labelledby="how-to-use-title">
+        <div class="aw-home-container aw-home-video-layout">
+            <div class="aw-home-video-copy">
+                <span class="aw-home-kicker">How to use ApplyWise</span>
+                <h2 id="how-to-use-title">See the complete job-search workflow.</h2>
+                <p>This space is ready for your walkthrough video showing how to track an application, choose the right resume, and create a new resume when needed.</p>
+                <ol class="aw-home-video-steps" aria-label="ApplyWise walkthrough topics">
+                    <li><span>1</span><div><strong>Track each opportunity</strong><small>Save applications, deadlines, interviews, and reminders.</small></div></li>
+                    <li><span>2</span><div><strong>Choose the right resume</strong><small>Compare your saved resume versions with the job.</small></div></li>
+                    <li><span>3</span><div><strong>Build when you need to</strong><small>Create and download a polished one-page resume.</small></div></li>
+                </ol>
+            </div>
+            <figure class="aw-home-video-frame">
+                @* Replace this placeholder with a controls-enabled <video> or a titled <iframe> when the walkthrough is ready. *@
+                <div class="aw-home-video-placeholder" role="img" aria-label="Reserved space for the ApplyWise how-to video">
+                    <span class="aw-home-video-play" aria-hidden="true"><i></i></span>
+                    <strong>ApplyWise walkthrough</strong>
+                    <small>Your how-to video will appear here</small>
+                </div>
+                <figcaption>Video guide: track your jobs, choose the right resume, and build a new one.</figcaption>
+            </figure>
+        </div>
+    </section>
+
+</main>
+
+<footer class="aw-home-footer">
+    <div class="aw-home-container aw-home-footer-grid">
+        <div class="aw-home-footer-brand"><a class="brand" asp-controller="Home" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a><p>Track every application. Choose the right version. Build smarter resumes.</p></div>
+        <nav aria-label="Product links"><h2>Product</h2><a href="#job-tracker">Job Tracker</a><a href="#resume-match">Best Resume Match</a><a href="#resume-builder">Resume Builder</a><a href="#how-to-use">How to Use</a></nav>
+        <nav aria-label="Account links"><h2>Account</h2><a asp-area="Identity" asp-page="/Account/Register">Create Account</a><a asp-area="Identity" asp-page="/Account/Login">Sign In</a></nav>
+        <nav aria-label="Legal links"><h2>Legal</h2><a asp-controller="Home" asp-action="Privacy">Privacy</a></nav>
     </div>
-</section>
+    <div class="aw-home-container aw-home-footer-bottom"><span>&copy; @DateTime.UtcNow.Year ApplyWise. All rights reserved.</span><a href="#main-content">Back to top <span aria-hidden="true">&uarr;</span></a></div>
+</footer>
+
+@section Scripts {
+    <script src="~/js/home.js" asp-append-version="true"></script>
+}

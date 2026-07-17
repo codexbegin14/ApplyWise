@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "taxonomyVersion": "demo-1",
+  "source": {
+    "name": "ESCO-style fixture",
+    "version": "demo-1",
+    "license": "CC0-1.0",
+    "url": "https://example.com/esco-style-fixture"
+  },
+  "entries": [
+    {
+      "id": "esco:demo-go",
+      "preferredLabel": "Go",
+      "aliases": [
+        "Golang"
+      ],
+      "category": "Technical",
+      "ambiguity": {
+        "requiresContext": true,
+        "aliases": [
+          "Go"
+        ],
+        "note": "Require software-development context for this common word."
+      }
+    },
+    {
+      "id": "esco:demo-javascript",
+      "preferredLabel": "JavaScript",
+      "aliases": [
+        "ECMAScript",
+        "JS"
+      ],
+      "category": "Technical",
+      "ambiguity": {
+        "requiresContext": true,
+        "aliases": [
+          "JS"
+        ],
+        "note": "Require software-development context for this short alias."
+      }
+    },
+    {
+      "id": "esco:demo-project-management",
+      "preferredLabel": "Project management",
+      "aliases": [
+        "Programme management",
+        "Project coordination"
+      ],
+      "category": "Domain",
+      "ambiguity": {
+        "requiresContext": false,
+        "aliases": []
+      }
+    }
+  ]
+}

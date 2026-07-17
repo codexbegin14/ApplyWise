@@ -30,6 +30,8 @@ The `migration` profile is an explicit, one-shot schema update; `web` never appl
 dotnet restore ApplyWise.sln
 dotnet build ApplyWise.sln -c Release
 dotnet test ApplyWise.sln -c Release
+node --check src/ApplyWise.Web/wwwroot/js/resume-builder.js
+node --test tests/resume-builder/resume-builder.test.cjs
 dotnet publish src/ApplyWise.Web/ApplyWise.Web.csproj -c Release -o .artifacts/publish
 dotnet ef migrations has-pending-model-changes --project src/ApplyWise.Web/ApplyWise.Web.csproj --startup-project src/ApplyWise.Web/ApplyWise.Web.csproj
 dotnet ef migrations script --idempotent --project src/ApplyWise.Web/ApplyWise.Web.csproj --startup-project src/ApplyWise.Web/ApplyWise.Web.csproj -o .artifacts/migrations.sql

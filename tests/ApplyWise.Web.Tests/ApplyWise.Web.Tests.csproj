@@ -14,4 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ApplyWise.Web\ApplyWise.Web.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\ats-evaluation-set.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

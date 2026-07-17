@@ -8,7 +8,10 @@
         <h2>Resumes</h2>
         <p>Manage resume versions and track which file you use for each application.</p>
     </div>
-    <a class="btn btn-primary" asp-action="Create">Upload Resume</a>
+    <div class="form-actions">
+        <a class="btn btn-secondary-soft" asp-controller="ResumeBuilder" asp-action="Index"><svg class="ui-icon"><use href="#i-edit-file" /></svg>Build Resume</a>
+        <a class="btn btn-primary" asp-action="Create">Upload Resume</a>
+    </div>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage)

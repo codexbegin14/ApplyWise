@@ -1,0 +1,4 @@
+conceptUri,preferredLabel,altLabels,category,ambiguityAliases,ambiguityNote
+https://data.europa.eu/esco/skill/demo-javascript,JavaScript,ECMAScript|JS,Technical,JS,Require software-development context for this short alias.
+https://data.europa.eu/esco/skill/demo-go,Go,Golang,Technical,Go,Require software-development context for this common word.
+https://data.europa.eu/esco/skill/demo-project-management,Project management,Programme management|Project coordination,Domain,,

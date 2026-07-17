@@ -1,0 +1,90 @@
+[
+  {
+    "id": "aspnet-developer",
+    "role": "ASP.NET developer",
+    "jobDescription": "Backend Developer\nRequirements:\nC#, ASP.NET Core, and SQL Server are required for backend API delivery.\nPreferred Qualifications:\nDocker is preferred for deployment workflows.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nBackend Developer | Jan 2022 - Present\n- Developed customer APIs using C# and ASP.NET Core, supporting reliable order processing.\n- Built SQL Server data workflows and deployed services with Docker.\nEDUCATION\nBS Computer Science | 2018 - 2021\nSKILLS\nC#, ASP.NET Core, SQL Server, Docker",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nSoftware Developer | Jan 2022 - Present\n- Developed internal documentation and supported release coordination.\nEDUCATION\nBS Computer Science | 2018 - 2021\nSKILLS\nC#",
+    "expectedRequired": ["C#", "ASP.NET Core", "SQL Server"],
+    "expectedPreferred": ["Docker"],
+    "expectedPrimaryMatches": ["C#", "ASP.NET Core", "SQL Server", "Docker"],
+    "expectedComparisonMissing": ["ASP.NET Core", "SQL Server", "Docker"]
+  },
+  {
+    "id": "frontend-developer",
+    "role": "Frontend developer",
+    "jobDescription": "Frontend Developer\nRequirements:\nJavaScript, React, and CSS are required for accessible web interfaces.\nPreferred Qualifications:\nTypeScript is preferred for maintainable applications.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nFrontend Developer | Jan 2022 - Present\n- Developed accessible interfaces with JavaScript, React, and CSS for customer workflows.\n- Maintained typed UI components using TypeScript.\nEDUCATION\nBS Computer Science | 2018 - 2021\nSKILLS\nJavaScript, React, CSS, TypeScript",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nWeb Assistant | Jan 2022 - Present\n- Updated website content and coordinated design reviews.\nEDUCATION\nBS Design | 2018 - 2021\nSKILLS\nCSS",
+    "expectedRequired": ["JavaScript", "React", "CSS"],
+    "expectedPreferred": ["TypeScript"],
+    "expectedPrimaryMatches": ["JavaScript", "React", "CSS", "TypeScript"],
+    "expectedComparisonMissing": ["JavaScript", "React", "TypeScript"]
+  },
+  {
+    "id": "data-analyst",
+    "role": "Data analyst",
+    "jobDescription": "Data Analyst\nRequirements:\nSQL, Microsoft Excel, and Power BI are required for reporting and analysis.\nPreferred Qualifications:\nTableau is preferred for additional visualization work.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nData Analyst | Jan 2022 - Present\n- Analyzed operational data with SQL and Microsoft Excel to support weekly planning.\n- Built Power BI and Tableau dashboards for business reviews.\nEDUCATION\nBS Statistics | 2018 - 2021\nSKILLS\nSQL, Microsoft Excel, Power BI, Tableau",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nReporting Assistant | Jan 2022 - Present\n- Prepared weekly summaries and checked source files.\nEDUCATION\nBS Business | 2018 - 2021\nSKILLS\nMicrosoft Excel",
+    "expectedRequired": ["SQL", "Microsoft Excel", "Power BI"],
+    "expectedPreferred": ["Tableau"],
+    "expectedPrimaryMatches": ["SQL", "Microsoft Excel", "Power BI", "Tableau"],
+    "expectedComparisonMissing": ["SQL", "Power BI", "Tableau"]
+  },
+  {
+    "id": "product-manager",
+    "role": "Product manager",
+    "jobDescription": "Product Manager\nRequirements:\nProduct Management, Agile, and Jira are required for roadmap delivery.\nPreferred Qualifications:\nLeadership is preferred for cross-functional planning.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nProduct Manager | Jan 2022 - Present\n- Led Product Management planning with Agile teams and tracked delivery in Jira.\n- Demonstrated Leadership while coordinating product and engineering decisions.\nEDUCATION\nBS Business | 2018 - 2021\nSKILLS\nProduct Management, Agile, Jira, Leadership",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nProduct Coordinator | Jan 2022 - Present\n- Coordinated meeting notes and maintained planning documents.\nEDUCATION\nBS Business | 2018 - 2021\nSKILLS\nAgile",
+    "expectedRequired": ["Product Management", "Agile", "Jira"],
+    "expectedPreferred": ["Leadership"],
+    "expectedPrimaryMatches": ["Product Management", "Agile", "Jira", "Leadership"],
+    "expectedComparisonMissing": ["Product Management", "Jira", "Leadership"]
+  },
+  {
+    "id": "digital-marketer",
+    "role": "Digital marketer",
+    "jobDescription": "Digital Marketing Specialist\nRequirements:\nSEO, Content Marketing, and Google Ads are required for campaign delivery.\nPreferred Qualifications:\nMarketing Analytics is preferred for performance reporting.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nDigital Marketing Specialist | Jan 2022 - Present\n- Developed SEO and Content Marketing campaigns aligned with customer search needs.\n- Managed Google Ads and used Marketing Analytics for campaign reviews.\nEDUCATION\nBS Marketing | 2018 - 2021\nSKILLS\nSEO, Content Marketing, Google Ads, Marketing Analytics",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nMarketing Assistant | Jan 2022 - Present\n- Scheduled campaign content and coordinated approval meetings.\nEDUCATION\nBS Marketing | 2018 - 2021\nSKILLS\nContent Marketing",
+    "expectedRequired": ["SEO", "Content Marketing", "Google Ads"],
+    "expectedPreferred": ["Marketing Analytics"],
+    "expectedPrimaryMatches": ["SEO", "Content Marketing", "Google Ads", "Marketing Analytics"],
+    "expectedComparisonMissing": ["SEO", "Google Ads", "Marketing Analytics"]
+  },
+  {
+    "id": "accountant",
+    "role": "Accountant",
+    "jobDescription": "Financial Analyst\nRequirements:\nAccounting, Financial Reporting, and Microsoft Excel are required for month-end work.\nPreferred Qualifications:\nQuickBooks is preferred for ledger administration.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nAccountant | Jan 2022 - Present\n- Prepared Accounting reconciliations and Financial Reporting schedules for month-end review.\n- Maintained Microsoft Excel workbooks and QuickBooks ledger records.\nEDUCATION\nBS Accounting | 2018 - 2021\nSKILLS\nAccounting, Financial Reporting, Microsoft Excel, QuickBooks",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nFinance Assistant | Jan 2022 - Present\n- Organized source documents and coordinated monthly reviews.\nEDUCATION\nBS Finance | 2018 - 2021\nSKILLS\nMicrosoft Excel",
+    "expectedRequired": ["Accounting", "Financial Reporting", "Microsoft Excel"],
+    "expectedPreferred": ["QuickBooks"],
+    "expectedPrimaryMatches": ["Accounting", "Financial Reporting", "Microsoft Excel", "QuickBooks"],
+    "expectedComparisonMissing": ["Accounting", "Financial Reporting", "QuickBooks"]
+  },
+  {
+    "id": "customer-support",
+    "role": "Customer support specialist",
+    "jobDescription": "Customer Support Specialist\nRequirements:\nCustomer Support, Zendesk, and Communication are required for case resolution.\nPreferred Qualifications:\nConflict Resolution is preferred for escalated customer cases.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nCustomer Support Specialist | Jan 2022 - Present\n- Delivered Customer Support through Zendesk with clear Communication across customer cases.\n- Applied Conflict Resolution methods to handle escalated conversations.\nEDUCATION\nBA Communication | 2018 - 2021\nSKILLS\nCustomer Support, Zendesk, Communication, Conflict Resolution",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nService Assistant | Jan 2022 - Present\n- Logged incoming questions and updated internal notes.\nEDUCATION\nBA Communication | 2018 - 2021\nSKILLS\nCommunication",
+    "expectedRequired": ["Customer Support", "Zendesk", "Communication"],
+    "expectedPreferred": ["Conflict Resolution"],
+    "expectedPrimaryMatches": ["Customer Support", "Zendesk", "Communication", "Conflict Resolution"],
+    "expectedComparisonMissing": ["Customer Support", "Zendesk", "Conflict Resolution"]
+  },
+  {
+    "id": "project-manager",
+    "role": "Project manager",
+    "jobDescription": "Project Manager\nRequirements:\nProject Management, Agile, and Jira are required for delivery governance.\nPreferred Qualifications:\nScrum is preferred for iterative team planning.",
+    "primaryResume": "Jordan Lee\njordan@example.test\n+1 555 010 1000\nEXPERIENCE\nProject Manager | Jan 2022 - Present\n- Led Project Management governance with Agile teams and maintained delivery plans in Jira.\n- Facilitated Scrum planning for cross-functional workstreams.\nEDUCATION\nBS Management | 2018 - 2021\nSKILLS\nProject Management, Agile, Jira, Scrum",
+    "comparisonResume": "Taylor Kim\ntaylor@example.test\n+1 555 010 1001\nEXPERIENCE\nProject Assistant | Jan 2022 - Present\n- Maintained meeting notes and supported project documentation.\nEDUCATION\nBS Management | 2018 - 2021\nSKILLS\nAgile",
+    "expectedRequired": ["Project Management", "Agile", "Jira"],
+    "expectedPreferred": ["Scrum"],
+    "expectedPrimaryMatches": ["Project Management", "Agile", "Jira", "Scrum"],
+    "expectedComparisonMissing": ["Project Management", "Jira", "Scrum"]
+  }
+]

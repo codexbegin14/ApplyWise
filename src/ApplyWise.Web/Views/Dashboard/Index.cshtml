@@ -111,10 +111,10 @@
 
     <div class="aw-workspace-grid aw-dashboard-secondary">
         <section class="aw-panel">
-            <div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-violet">Resume intelligence</span><h2>Readiness</h2></div><a asp-controller="Analytics" asp-action="ResumePerformance">View analytics</a></div>
+            <div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-violet">Resume intelligence</span><h2>Best ApplyWise Fit</h2></div></div>
             <strong class="aw-score-large">@Model.BestResumeScore.ToString("0.#")%</strong>
-            <p>@(Model.BestResumeVersionName is null ? "Upload and analyze a resume to see your first benchmark." : $"Best match from {Model.BestResumeVersionName}.")</p>
-            <div class="aw-progress"><i style="--aw-progress:@Math.Clamp(Model.BestResumeScore, 0, 100)%"></i></div>
+            <p>@(Model.BestResumeVersionName is null ? "Run a current job analysis to see your first benchmark." : $"Highest current-version job fit from {Model.BestResumeVersionName}.")</p>
+            <div class="aw-progress" role="progressbar" aria-label="Best ApplyWise Fit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Math.Round(Math.Clamp(Model.BestResumeScore, 0, 100))"><i style="--aw-progress:@Math.Clamp(Model.BestResumeScore, 0, 100)%"></i></div>
         </section>
         <section class="aw-panel">
             <div class="aw-section-heading"><div><span class="aw-kicker aw-kicker-amber">Coming up</span><h2>Upcoming tasks</h2></div><a asp-controller="Reminders" asp-action="Index">View reminders</a></div>

@@ -1,10 +1,9 @@
-using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using ResumeAnalysisEntity = ApplyWise.Web.Models.ResumeAnalysis;
 
 namespace ApplyWise.Web.Services.BestResumePicker;
 
@@ -12,7 +11,8 @@ public sealed class BestResumePickerService(
     ApplicationDbContext dbContext,
     IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor,
-    IResumeAnalysisService analysisService) : IBestResumePickerService
+    IResumeAnalysisStore analysisStore,
+    ILogger<BestResumePickerService> logger) : IBestResumePickerService
 {
     private const int MaxResumesPerComparison = 25;
     private sealed record CompletedComparison(Resume Resume, ResumeAnalysisResult Result);
@@ -93,13 +93,17 @@ public sealed class BestResumePickerService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var resumeText = resume.ExtractedText;
+            var extractionStatus = "Cached";
             if (string.IsNullOrWhiteSpace(resumeText))
             {
                 var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
                 if (File.Exists(absolutePath))
                 {
-                    resumeText = await textExtractor.ExtractTextAsync(absolutePath, cancellationToken);
+                    var inspection = await textExtractor.InspectAsync(absolutePath, cancellationToken);
+                    extractionStatus = inspection.Status.ToString();
+                    resumeText = inspection.Text;
                 }
+                else extractionStatus = PdfTextExtractionStatus.Unavailable.ToString();
 
                 if (!string.IsNullOrWhiteSpace(resumeText))
                 {
@@ -120,41 +124,50 @@ public sealed class BestResumePickerService(
                     [],
                     [],
                     [],
-                    "We could not read text from this PDF. Upload a text-based resume PDF to include it in the ranking."));
+                    ExtractionMessage(extractionStatus)));
                 continue;
             }
 
-            var result = analysisService.Analyze(resumeText, jobRequirements);
-            completed.Add(new CompletedComparison(resume, result));
-            dbContext.ResumeAnalyses.Add(new ResumeAnalysisEntity
-            {
-                UserId = userId,
-                ResumeId = resume.Id,
-                JobApplicationId = jobApplicationId,
-                AnalysisType = analysisType,
-                MatchScore = result.MatchScore,
-                MatchedKeywordsJson = JsonSerializer.Serialize(result.MatchedKeywords),
-                MissingKeywordsJson = JsonSerializer.Serialize(result.MissingKeywords),
-                SuggestionsJson = JsonSerializer.Serialize(result.Suggestions),
-                ResumeTextSnapshot = resumeText,
-                JobDescriptionSnapshot = jobRequirements,
-                CreatedAt = comparisonTime
-            });
+            logger.LogInformation(
+                "Best Resume Picker extraction status {ExtractionStatus}. ExtractedChars={ExtractedCharacters}.",
+                extractionStatus,
+                resumeText.Length);
+
+            var stored = await analysisStore.AnalyzeAndStageAsync(
+                resume,
+                resumeText,
+                jobRequirements,
+                jobApplicationId,
+                analysisType,
+                cancellationToken);
+            completed.Add(new CompletedComparison(resume, stored.Result));
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
+        {
+            logger.LogInformation("A concurrent Best Resume Picker request populated one or more identical analysis cache entries.");
+            dbContext.ChangeTracker.Clear();
+        }
 
         var ranked = completed
             .OrderByDescending(item => item.Result.MatchScore)
-            .ThenByDescending(item => item.Result.MatchedKeywords.Count)
-            .ThenBy(item => item.Result.MissingKeywords.Count)
+            .ThenByDescending(item => item.Result.MustHaveCoverage)
+            .ThenByDescending(item => item.Result.RequiredCoverage)
+            .ThenByDescending(item => item.Result.EvidenceQuality)
+            .ThenByDescending(item => item.Result.AtsReadinessScore)
             .ThenByDescending(item => item.Resume.IsDefault)
             .ThenByDescending(item => item.Resume.UploadedAt)
             .ThenBy(item => item.Resume.VersionName)
             .ToList();
 
-        var hasDetectedSkills = ranked.Any(item => item.Result.DetectedJobSkillCount > 0);
-        var winner = hasDetectedSkills ? ranked.FirstOrDefault() : null;
+        var hasDetectedSkills = ranked.Any(item => item.Result.DetectedJobRequirementCount > 0);
+        var winner = hasDetectedSkills && ranked.Count > 0 && ranked[0].Result.ConfidenceScore >= 50
+            ? ranked[0]
+            : null;
         var topScoreCount = winner is null
             ? 0
             : ranked.Count(item => item.Result.MatchScore == winner.Result.MatchScore);
@@ -188,9 +201,23 @@ public sealed class BestResumePickerService(
 
     private static string BuildReason(CompletedComparison winner, int readableCount, int topScoreCount)
     {
-        var coverage = $"It matched {winner.Result.MatchedKeywords.Count} of {winner.Result.DetectedJobSkillCount} detected job skills";
+        var coverage = $"Its ApplyWise Fit is {winner.Result.OverallScore}%, with {winner.Result.MustHaveCoverage:P0} must-have coverage, {winner.Result.RequiredCoverage:P0} required coverage, {winner.Result.EvidenceQuality:P0} evidence quality, and {winner.Result.AtsReadinessScore}% ATS Readiness";
         return topScoreCount > 1
-            ? $"{coverage} and tied for the highest score. Your default or most recent version broke the tie among {readableCount} readable resumes."
-            : $"{coverage}, the strongest coverage among {readableCount} readable resume{(readableCount == 1 ? string.Empty : "s")}.";
+            ? $"{coverage}. It tied for the highest fit score; requirement coverage, evidence, ATS Readiness, then your default/recency settings resolved the tie among {readableCount} readable resumes."
+            : $"{coverage}, the strongest ranked result among {readableCount} readable resume{(readableCount == 1 ? string.Empty : "s")}.";
     }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 };
+
+    private static string ExtractionMessage(string status) => status switch
+    {
+        nameof(PdfTextExtractionStatus.NoText) => "This PDF has no selectable text and may be image-only. Export a text-based PDF to include it in the ranking.",
+        nameof(PdfTextExtractionStatus.Encrypted) => "This PDF is encrypted. Upload an unlocked text-based PDF to include it in the ranking.",
+        nameof(PdfTextExtractionStatus.PageLimitExceeded) => "This PDF exceeds the supported page limit and was not ranked.",
+        nameof(PdfTextExtractionStatus.TextLimitExceeded) => "This PDF exceeds the safe extracted-text limit and was not ranked.",
+        nameof(PdfTextExtractionStatus.TimedOut) => "Text extraction timed out for this PDF, so it was not ranked.",
+        nameof(PdfTextExtractionStatus.Invalid) => "This PDF is invalid or unsupported and was not ranked.",
+        _ => "We could not reliably extract text from this PDF. Upload a valid text-based PDF to include it in the ranking."
+    };
 }
