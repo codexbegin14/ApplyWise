@@ -226,33 +226,27 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
 (() => {
     const key = 'applywise-theme';
     const controls = document.querySelectorAll('[data-theme-toggle]');
-    const buttons = document.querySelectorAll('[data-theme-button]');
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const readSavedTheme = () => {
-        try {
-            const saved = localStorage.getItem(key);
-            return saved === 'dark' || saved === 'light' ? saved : null;
-        } catch { return null; }
-    };
+    const isAuthenticatedWorkspace = document.documentElement.dataset.authenticatedWorkspace === 'true';
     const syncControls = (theme) => {
         const dark = theme === 'dark';
         controls.forEach((control) => {
             if (control instanceof HTMLInputElement) control.checked = dark;
         });
-        buttons.forEach((button) => {
-            button.setAttribute('aria-pressed', String(dark));
-            button.setAttribute('aria-label', `Switch to ${dark ? 'light' : 'dark'} theme`);
-            button.title = `Switch to ${dark ? 'light' : 'dark'} theme`;
-        });
     };
     const applyTheme = (theme, persist = true) => {
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.style.colorScheme = theme;
+        const nextTheme = isAuthenticatedWorkspace && theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = nextTheme;
+        document.documentElement.style.colorScheme = nextTheme;
         if (persist) {
-            try { localStorage.setItem(key, theme); } catch { }
+            try { localStorage.setItem(key, nextTheme); } catch { }
         }
-        syncControls(theme);
+        syncControls(nextTheme);
     };
+
+    if (!isAuthenticatedWorkspace) {
+        applyTheme('light', false);
+        return;
+    }
 
     const initialTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     syncControls(initialTheme);
@@ -260,12 +254,6 @@ document.querySelectorAll('[data-confirm-redirect]').forEach((container) => {
         if (control instanceof HTMLInputElement) {
             control.addEventListener('change', () => applyTheme(control.checked ? 'dark' : 'light'));
         }
-    });
-    buttons.forEach((button) => button.addEventListener('click', () => {
-        applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-    }));
-    systemTheme.addEventListener?.('change', (event) => {
-        if (!readSavedTheme()) applyTheme(event.matches ? 'dark' : 'light', false);
     });
 })();
 

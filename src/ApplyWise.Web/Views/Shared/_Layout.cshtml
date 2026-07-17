@@ -13,7 +13,7 @@
         ?? "ApplyWise helps job seekers track applications, choose the right resume, and apply smarter.";
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-authenticated-workspace="@(isAuthenticated ? "true" : "false")">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,7 +21,7 @@
     <title>@ViewData["Title"] - ApplyWise</title>
     <link rel="icon" type="image/png" href="~/images/applywise-logo-v2.png" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/images/applywise-logo-v2.png" asp-append-version="true" />
-    <script>try{const saved=localStorage.getItem('applywise-theme');const theme=saved==='light'||saved==='dark'?saved:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme}catch{document.documentElement.dataset.theme='light'}</script>
+    <script>try{const workspace=document.documentElement.dataset.authenticatedWorkspace==='true';const saved=workspace?localStorage.getItem('applywise-theme'):null;const theme=workspace&&saved==='dark'?'dark':'light';document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme}catch{document.documentElement.dataset.theme='light';document.documentElement.style.colorScheme='light'}</script>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -72,7 +72,6 @@
                         <label class="visually-hidden" for="globalSearch">Search applications</label>
                         <input id="globalSearch" name="SearchTerm" type="search" placeholder="Search applications..." />
                     </form>
-                    <button class="aw-theme-button" type="button" data-theme-button aria-label="Switch to dark theme" aria-pressed="false"><span class="aw-theme-sun" aria-hidden="true">☼</span><span class="aw-theme-moon" aria-hidden="true">☾</span></button>
                     <partial name="_LoginPartial" />
                 </div>
             </header>
@@ -110,7 +109,6 @@ else
                         <a href="#how-to-use">How to Use</a>
                     </div>
                     <div class="aw-home-nav-actions">
-                        <button class="aw-theme-button" type="button" data-theme-button aria-label="Switch to dark theme" aria-pressed="false"><span class="aw-theme-sun" aria-hidden="true">☼</span><span class="aw-theme-moon" aria-hidden="true">☾</span></button>
                         <a class="aw-home-sign-in" asp-area="Identity" asp-page="/Account/Login">Sign In</a>
                         <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Get Started</a>
                     </div>
@@ -123,7 +121,6 @@ else
     {
         <header class="public-header public-header-compact">
             <a class="brand" asp-controller="Home" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
-            <button class="aw-theme-button" type="button" data-theme-button aria-label="Switch to dark theme" aria-pressed="false"><span class="aw-theme-sun" aria-hidden="true">☼</span><span class="aw-theme-moon" aria-hidden="true">☾</span></button>
         </header>
         <main id="main-content" role="main">@RenderBody()</main>
     }
