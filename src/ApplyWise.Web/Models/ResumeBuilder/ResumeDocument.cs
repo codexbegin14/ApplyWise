@@ -7,9 +7,11 @@ namespace ApplyWise.Web.Models.ResumeBuilder;
 /// </summary>
 public sealed class ResumeDocument
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 3;
+    public const string DefaultTemplateId = "classic";
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
+    public string TemplateId { get; init; } = DefaultTemplateId;
     public PersonalInformation PersonalInformation { get; init; } = new();
     public string ProfessionalSummary { get; init; } = string.Empty;
     public List<EducationEntry> Education { get; init; } = [];
@@ -19,6 +21,7 @@ public sealed class ResumeDocument
     public List<AchievementCertificationEntry> AchievementsAndCertifications { get; init; } = [];
     public List<LanguageEntry> Languages { get; init; } = [];
     public List<VolunteerExperienceEntry> VolunteerExperience { get; init; } = [];
+    public List<ReferenceEntry> References { get; init; } = [];
     public List<string> Interests { get; init; } = [];
     public List<CustomSection> CustomSections { get; init; } = [];
     public List<ResumeSectionDescriptor> Sections { get; init; } = ResumeSectionCatalog.CreateDefault();
@@ -34,6 +37,7 @@ public sealed class PersonalInformation
     public string LinkedInUrl { get; init; } = string.Empty;
     public string GitHubUrl { get; init; } = string.Empty;
     public string PortfolioUrl { get; init; } = string.Empty;
+    public string ProfilePhotoDataUrl { get; init; } = string.Empty;
 }
 
 public sealed class EducationEntry
@@ -110,6 +114,16 @@ public sealed class VolunteerExperienceEntry
     public string EndDate { get; init; } = string.Empty;
     public bool IsCurrentlyVolunteering { get; init; }
     public List<string> BulletPoints { get; init; } = [];
+}
+
+public sealed class ReferenceEntry
+{
+    public string Id { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
+    public string JobTitle { get; init; } = string.Empty;
+    public string Company { get; init; } = string.Empty;
+    public string EmailAddress { get; init; } = string.Empty;
+    public string PhoneNumber { get; init; } = string.Empty;
 }
 
 public sealed class CustomSection

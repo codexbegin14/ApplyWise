@@ -212,6 +212,27 @@ public static class ResumeSampleFactory
                 ]
             }
         ],
+        References =
+        [
+            new ReferenceEntry
+            {
+                Id = "reference-priya-shah",
+                FullName = "Priya Shah",
+                JobTitle = "Engineering Manager",
+                Company = "Example Labs",
+                EmailAddress = "priya.shah@example.com",
+                PhoneNumber = "+1 415 555 0168"
+            },
+            new ReferenceEntry
+            {
+                Id = "reference-daniel-kim",
+                FullName = "Daniel Kim",
+                JobTitle = "Faculty Advisor",
+                Company = "Northbridge University",
+                EmailAddress = "daniel.kim@example.com",
+                PhoneNumber = "+1 415 555 0181"
+            }
+        ],
         Interests = ["Open-source software", "Competitive programming", "System design"],
         CustomSections =
         [

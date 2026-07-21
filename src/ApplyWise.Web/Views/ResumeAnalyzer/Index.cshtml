@@ -1,47 +1,131 @@
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalyzerIndexViewModel
 @{
-    ViewData["Title"] = "Resume Analyzer";
+    ViewData["Title"] = "Resume Tools";
     var hasResumes = Model.AvailableResumes.Count > 0;
+    var isJobMode = string.Equals(Model.Mode, "job", StringComparison.OrdinalIgnoreCase);
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/resume-analyzer.css" asp-append-version="true" />
 }
 
-<div class="aw-page aw-fade-in">
+<div class="aw-page aw-ra-page aw-fade-in">
     <section class="aw-tool-hero aw-slide-up">
-        <div><span class="aw-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Guided resume check</span><h2>Test your resume before you apply.</h2><p>Choose a resume, add the role requirements, and get clear visual feedback in seconds.</p></div>
-        <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Let's find your strongest match.</b><small>Wiso will guide the next step.</small></span></div>
+        @if (isJobMode)
+        {
+            <div>
+                <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg>Job-specific review</span>
+                <h2>See how well your resume fits a role.</h2>
+                <p>Choose a saved resume and paste the real job description to find missing requirements and weak evidence.</p>
+            </div>
+            <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Match evidence, not buzzwords.</b><small>Only add experience that is true.</small></span></div>
+        }
+        else
+        {
+            <div>
+                <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>ATS Resume Check</span>
+                <h2>Upload your resume. See what is missing.</h2>
+                <p>No job description needed. Get an ATS readiness score, missing-section checks, and clear instructions for improving your resume.</p>
+            </div>
+            <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>One PDF. Practical fixes.</b><small>Your report stays private in ApplyWise.</small></span></div>
+        }
     </section>
 
-    <partial name="_AnalyzerTabs" model='"pasted"' />
+    <partial name="_AnalyzerTabs" model="Model.Mode" />
 
-    <div class="aw-stepper" aria-label="Analysis workflow"><span class="is-active"><b>1</b>Choose resume</span><i></i><span><b>2</b>Add requirements</span><i></i><span><b>3</b>Review match</span></div>
+    @if (isJobMode)
+    {
+        <div class="aw-stepper" aria-label="Job match workflow"><span class="is-active"><b>1</b>Choose resume</span><i></i><span><b>2</b>Add job description</span><i></i><span><b>3</b>Review match</span></div>
 
-    <div class="aw-analyzer-grid aw-slide-up">
-        <section class="aw-panel aw-analyzer-form">
-            @if (!hasResumes)
-            {
-                <div class="aw-inline-notice"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-file" /></svg></span><div><strong>Your resume library is empty</strong><p>Upload one version to unlock guided matching.</p></div><a class="btn btn-sm btn-primary" asp-controller="Resumes" asp-action="Create">Upload Resume</a></div>
-            }
+        <div class="aw-analyzer-grid aw-slide-up">
+            <section class="aw-panel aw-analyzer-form">
+                @if (!hasResumes)
+                {
+                    <div class="aw-inline-notice"><span class="aw-stat-icon"><svg class="ui-icon"><use href="#i-file" /></svg></span><div><strong>Your resume library is empty</strong><p>Upload a resume from the ATS Resume Check tab first.</p></div><a class="btn btn-sm btn-primary" asp-action="Index" asp-route-mode="ats">Upload resume</a></div>
+                }
 
-            <div class="aw-section-heading"><div><span class="aw-kicker">ATS or job comparison</span><h3>Review this resume</h3><p>Leave the job description blank for ATS Readiness only, or paste the real description for Job Match.</p></div><span class="aw-count-badge">1 resume</span></div>
-            <form asp-action="AnalyzePastedRequirements" method="post" class="aw-guided-form">
-                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
-                <label class="aw-field"><span class="aw-field-label"><b>1</b><span><strong>Resume to test</strong><small>Pick the version closest to this role.</small></span></span><select asp-for="Pasted.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select><span asp-validation-for="Pasted.ResumeId" class="field-validation-error"></span></label>
-                <label class="aw-field"><span class="aw-field-label"><b>2</b><span><strong>Job requirements <em>(optional)</em></strong><small>Paste the original description for requirement-specific matching.</small></span></span><textarea asp-for="Pasted.JobRequirements" class="form-control requirements-textarea" rows="11" placeholder="Optional: paste responsibilities, required skills, tools, experience, and qualifications..."></textarea><span class="aw-textarea-meta"><small>Blank = ATS-only review</small><small>30–8,000 characters when supplied</small></span><span asp-validation-for="Pasted.JobRequirements" class="field-validation-error"></span></label>
-                <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes)"><svg class="ui-icon"><use href="#i-spark" /></svg>Analyze Resume <span>&rarr;</span></button>
-            </form>
-        </section>
+                <div class="aw-section-heading"><div><span class="aw-kicker">Job Match</span><h3>Compare this resume with a role</h3><p>Use the complete job description so the report can check skills, responsibilities, and qualifications.</p></div><span class="aw-count-badge">1 resume</span></div>
+                <form asp-action="AnalyzePastedRequirements" method="post" class="aw-guided-form">
+                    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                    <label class="aw-field">
+                        <span class="aw-field-label"><b>1</b><span><strong>Resume to test</strong><small>Pick the version you would send for this role.</small></span></span>
+                        <select asp-for="Pasted.ResumeId" asp-items="Model.AvailableResumes" class="form-select" disabled="@(!hasResumes)"><option value="">Select a resume</option></select>
+                        <span asp-validation-for="Pasted.ResumeId" class="field-validation-error"></span>
+                    </label>
+                    <label class="aw-field">
+                        <span class="aw-field-label"><b>2</b><span><strong>Job description</strong><small>Paste the original responsibilities, skills, and qualifications.</small></span></span>
+                        <textarea asp-for="Pasted.JobRequirements" class="form-control requirements-textarea" rows="11" minlength="30" maxlength="8000" required placeholder="Paste the complete job description here..."></textarea>
+                        <span class="aw-textarea-meta"><small>Required for Job Match</small><small>30–8,000 characters</small></span>
+                        <span asp-validation-for="Pasted.JobRequirements" class="field-validation-error"></span>
+                    </label>
+                    <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes)"><svg class="ui-icon"><use href="#i-spark" /></svg>Check job match <span>&rarr;</span></button>
+                </form>
+            </section>
 
-        <aside class="aw-panel aw-helper-panel">
-            <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Wiso's checklist</span><h3>Three things make a better match</h3></div></div>
-            <div class="aw-tip-list"><div><b>1</b><span><strong>Paste the real description</strong><small>Keep its skills and requirements intact.</small></span></div><div><b>2</b><span><strong>Choose one resume</strong><small>Test the version you would actually send.</small></span></div><div><b>3</b><span><strong>Review the gaps</strong><small>Only add experience you genuinely have.</small></span></div></div>
-            <div class="aw-privacy-note"><span>&check;</span><p><strong>Private and explainable</strong><small>Your resume and requirements stay inside ApplyWise.</small></p></div>
-        </aside>
-    </div>
+            <aside class="aw-panel aw-helper-panel">
+                <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Before you compare</span><h3>Use accurate source material</h3></div></div>
+                <div class="aw-tip-list"><div><b>1</b><span><strong>Paste the real posting</strong><small>Keep requirements and responsibilities intact.</small></span></div><div><b>2</b><span><strong>Choose the sent version</strong><small>Test the exact resume you plan to use.</small></span></div><div><b>3</b><span><strong>Keep every edit truthful</strong><small>Strengthen real evidence; never invent experience.</small></span></div></div>
+                <div class="aw-privacy-note"><span>&check;</span><p><strong>Private and explainable</strong><small>Your report shows why each change is recommended.</small></p></div>
+            </aside>
+        </div>
+    }
+    else
+    {
+        <div class="aw-stepper" aria-label="ATS check workflow"><span class="is-active"><b>1</b>Upload PDF</span><i></i><span><b>2</b>Run ATS checks</span><i></i><span><b>3</b>Update resume</span></div>
 
-    @if (Model.LatestResult is not null) { <partial name="_AnalysisResult" model="Model.LatestResult" /> }
+        <div class="aw-analyzer-grid aw-slide-up">
+            <section class="aw-panel aw-analyzer-form aw-ats-upload-panel">
+                <div class="aw-section-heading">
+                    <div><span class="aw-kicker">Start a new check</span><h3>Add your resume PDF</h3><p>We will save it privately to your resume library, extract its text, and create an actionable ATS report.</p></div>
+                    <span class="aw-count-badge">PDF · 5 MB max</span>
+                </div>
+
+                <form asp-action="AnalyzeAtsUpload" method="post" enctype="multipart/form-data" class="aw-guided-form aw-ats-upload-form">
+                    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                    <label class="aw-ats-dropzone" asp-for="Upload.ResumeFile">
+                        <span class="aw-ats-file-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-file" /></svg></span>
+                        <span><strong data-ats-file-name>Choose your resume PDF</strong><small data-ats-file-help>Use a text-based, unlocked PDF. Scanned image-only files cannot be analyzed.</small></span>
+                        <span class="btn btn-secondary-soft btn-sm">Browse file</span>
+                        <input asp-for="Upload.ResumeFile" type="file" accept=".pdf,application/pdf" aria-describedby="ats-upload-help" data-ats-upload-input />
+                    </label>
+                    <small id="ats-upload-help" class="aw-ats-upload-help">PDF only · maximum 5 MB · the file name becomes the saved resume name</small>
+                    <span asp-validation-for="Upload.ResumeFile" class="field-validation-error"></span>
+                    <button class="btn btn-primary btn-analyze" type="submit"><svg class="ui-icon"><use href="#i-spark" /></svg>Check my resume <span>&rarr;</span></button>
+                </form>
+            </section>
+
+            <aside class="aw-panel aw-helper-panel aw-ats-report-preview">
+                <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Your ATS report</span><h3>What you will receive</h3></div></div>
+                <div class="aw-tip-list"><div><b>1</b><span><strong>What is missing</strong><small>Contact details, standard sections, dates, skills, and resume structure.</small></span></div><div><b>2</b><span><strong>What needs rewriting</strong><small>Weak bullets, vague evidence, and hard-to-read content.</small></span></div><div><b>3</b><span><strong>How to update it</strong><small>Prioritized actions, reasons, and truthful rewrite patterns.</small></span></div></div>
+                <div class="aw-privacy-note"><span>&check;</span><p><strong>No job description required</strong><small>This check measures general ATS readiness. Use Job Match for a specific role.</small></p></div>
+            </aside>
+        </div>
+
+        @if (hasResumes)
+        {
+            <section class="aw-panel aw-ats-saved-panel aw-slide-up" aria-labelledby="saved-ats-heading">
+                <div class="aw-section-heading">
+                    <div><span class="aw-kicker">Already in your library</span><h3 id="saved-ats-heading">Check a saved resume</h3><p>Run a fresh ATS-only report without uploading the same file again.</p></div>
+                </div>
+                <form asp-action="AnalyzeSavedResumeAts" method="post" class="aw-ats-saved-form" data-saved-ats-form>
+                    <label class="aw-field">
+                        <span class="visually-hidden">Saved resume</span>
+                        <select asp-for="SavedAts.ResumeId" asp-items="Model.AvailableResumes" class="form-select"><option value="">Select a resume</option></select>
+                        <span asp-validation-for="SavedAts.ResumeId" class="field-validation-error"></span>
+                    </label>
+                    <button class="btn btn-secondary-soft" type="submit" data-saved-ats-submit>Check saved resume</button>
+                </form>
+            </section>
+        }
+    }
+
+    @if (Model.LatestResult is not null)
+    {
+        <partial name="@(Model.LatestResult.IsLegacy ? "_AnalysisResult" : "_CompactAnalysisResult")" model="Model.LatestResult" />
+    }
 </div>
 
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/resume-analyzer.js" asp-append-version="true"></script>
+}

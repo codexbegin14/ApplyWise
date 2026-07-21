@@ -1,12 +1,17 @@
+using System.Security.Claims;
 using ApplyWise.Web.Controllers;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.BestResumePicker;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
+using ApplyWise.Web.ViewModels.ResumeAnalyzer;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -122,6 +127,7 @@ public sealed class ResumeAnalysisIntegrationTests
         var methods = new[]
         {
             typeof(ResumeAnalyzerController).GetMethod(nameof(ResumeAnalyzerController.AnalyzePastedRequirements))!,
+            typeof(ResumeAnalyzerController).GetMethod(nameof(ResumeAnalyzerController.AnalyzeSavedResumeAts))!,
             typeof(ResumeAnalyzerController).GetMethod(nameof(ResumeAnalyzerController.AnalyzeSavedApplication))!,
             typeof(BestResumePickerController).GetMethod(nameof(BestResumePickerController.Compare))!,
             typeof(BestResumePickerController).GetMethod(nameof(BestResumePickerController.CompareResumesWithPastedRequirements))!
@@ -134,6 +140,87 @@ public sealed class ResumeAnalysisIntegrationTests
                 method.GetCustomAttributes(typeof(EnableRateLimitingAttribute), true).Single());
             Assert.Equal("resume-analysis", rateLimit.PolicyName);
         });
+    }
+
+    [Fact]
+    public async Task Saved_resume_ats_check_persists_the_score_and_redirects_to_the_report()
+    {
+        const string userId = "saved-ats-user";
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddControllersWithViews();
+        services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseInMemoryDatabase("saved-ats-controller-" + Guid.NewGuid().ToString("N")));
+        services.AddIdentityCore<IdentityUser>()
+            .AddEntityFrameworkStores<ApplicationDbContext>();
+
+        await using var provider = services.BuildServiceProvider();
+        var db = provider.GetRequiredService<ApplicationDbContext>();
+        db.Users.Add(new IdentityUser { Id = userId, UserName = "saved-ats@example.test" });
+        var resume = CreateResume(userId, "QA", ResumeWithExperience());
+        db.Resumes.Add(resume);
+        await db.SaveChangesAsync();
+
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = provider,
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, userId)],
+                authenticationType: "Test"))
+        };
+        var controller = new ResumeAnalyzerController(
+            db,
+            provider.GetRequiredService<UserManager<IdentityUser>>(),
+            new UnusedStorageService(),
+            new UnusedTextExtractor(),
+            new UnusedIngestionService(),
+            CreateStore(db),
+            NullLogger<ResumeAnalyzerController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
+        };
+
+        var action = await controller.AnalyzeSavedResumeAts(
+            new SavedAtsAnalysisViewModel { ResumeId = resume.Id });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(action);
+        Assert.Equal(nameof(ResumeAnalyzerController.Index), redirect.ActionName);
+        var analysisId = Assert.IsType<int>(redirect.RouteValues!["analysisId"]);
+        Assert.Equal($"analysis-result-{analysisId}", redirect.Fragment);
+
+        var analysis = await db.ResumeAnalyses.SingleAsync(item => item.Id == analysisId);
+        Assert.Equal(userId, analysis.UserId);
+        Assert.Equal(resume.Id, analysis.ResumeId);
+        Assert.Equal(ResumeAnalysisType.PastedRequirements, analysis.AnalysisType);
+        Assert.True(string.IsNullOrEmpty(analysis.JobDescriptionSnapshot));
+        Assert.NotNull(analysis.AtsReadinessScore);
+        Assert.Null(analysis.JobMatchScore);
+
+        var page = Assert.IsType<ViewResult>(await controller.Index(null, null, null, analysisId));
+        var pageModel = Assert.IsType<AnalyzerIndexViewModel>(page.Model);
+        Assert.Equal("ats", pageModel.Mode);
+        Assert.NotNull(pageModel.LatestResult);
+        Assert.Equal(analysis.AtsReadinessScore, pageModel.LatestResult.AtsReadinessScore);
+        Assert.False(pageModel.LatestResult.HasJobMatch);
+    }
+
+    [Fact]
+    public void Direct_ats_upload_is_antiforgery_protected_rate_limited_and_size_bounded()
+    {
+        var method = typeof(ResumeAnalyzerController)
+            .GetMethod(nameof(ResumeAnalyzerController.AnalyzeAtsUpload))!;
+
+        Assert.NotNull(method.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), true).SingleOrDefault());
+        var rateLimit = Assert.IsType<EnableRateLimitingAttribute>(
+            method.GetCustomAttributes(typeof(EnableRateLimitingAttribute), true).Single());
+        Assert.Equal("uploads", rateLimit.PolicyName);
+        Assert.IsType<RequestSizeLimitAttribute>(
+            method.GetCustomAttributes(typeof(RequestSizeLimitAttribute), true).Single());
+        var requestLimit = method.CustomAttributes.Single(attribute =>
+            attribute.AttributeType == typeof(RequestSizeLimitAttribute));
+        Assert.Equal(
+            ResumeIngestionLimits.MaxFileSizeBytes + ResumeIngestionLimits.RequestOverheadBytes,
+            Assert.IsType<long>(requestLimit.ConstructorArguments.Single().Value));
     }
 
     private static ApplicationDbContext CreateDbContext()
@@ -221,6 +308,14 @@ public sealed class ResumeAnalysisIntegrationTests
             throw new NotSupportedException();
 
         public Task<PdfTextExtractionResult> InspectAsync(string filePath, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class UnusedIngestionService : IResumeIngestionService
+    {
+        public Task<ResumeIngestionResult> IngestAsync(
+            ResumeIngestionRequest request,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 }

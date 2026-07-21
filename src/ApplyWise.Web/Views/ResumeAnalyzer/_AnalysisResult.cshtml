@@ -30,6 +30,7 @@
 <section id="@resultId"
          class="aw-ra-result aw-slide-up"
          data-analysis-result="@Model.Id"
+         tabindex="-1"
          aria-labelledby="@($"{resultId}-title")">
     <header class="aw-ra-result-header">
         <div>
@@ -255,7 +256,10 @@
                 <div class="aw-ra-filter-bar" data-review-filters role="group" aria-label="Filter top improvements">
                     <button class="is-active" type="button" data-review-filter="all" aria-pressed="true" aria-controls="@($"{resultId}-improvement-list")">All <span>@topImprovements.Length</span></button>
                     <button type="button" data-review-filter="critical" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Critical <span>@topImprovements.Count(item => item.Priority == ReviewPriority.Critical)</span></button>
-                    <button type="button" data-review-filter="job" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Job Match <span>@FilterCount(topImprovements, "job")</span></button>
+                    @if (Model.HasJobMatch)
+                    {
+                        <button type="button" data-review-filter="job" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Job Match <span>@FilterCount(topImprovements, "job")</span></button>
+                    }
                     <button type="button" data-review-filter="ats" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">ATS Readiness <span>@FilterCount(topImprovements, "ats")</span></button>
                     <button type="button" data-review-filter="content" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Content <span>@FilterCount(topImprovements, "content")</span></button>
                     <button type="button" data-review-filter="formatting" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Formatting <span>@FilterCount(topImprovements, "formatting")</span></button>
@@ -311,7 +315,7 @@
             }
         </section>
 
-        <div class="aw-ra-two-column aw-ra-diagnostic-grid">
+        <div class="aw-ra-two-column aw-ra-diagnostic-grid @(!Model.HasJobMatch ? "is-single" : null)">
             <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-parsing")">
                 <div class="aw-ra-panel-heading">
                     <div><span class="aw-kicker aw-kicker-green">ATS foundation</span><h3 id="@($"{resultId}-parsing")">ATS parsing</h3><p>Whether selectable resume text could be extracted and interpreted.</p></div>
@@ -347,6 +351,8 @@
                 }
             </section>
 
+            @if (Model.HasJobMatch)
+            {
             <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-coverage")">
                 <div class="aw-ra-panel-heading">
                     <div><span class="aw-kicker aw-kicker-violet">Role evidence</span><h3 id="@($"{resultId}-coverage")">Requirement coverage</h3><p>Coverage is based only on the supplied job description and detected resume evidence.</p></div>
@@ -410,11 +416,12 @@
                     <p class="aw-ra-footnote">@Model.DetectedJobRequirementCount total job requirements were detected.</p>
                 }
             </section>
+            }
         </div>
 
         <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-sections")">
             <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker">Resume anatomy</span><h3 id="@($"{resultId}-sections")">Section reviews</h3><p>Detected structure, strengths, problems, and section-specific improvements.</p></div>
+                <div><span class="aw-kicker">Resume anatomy</span><h3 id="@($"{resultId}-sections")">@(Model.HasJobMatch ? "Section reviews" : "What is missing by section")</h3><p>@(Model.HasJobMatch ? "Detected structure, strengths, problems, and section-specific improvements." : "Open each section to see what was found, what is missing, and exactly how to improve it.")</p></div>
                 <span class="aw-ra-count">@Model.SectionReviews.Count</span>
             </div>
             @if (Model.SectionReviews.Count == 0)
@@ -465,7 +472,7 @@
 
         <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-bullets")">
             <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker aw-kicker-amber">Evidence quality</span><h3 id="@($"{resultId}-bullets")">Bullet reviews</h3><p>Action, method, outcome, measurable support, and readable length.</p></div>
+                <div><span class="aw-kicker aw-kicker-amber">Evidence quality</span><h3 id="@($"{resultId}-bullets")">How to strengthen your bullets</h3><p>Review action, method, outcome, measurable support, and readable length.</p></div>
                 <span class="aw-ra-count">@Model.BulletReviews.Count</span>
             </div>
             @if (Model.BulletReviews.Count == 0)
@@ -514,6 +521,8 @@
             }
         </section>
 
+        @if (Model.HasJobMatch)
+        {
         <div class="aw-ra-two-column aw-ra-evidence-grid">
             <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-evidence")">
                 <div class="aw-ra-panel-heading">
@@ -588,6 +597,7 @@
                 }
             </section>
         </div>
+        }
 
         <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-lower-priority")">
             <div class="aw-ra-panel-heading">

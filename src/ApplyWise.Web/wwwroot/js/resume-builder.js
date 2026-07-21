@@ -21,9 +21,11 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    const SCHEMA_VERSION = 1;
+    const SCHEMA_VERSION = 3;
     const LIMITS = Object.freeze({
         draftBytes: 512000,
+        photoDataUrl: 320000,
+        photoFileBytes: 8000000,
         shortText: 180,
         name: 120,
         email: 254,
@@ -45,7 +47,19 @@
         projects: 3,
         achievementsAndCertifications: 3
     });
-    const READINESS_DEBOUNCE_MS = 600;
+    const DEFAULT_TEMPLATE_ID = 'classic';
+    const TEMPLATE_CATALOG = Object.freeze([
+        Object.freeze({ id: 'classic', name: 'Editorial', font: 'Roboto', description: 'A refined photo-free resume with formal two-column structure.', accent: '#4b5563', layout: 'editorial-columns', hasPhoto: false }),
+        Object.freeze({ id: 'emerald', name: 'Emerald', font: 'Poppins', description: 'A confident portrait resume with a deep green career sidebar.', accent: '#17633a', layout: 'emerald-sidebar', hasPhoto: true }),
+        Object.freeze({ id: 'modern', name: 'Slate', font: 'Poppins', description: 'A polished portrait resume with a structured navy sidebar.', accent: '#17324d', layout: 'slate-sidebar', hasPhoto: true }),
+        Object.freeze({ id: 'executive', name: 'Executive', font: 'Poppins', description: 'A leadership-focused portrait resume with a bold olive banner.', accent: '#777517', layout: 'executive-banner', hasPhoto: true }),
+        Object.freeze({ id: 'compact', name: 'Azure', font: 'Poppins', description: 'A bright portrait resume with a compact blue profile column.', accent: '#5b86b5', layout: 'azure-profile', hasPhoto: true }),
+        Object.freeze({ id: 'minimal', name: 'Minimal', font: 'Roboto', description: 'A clean single-column resume with generous spacing and simple rules.', accent: '#2563eb', layout: 'minimal-single-column', hasPhoto: false }),
+        Object.freeze({ id: 'corporate', name: 'Corporate', font: 'Poppins', description: 'A polished blue nameplate with a focused credentials column.', accent: '#243b64', layout: 'corporate-header', hasPhoto: false }),
+        Object.freeze({ id: 'timeline', name: 'Timeline', font: 'Roboto', description: 'A modern teal-accent layout that keeps the career story easy to scan.', accent: '#0f766e', layout: 'timeline-accent-rail', hasPhoto: false }),
+        Object.freeze({ id: 'studio', name: 'Studio', font: 'Poppins', description: 'A refined portrait layout with a plum header and balanced columns.', accent: '#6d4c7d', layout: 'studio-photo-header', hasPhoto: true })
+    ]);
+    const TEMPLATE_IDS = new Set(TEMPLATE_CATALOG.map(function (template) { return template.id; }));
 
     const SECTION_DEFAULTS = Object.freeze([
         Object.freeze({ key: 'professionalSummary', title: 'Professional Summary', isVisible: true }),
@@ -56,6 +70,7 @@
         Object.freeze({ key: 'achievementsAndCertifications', title: 'Achievements & Certifications', isVisible: true }),
         Object.freeze({ key: 'languages', title: 'Languages', isVisible: false }),
         Object.freeze({ key: 'volunteerExperience', title: 'Volunteer Experience', isVisible: false }),
+        Object.freeze({ key: 'references', title: 'References', isVisible: false }),
         Object.freeze({ key: 'interests', title: 'Interests', isVisible: false }),
         Object.freeze({ key: 'customSections', title: 'Custom Sections', isVisible: false })
     ]);
@@ -67,10 +82,25 @@
         ['projects', 'projects'],
         ['education', 'education'],
         ['skills', 'skills'],
+        ['references', 'references'],
+        ['languages', 'languages'],
+        ['volunteerexperience', 'volunteerExperience'],
+        ['interests', 'interests'],
+        ['customsections', 'customSections'],
         ['achievements', 'achievementsAndCertifications'],
         ['certifications', 'achievementsAndCertifications'],
         ['achievementsandcertifications', 'achievementsAndCertifications']
     ]);
+    const EDITOR_TAB_GROUPS = Object.freeze({
+        personal: Object.freeze(['personalInformation']),
+        summary: Object.freeze(['professionalSummary']),
+        experience: Object.freeze(['experience']),
+        education: Object.freeze(['education']),
+        skills: Object.freeze(['skills']),
+        projects: Object.freeze(['projects']),
+        more: Object.freeze(['achievementsAndCertifications', 'languages', 'volunteerExperience', 'references', 'interests', 'customSections']),
+        arrange: Object.freeze(['arrange'])
+    });
     const MONTHS = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
     const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
     let runtimeId = 0;
@@ -98,8 +128,34 @@
         return section ? '[data-editor-section="' + section + '"]' : '';
     }
 
+    function editorTabForSection(value) {
+        const section = normalizeBuilderSection(value) || text(value, 64);
+        const tab = Object.keys(EDITOR_TAB_GROUPS).find(function (key) {
+            return EDITOR_TAB_GROUPS[key].includes(section);
+        });
+        return tab || 'personal';
+    }
+
     function boolean(value) {
         return value === true;
+    }
+
+    function normalizeTemplateId(value) {
+        const candidate = text(value, 40).toLocaleLowerCase();
+        return TEMPLATE_IDS.has(candidate) ? candidate : DEFAULT_TEMPLATE_ID;
+    }
+
+    function templateMetadata(value) {
+        const id = normalizeTemplateId(value);
+        return TEMPLATE_CATALOG.find(function (template) { return template.id === id; }) || TEMPLATE_CATALOG[0];
+    }
+
+    function normalizeProfilePhotoDataUrl(value) {
+        if (typeof value !== 'string') return '';
+        const candidate = value.trim();
+        if (!candidate || candidate.length > LIMITS.photoDataUrl) return '';
+        const match = /^data:image\/(?:png|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(candidate);
+        return match && match[1].length % 4 === 0 ? candidate : '';
     }
 
     function array(value, maximum) {
@@ -138,6 +194,7 @@
     function createEmptyState() {
         return {
             schemaVersion: SCHEMA_VERSION,
+            templateId: DEFAULT_TEMPLATE_ID,
             personalInformation: {
                 fullName: '',
                 professionalTitle: '',
@@ -146,7 +203,8 @@
                 location: '',
                 linkedInUrl: '',
                 gitHubUrl: '',
-                portfolioUrl: ''
+                portfolioUrl: '',
+                profilePhotoDataUrl: ''
             },
             professionalSummary: '',
             education: [],
@@ -156,6 +214,7 @@
             achievementsAndCertifications: [],
             languages: [],
             volunteerExperience: [],
+            references: [],
             interests: [],
             customSections: [],
             sections: SECTION_DEFAULTS.map(function (section) { return Object.assign({}, section); })
@@ -172,7 +231,8 @@
             location: text(source.location, LIMITS.shortText),
             linkedInUrl: text(source.linkedInUrl, LIMITS.url),
             gitHubUrl: text(source.gitHubUrl, LIMITS.url),
-            portfolioUrl: text(source.portfolioUrl, LIMITS.url)
+            portfolioUrl: text(source.portfolioUrl, LIMITS.url),
+            profilePhotoDataUrl: normalizeProfilePhotoDataUrl(source.profilePhotoDataUrl)
         };
     }
 
@@ -266,6 +326,18 @@
         };
     }
 
+    function normalizeReference(item, index) {
+        const source = isRecord(item) ? item : {};
+        return {
+            id: safeId(source.id, 'reference', index),
+            fullName: text(source.fullName, LIMITS.name),
+            jobTitle: text(source.jobTitle, LIMITS.shortText),
+            company: text(source.company, LIMITS.shortText),
+            emailAddress: text(source.emailAddress, LIMITS.email),
+            phoneNumber: text(source.phoneNumber, 40)
+        };
+    }
+
     function normalizeCustomEntry(item, index, sectionIndex) {
         const source = isRecord(item) ? item : {};
         return {
@@ -318,6 +390,7 @@
         const source = isRecord(value) ? value : {};
         return {
             schemaVersion: SCHEMA_VERSION,
+            templateId: normalizeTemplateId(source.templateId),
             personalInformation: normalizePersonal(source.personalInformation),
             professionalSummary: text(source.professionalSummary, LIMITS.summary),
             education: array(source.education, LIMITS.entries).map(normalizeEducation),
@@ -327,6 +400,7 @@
             achievementsAndCertifications: array(source.achievementsAndCertifications, LIMITS.entries).map(normalizeAchievement),
             languages: array(source.languages, LIMITS.entries).map(normalizeLanguage),
             volunteerExperience: array(source.volunteerExperience, LIMITS.entries).map(normalizeVolunteer),
+            references: array(source.references, LIMITS.entries).map(normalizeReference),
             interests: uniqueStrings(source.interests, LIMITS.tags, LIMITS.tag),
             customSections: array(source.customSections, LIMITS.customSections).map(normalizeCustomSection),
             sections: normalizeSections(source.sections)
@@ -432,6 +506,11 @@
             if (entry.credentialUrl && !isHttpUrl(entry.credentialUrl)) errors[base + '.credentialUrl'] = 'Enter a complete http:// or https:// URL.';
         });
         state.volunteerExperience.forEach(function (entry, index) { addDateRangeErrors(errors, 'volunteerExperience.' + index, entry, 'isCurrentlyVolunteering'); });
+        state.references.forEach(function (entry, index) {
+            const base = 'references.' + index;
+            if (entry.emailAddress && !isEmail(entry.emailAddress)) errors[base + '.emailAddress'] = 'Enter a valid email address.';
+            if (entry.phoneNumber && !isPhone(entry.phoneNumber)) errors[base + '.phoneNumber'] = 'Enter a valid phone number with 7 to 15 digits.';
+        });
         state.customSections.forEach(function (section, sectionIndex) {
             section.entries.forEach(function (entry, entryIndex) {
                 const base = 'customSections.' + sectionIndex + '.entries.' + entryIndex;
@@ -542,129 +621,6 @@
         return { metrics: metrics, exceeded: exceeded };
     }
 
-    function evaluateDraftReadiness(value) {
-        const state = normalizeState(value);
-        const validationErrors = validateState(state);
-        const visibleSections = new Set(state.sections.filter(function (section) { return section.isVisible; }).map(function (section) { return section.key; }));
-        const checks = [];
-
-        function addCheck(key, title, points, maximum, message) {
-            const boundedPoints = Math.max(0, Math.min(maximum, Math.round(points)));
-            checks.push({
-                key: key,
-                title: title,
-                status: boundedPoints === maximum ? 'ready' : boundedPoints > 0 ? 'attention' : 'missing',
-                points: boundedPoints,
-                maximum: maximum,
-                message: message
-            });
-        }
-
-        const personal = state.personalInformation;
-        const essentialCount = [personal.fullName, personal.professionalTitle, isEmail(personal.emailAddress) ? personal.emailAddress : ''].filter(Boolean).length;
-        const personalErrorCount = Object.keys(validationErrors).filter(function (path) { return path.startsWith('personalInformation.'); }).length;
-        if (essentialCount === 3 && personalErrorCount === 0) {
-            addCheck('essentials', 'Contact essentials', 20, 20, 'Name, title, and contact details are ready.');
-        } else if (essentialCount === 3) {
-            addCheck('essentials', 'Contact essentials', 14, 20, 'Fix the highlighted phone, email, or link format.');
-        } else {
-            addCheck('essentials', 'Contact essentials', essentialCount * 6, 20, 'Add your name, professional title, and a valid email.');
-        }
-
-        const summaryLength = visibleSections.has('professionalSummary') ? plainRichText(state.professionalSummary, LIMITS.summary).trim().length : 0;
-        if (summaryLength >= 300 && summaryLength <= 650) {
-            addCheck('summary', 'Focused summary', 15, 15, 'The summary is concise and easy to scan.');
-        } else if (summaryLength >= 150 && summaryLength <= 900) {
-            addCheck('summary', 'Focused summary', 10, 15, 'Aim for roughly 300-600 characters with role-relevant strengths.');
-        } else if (summaryLength >= 60) {
-            addCheck('summary', 'Focused summary', 6, 15, 'Tighten the summary to a focused 300-600 characters.');
-        } else {
-            addCheck('summary', 'Focused summary', 0, 15, 'Add a short summary of your strengths and target work.');
-        }
-
-        const evidenceEntries = (visibleSections.has('experience') ? state.experience.filter(hasEntryContent).length : 0)
-            + (visibleSections.has('projects') ? state.projects.filter(hasEntryContent).length : 0)
-            + (visibleSections.has('volunteerExperience') ? state.volunteerExperience.filter(hasEntryContent).length : 0);
-        const educationEntries = visibleSections.has('education') ? state.education.filter(hasEntryContent).length : 0;
-        if (evidenceEntries >= 2) {
-            addCheck('evidence', 'Relevant evidence', 20, 20, 'Experience and projects give recruiters concrete evidence.');
-        } else if (evidenceEntries === 1) {
-            addCheck('evidence', 'Relevant evidence', 14, 20, 'Add another relevant role, project, or volunteer example.');
-        } else if (educationEntries > 0) {
-            addCheck('evidence', 'Relevant evidence', 7, 20, 'Add a project or experience entry to support your education.');
-        } else {
-            addCheck('evidence', 'Relevant evidence', 0, 20, 'Add education plus a relevant project or experience entry.');
-        }
-
-        const bullets = [];
-        if (visibleSections.has('experience')) state.experience.forEach(function (entry) { Array.prototype.push.apply(bullets, entry.bulletPoints); });
-        if (visibleSections.has('projects')) state.projects.forEach(function (entry) { Array.prototype.push.apply(bullets, entry.bulletPoints); });
-        if (visibleSections.has('volunteerExperience')) state.volunteerExperience.forEach(function (entry) { Array.prototype.push.apply(bullets, entry.bulletPoints); });
-        if (visibleSections.has('customSections')) {
-            state.customSections.forEach(function (section) {
-                section.entries.forEach(function (entry) { Array.prototype.push.apply(bullets, entry.bulletPoints); });
-            });
-        }
-        const meaningfulBullets = bullets.map(function (bullet) { return plainRichText(bullet, LIMITS.bullet).trim(); }).filter(Boolean);
-        const actionBullets = meaningfulBullets.filter(function (bullet) {
-            return /^(achieved|automated|built|co-led|created|delivered|designed|developed|enabled|implemented|improved|increased|launched|led|managed|optimized|reduced|resolved|shipped|streamlined)\b/i.test(bullet);
-        });
-        const quantifiedBullets = meaningfulBullets.filter(function (bullet) { return /(?:\b\d+(?:\.\d+)?%?\b|\$\s?\d+)/.test(bullet); });
-        if (meaningfulBullets.length >= 4 && actionBullets.length >= 2) {
-            addCheck('bullets', 'Impact bullets', 20, 20, quantifiedBullets.length ? 'Bullets use actions and measurable evidence.' : 'Strong action-led bullets are in place; add metrics where truthful.');
-        } else if (meaningfulBullets.length >= 3) {
-            addCheck('bullets', 'Impact bullets', 15, 20, 'Start more bullets with strong actions and add outcomes where truthful.');
-        } else if (meaningfulBullets.length > 0) {
-            addCheck('bullets', 'Impact bullets', 8, 20, 'Add at least three concise achievement or project bullets.');
-        } else {
-            addCheck('bullets', 'Impact bullets', 0, 20, 'Add action-led bullets showing what you delivered.');
-        }
-
-        const skillNames = [];
-        if (visibleSections.has('skills')) state.skills.forEach(function (category) { Array.prototype.push.apply(skillNames, category.skills); });
-        if (visibleSections.has('projects')) state.projects.forEach(function (project) { Array.prototype.push.apply(skillNames, project.technologiesUsed); });
-        const uniqueSkills = new Set(skillNames.map(function (skill) { return skill.trim().toLocaleLowerCase(); }).filter(Boolean));
-        if (uniqueSkills.size >= 8) {
-            addCheck('skills', 'Searchable skills', 15, 15, 'Skills and technologies are easy for ATS search to find.');
-        } else if (uniqueSkills.size >= 5) {
-            addCheck('skills', 'Searchable skills', 11, 15, 'Add a few more specific tools or technologies you genuinely use.');
-        } else if (uniqueSkills.size >= 2) {
-            addCheck('skills', 'Searchable skills', 6, 15, 'Build clear skill categories with specific tools and technologies.');
-        } else {
-            addCheck('skills', 'Searchable skills', 0, 15, 'Add a skills category with role-relevant keywords.');
-        }
-
-        const visibleContentCount = state.sections.filter(function (section) {
-            return section.isVisible && hasSectionContent(state, section.key);
-        }).length;
-        const nonPersonalErrors = Object.keys(validationErrors).filter(function (path) { return !path.startsWith('personalInformation.'); }).length;
-        if (visibleContentCount >= 4 && nonPersonalErrors === 0) {
-            addCheck('structure', 'Clean structure', 10, 10, 'Visible sections are populated and dates are consistent.');
-        } else if (visibleContentCount >= 3 && nonPersonalErrors === 0) {
-            addCheck('structure', 'Clean structure', 7, 10, 'Add one more useful section or supporting detail.');
-        } else if (visibleContentCount > 0) {
-            addCheck('structure', 'Clean structure', nonPersonalErrors ? 2 : 4, 10, nonPersonalErrors ? 'Fix the highlighted date or URL issues.' : 'Populate at least three relevant sections.');
-        } else {
-            addCheck('structure', 'Clean structure', 0, 10, 'Populate and show the sections that support your application.');
-        }
-
-        const score = checks.reduce(function (total, check) { return total + check.points; }, 0);
-        const readyCount = checks.filter(function (check) { return check.status === 'ready'; }).length;
-        const tone = score >= 85 ? 'strong' : score >= 60 ? 'growing' : 'starting';
-        const label = tone === 'strong' ? 'Ready to tailor' : tone === 'growing' ? 'Strong foundation' : 'Keep building';
-        const warnings = checks.filter(function (check) { return check.status !== 'ready'; }).map(function (check) { return check.message; }).slice(0, 3);
-        return {
-            score: score,
-            readyCount: readyCount,
-            totalChecks: checks.length,
-            tone: tone,
-            label: label,
-            summary: readyCount + ' of ' + checks.length + ' local checks ready. ' + label + '.',
-            checks: checks,
-            warnings: warnings
-        };
-    }
-
     async function countPdfPages(blob) {
         if (!blob || typeof blob.arrayBuffer !== 'function') throw new Error('A PDF Blob is required.');
         const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -717,11 +673,29 @@
         } : null;
     }
 
-    function sectionHeading(title) {
+    function sectionHeading(title, profile) {
+        const theme = profile || {};
+        if (theme.headingType === 'bar') {
+            return {
+                table: {
+                    widths: ['*'],
+                    body: [[{ text: text(title, LIMITS.shortText).toLocaleUpperCase(), style: 'sectionHeading', color: '#ffffff', fillColor: theme.accent, margin: [6, 1.5, 6, 1.5] }]]
+                },
+                layout: 'noBorders',
+                margin: [0, 2, 0, 1]
+            };
+        }
+        if (theme.headingType === 'compact') {
+            return pdfText(title.toLocaleUpperCase(), {
+                style: 'sectionHeading',
+                color: theme.accent,
+                margin: [0, 4, 0, 2]
+            });
+        }
         return {
             stack: [
-                pdfText(title, { style: 'sectionHeading' }),
-                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.55, lineColor: '#111111' }], margin: [0, 0.5, 0, 2.5] }
+                pdfText(theme.uppercaseHeadings ? title.toLocaleUpperCase() : title, { style: 'sectionHeading', color: theme.accent }),
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: theme.ruleWidth || 523, y2: 0, lineWidth: theme.ruleWeight || 0.55, lineColor: theme.accent || '#111111' }], margin: [0, 0.5, 0, 2.5] }
             ],
             margin: [0, 2.5, 0, 0]
         };
@@ -811,6 +785,23 @@
         return values.length ? [{ text: values.join(' | '), margin: [0, 0, 0, 2] }] : [];
     }
 
+    function referenceNodes(entries) {
+        return entries.filter(hasEntryContent).map(function (entry) {
+            const role = compact([entry.jobTitle, entry.company], ' - ');
+            const stack = [];
+            if (entry.fullName) stack.push(pdfText(entry.fullName, { bold: true }));
+            if (role) stack.push(pdfText(role, { italics: true, color: '#475569' }));
+            const contact = [];
+            if (isEmail(entry.emailAddress)) contact.push(contactLink(entry.emailAddress, 'mailto:' + entry.emailAddress, 'left'));
+            if (isPhone(entry.phoneNumber)) {
+                if (contact.length) contact.push({ text: ' | ', color: '#64748b' });
+                contact.push(contactLink(entry.phoneNumber, 'tel:' + entry.phoneNumber.replace(/[^+\d]/g, ''), 'left'));
+            }
+            if (contact.length) stack.push({ text: contact });
+            return { stack: stack, margin: [0, 0, 0, 3] };
+        });
+    }
+
     function customEntryNodes(entries) {
         return entries.filter(hasEntryContent).map(function (entry) {
             const left = [];
@@ -838,94 +829,462 @@
             case 'achievementsAndCertifications': return achievementNodes(state.achievementsAndCertifications);
             case 'languages': return languageNodes(state.languages);
             case 'volunteerExperience': return experienceNodes(state.volunteerExperience, true);
+            case 'references': return referenceNodes(state.references);
             case 'interests': return state.interests.length ? [pdfText(state.interests.join(' | '), { margin: [0, 0, 0, 2] })] : [];
             default: return [];
         }
     }
 
-    function contactLink(label, link) {
-        return { text: label, link: link, color: '#0000EE', decoration: 'underline', alignment: 'right' };
+    function contactLink(label, link, alignment, color) {
+        return { text: label, link: link, color: color || '#0000EE', decoration: 'underline', alignment: alignment || 'right' };
     }
 
-    function buildDocumentDefinition(value) {
-        const state = normalizeState(value);
-        const personal = state.personalInformation;
+    function contactStack(personal, alignment, color) {
         const contact = [];
+        const textAlignment = alignment || 'right';
+        const linkColor = color || '#0000EE';
         if (personal.phoneNumber || personal.location) {
             const phoneLocation = [];
             if (personal.phoneNumber) {
                 const phone = { text: personal.phoneNumber };
                 if (isPhone(personal.phoneNumber)) {
                     phone.link = 'tel:' + personal.phoneNumber.replace(/[^+\d]/g, '');
-                    phone.color = '#0000EE';
+                    phone.color = linkColor;
                     phone.decoration = 'underline';
                 }
                 phoneLocation.push(phone);
             }
             if (personal.phoneNumber && personal.location) phoneLocation.push({ text: ' | ' });
             if (personal.location) phoneLocation.push({ text: personal.location });
-            contact.push({ text: phoneLocation, alignment: 'right' });
+            contact.push({ text: phoneLocation, alignment: textAlignment });
         }
-        if (isEmail(personal.emailAddress)) contact.push(contactLink(personal.emailAddress, 'mailto:' + personal.emailAddress));
+        if (isEmail(personal.emailAddress)) contact.push(contactLink(personal.emailAddress, 'mailto:' + personal.emailAddress, textAlignment, linkColor));
         [
             ['LinkedIn', personal.linkedInUrl],
             ['GitHub', personal.gitHubUrl],
             ['Portfolio', personal.portfolioUrl]
         ].forEach(function (entry) {
             const url = parseHttpUrl(entry[1]);
-            if (url) contact.push(contactLink(entry[0], url));
+            if (url) contact.push(contactLink(entry[0], url, textAlignment, linkColor));
         });
+        return contact;
+    }
 
+    function contactLine(personal, alignment, color) {
+        const linkColor = color || '#0000EE';
+        const runs = [];
+        function add(run) {
+            if (runs.length) runs.push({ text: '  |  ', color: color || '#475569' });
+            runs.push(run);
+        }
+        if (personal.phoneNumber) {
+            const phone = { text: personal.phoneNumber, color: color || '#111827' };
+            if (isPhone(personal.phoneNumber)) {
+                phone.link = 'tel:' + personal.phoneNumber.replace(/[^+\d]/g, '');
+                phone.color = linkColor;
+                phone.decoration = 'underline';
+            }
+            add(phone);
+        }
+        if (personal.location) add({ text: personal.location, color: color || '#475569' });
+        if (isEmail(personal.emailAddress)) add(contactLink(personal.emailAddress, 'mailto:' + personal.emailAddress, alignment, linkColor));
+        [
+            ['LinkedIn', personal.linkedInUrl],
+            ['GitHub', personal.gitHubUrl],
+            ['Portfolio', personal.portfolioUrl]
+        ].forEach(function (entry) {
+            const url = parseHttpUrl(entry[1]);
+            if (url) add(contactLink(entry[0], url, alignment, linkColor));
+        });
+        return { text: runs, alignment: alignment || 'left', margin: [0, 3, 0, 0] };
+    }
+
+    function identityStack(personal, alignment, color) {
         const identity = [];
-        if (personal.fullName) identity.push(pdfText(personal.fullName, { style: 'name' }));
-        if (personal.professionalTitle) identity.push(pdfText(personal.professionalTitle, { style: 'professionalTitle' }));
-        const content = [{
-            columns: [
-                {
-                    width: '*',
-                    stack: identity.length ? identity : [{ text: '' }]
-                },
-                { width: 210, stack: contact, margin: [12, 1, 0, 0] }
-            ],
-            columnGap: 10
-        }, {
-            canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.75, lineColor: '#111111' }],
-            margin: [0, 5, 0, 1]
-        }];
+        const options = alignment ? { alignment: alignment } : {};
+        if (color) options.color = color;
+        if (personal.fullName) identity.push(pdfText(personal.fullName, Object.assign({ style: 'name' }, options)));
+        if (personal.professionalTitle) identity.push(pdfText(personal.professionalTitle, Object.assign({ style: 'professionalTitle' }, options)));
+        return identity.length ? identity : [{ text: '' }];
+    }
 
+    function profilePhotoNode(personal, size, margin) {
+        const photo = normalizeProfilePhotoDataUrl(personal && personal.profilePhotoDataUrl);
+        if (!photo) return null;
+        return {
+            image: photo,
+            width: size,
+            height: size,
+            alignment: 'center',
+            margin: margin || [0, 0, 0, 8]
+        };
+    }
+
+    function sectionContent(state, profile, include) {
+        const content = [];
         state.sections.forEach(function (descriptor) {
+            if (include && !include(descriptor.key)) return;
             if (!descriptor.isVisible || !hasSectionContent(state, descriptor.key)) return;
             if (descriptor.key === 'customSections') {
                 state.customSections.filter(hasEntryContent).forEach(function (section) {
                     const nodes = customEntryNodes(section.entries);
                     if (!nodes.length) return;
-                    content.push(sectionHeading(section.title || descriptor.title));
+                    content.push(sectionHeading(section.title || descriptor.title, profile));
                     Array.prototype.push.apply(content, nodes);
                 });
                 return;
             }
             const nodes = nodesForSection(state, descriptor);
             if (!nodes.length) return;
-            content.push(sectionHeading(descriptor.title));
+            const templateTitle = profile.sectionTitles && profile.sectionTitles[descriptor.key];
+            content.push(sectionHeading(templateTitle || descriptor.title, profile));
             Array.prototype.push.apply(content, nodes);
         });
+        return content;
+    }
 
+    function createDefinition(state, profile, content) {
+        const personal = state.personalInformation;
         return {
             pageSize: 'A4',
-            pageMargins: [36, 27, 36, 27],
+            pageMargins: profile.pageMargins,
             info: {
                 title: (personal.fullName || 'ApplyWise') + ' Resume',
                 author: personal.fullName || 'ApplyWise Resume Builder',
-                subject: 'Professional resume'
+                subject: 'Professional resume',
+                keywords: 'ApplyWise resume template ' + profile.id
             },
             content: content,
-            defaultStyle: { font: 'Roboto', fontSize: 9.1, color: '#111111', lineHeight: 1.07 },
+            defaultStyle: { font: profile.font, fontSize: profile.fontSize, color: profile.textColor, lineHeight: profile.lineHeight },
             styles: {
-                name: { fontSize: 22.5, bold: true, characterSpacing: 0.15, lineHeight: 1 },
-                professionalTitle: { fontSize: 10, color: '#333333', margin: [0, 1, 0, 0] },
-                sectionHeading: { fontSize: 11, bold: true, characterSpacing: 0.3, color: '#111111' }
+                name: { fontSize: profile.nameSize, bold: true, characterSpacing: profile.nameSpacing, lineHeight: 1, color: profile.nameColor || profile.textColor },
+                professionalTitle: { fontSize: profile.titleSize, color: profile.mutedColor, margin: [0, 1, 0, 0] },
+                sectionHeading: { fontSize: profile.headingSize, bold: true, characterSpacing: profile.headingSpacing, color: profile.accent }
             }
         };
+    }
+
+    const TEMPLATE_PROFILES = Object.freeze({
+        classic: Object.freeze({
+            id: 'classic', font: 'Roboto', pageMargins: [30, 22, 30, 22], fontSize: 7.55, lineHeight: 1.04,
+            textColor: '#292929', mutedColor: '#5b5b5b', accent: '#4b5563', nameColor: '#343434', nameSize: 24,
+            titleSize: 8.8, headingSize: 8.6, nameSpacing: 2.4, headingSpacing: 1.3, uppercaseHeadings: true,
+            sectionTitles: Object.freeze({ professionalSummary: 'Profile Summary', experience: 'Work Experience', skills: 'Skills', achievementsAndCertifications: 'Certifications & Awards' })
+        }),
+        emerald: Object.freeze({
+            id: 'emerald', font: 'Poppins', pageMargins: [18, 18, 18, 18], fontSize: 7.05, lineHeight: 1.02,
+            textColor: '#27312b', mutedColor: '#66716a', accent: '#17633a', nameColor: '#ffffff', nameSize: 22,
+            titleSize: 8.2, headingSize: 8.4, nameSpacing: 0.2, headingSpacing: 0.5, headingType: 'compact',
+            sectionTitles: Object.freeze({ professionalSummary: 'Professional Profile', experience: 'Work History', skills: 'Core Skills', achievementsAndCertifications: 'Certifications' })
+        }),
+        modern: Object.freeze({
+            id: 'modern', font: 'Poppins', pageMargins: [18, 18, 18, 18], fontSize: 7.05, lineHeight: 1.02,
+            textColor: '#263440', mutedColor: '#607181', accent: '#17324d', nameColor: '#17324d', nameSize: 22,
+            titleSize: 8.5, headingSize: 8.4, nameSpacing: 0.15, headingSpacing: 0.55, headingType: 'compact',
+            sectionTitles: Object.freeze({ professionalSummary: 'Profile', experience: 'Work Experience', skills: 'Professional Skills', achievementsAndCertifications: 'Certificates' })
+        }),
+        executive: Object.freeze({
+            id: 'executive', font: 'Poppins', pageMargins: [20, 18, 20, 18], fontSize: 7.15, lineHeight: 1.025,
+            textColor: '#302f2c', mutedColor: '#6f6b63', accent: '#777517', nameColor: '#ffffff', nameSize: 25,
+            titleSize: 8.8, headingSize: 8.6, nameSpacing: 1.1, headingSpacing: 0.7, headingType: 'compact', uppercaseHeadings: true,
+            sectionTitles: Object.freeze({ professionalSummary: 'About Me', experience: 'Professional Experience', skills: 'Key Skills', achievementsAndCertifications: 'Certifications' })
+        }),
+        compact: Object.freeze({
+            id: 'compact', font: 'Poppins', pageMargins: [18, 18, 18, 18], fontSize: 7.05, lineHeight: 1.02,
+            textColor: '#33404c', mutedColor: '#66798a', accent: '#5b86b5', nameColor: '#3d638c', nameSize: 20,
+            titleSize: 8.4, headingSize: 8.4, nameSpacing: 0.1, headingSpacing: 0.45, headingType: 'compact',
+            sectionTitles: Object.freeze({ professionalSummary: 'About Me', experience: 'Experience', skills: 'Skills', achievementsAndCertifications: 'Credentials' })
+        }),
+        minimal: Object.freeze({
+            id: 'minimal', font: 'Roboto', pageMargins: [32, 23, 32, 23], fontSize: 7.25, lineHeight: 1.025,
+            textColor: '#1f2937', mutedColor: '#64748b', accent: '#2563eb', nameColor: '#111827', nameSize: 23,
+            titleSize: 8.8, headingSize: 8.4, nameSpacing: 0.25, headingSpacing: 0.85, headingType: 'compact', uppercaseHeadings: true,
+            sectionTitles: Object.freeze({ professionalSummary: 'Summary', experience: 'Experience', skills: 'Skills', achievementsAndCertifications: 'Certifications & Awards' })
+        }),
+        corporate: Object.freeze({
+            id: 'corporate', font: 'Poppins', pageMargins: [20, 18, 20, 18], fontSize: 6.95, lineHeight: 1.015,
+            textColor: '#243044', mutedColor: '#60718d', accent: '#243b64', nameColor: '#ffffff', nameSize: 23,
+            titleSize: 8.4, headingSize: 8.25, nameSpacing: 0.45, headingSpacing: 0.55, headingType: 'compact', uppercaseHeadings: true,
+            sectionTitles: Object.freeze({ professionalSummary: 'Executive Profile', experience: 'Professional Experience', skills: 'Core Competencies', achievementsAndCertifications: 'Credentials' })
+        }),
+        timeline: Object.freeze({
+            id: 'timeline', font: 'Roboto', pageMargins: [24, 20, 24, 20], fontSize: 7.15, lineHeight: 1.02,
+            textColor: '#233238', mutedColor: '#627378', accent: '#0f766e', nameColor: '#163b3a', nameSize: 23,
+            titleSize: 8.7, headingSize: 8.35, nameSpacing: 0.3, headingSpacing: 0.7, headingType: 'compact', uppercaseHeadings: true,
+            sectionTitles: Object.freeze({ professionalSummary: 'Profile', experience: 'Career Timeline', skills: 'Capabilities', achievementsAndCertifications: 'Credentials' })
+        }),
+        studio: Object.freeze({
+            id: 'studio', font: 'Poppins', pageMargins: [20, 18, 20, 18], fontSize: 6.95, lineHeight: 1.015,
+            textColor: '#342f38', mutedColor: '#746b79', accent: '#6d4c7d', nameColor: '#ffffff', nameSize: 23,
+            titleSize: 8.5, headingSize: 8.3, nameSpacing: 0.7, headingSpacing: 0.5, headingType: 'compact',
+            sectionTitles: Object.freeze({ professionalSummary: 'Profile', experience: 'Selected Experience', skills: 'Expertise', achievementsAndCertifications: 'Recognition' })
+        })
+    });
+
+    function templateProfile(profile, changes) {
+        return Object.assign({}, profile, changes || {});
+    }
+
+    function sectionContentFor(state, profile, keys) {
+        const accepted = new Set(keys);
+        return sectionContent(state, profile, function (key) { return accepted.has(key); });
+    }
+
+    function remainingSectionContent(state, profile, excludedKeys) {
+        const excluded = new Set(excludedKeys);
+        return sectionContent(state, profile, function (key) { return !excluded.has(key); });
+    }
+
+    function contactSection(personal, profile, color) {
+        const content = [sectionHeading('Contact', profile)];
+        Array.prototype.push.apply(content, contactStack(personal, 'left', color || profile.accent));
+        return content;
+    }
+
+    function twoCellResume(sidebarWidth, sidebar, main, sidebarOptions) {
+        const options = sidebarOptions || {};
+        return {
+            table: {
+                widths: [sidebarWidth, '*'],
+                body: [[
+                    { stack: sidebar, fillColor: options.fillColor, color: options.color, margin: options.margin || [10, 10, 10, 10] },
+                    { stack: main, margin: options.mainMargin || [13, 8, 7, 8] }
+                ]]
+            },
+            layout: {
+                hLineWidth: function () { return 0; },
+                vLineWidth: function () { return 0; },
+                paddingLeft: function () { return 0; },
+                paddingRight: function () { return 0; },
+                paddingTop: function () { return 0; },
+                paddingBottom: function () { return 0; }
+            }
+        };
+    }
+
+    function twoCellResumeRight(sidebarWidth, main, sidebar, sidebarOptions) {
+        const options = sidebarOptions || {};
+        return {
+            table: {
+                widths: ['*', sidebarWidth],
+                body: [[
+                    { stack: main, margin: options.mainMargin || [7, 8, 13, 8] },
+                    { stack: sidebar, fillColor: options.fillColor, color: options.color, margin: options.margin || [10, 10, 10, 10] }
+                ]]
+            },
+            layout: {
+                hLineWidth: function () { return 0; },
+                vLineWidth: function () { return 0; },
+                paddingLeft: function () { return 0; },
+                paddingRight: function () { return 0; },
+                paddingTop: function () { return 0; },
+                paddingBottom: function () { return 0; }
+            }
+        };
+    }
+
+    function buildClassicDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['education', 'skills', 'languages', 'achievementsAndCertifications', 'interests'];
+        const sidebarProfile = templateProfile(profile, { headingType: 'compact', headingSize: 8, headingSpacing: 1.1 });
+        const mainProfile = templateProfile(profile, { ruleWidth: 337, ruleWeight: 0.55 });
+        const sidebar = contactSection(personal, sidebarProfile, '#475569');
+        Array.prototype.push.apply(sidebar, sectionContentFor(state, sidebarProfile, sidebarKeys));
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        const content = [{
+            stack: identityStack(personal, 'center'),
+            margin: [0, 0, 0, 4]
+        }, contactLine(personal, 'center', '#4b5563'), {
+            canvas: [
+                { type: 'line', x1: 0, y1: 0, x2: 535, y2: 0, lineWidth: 0.7, lineColor: '#9ca3af' },
+                { type: 'line', x1: 0, y1: 4, x2: 535, y2: 4, lineWidth: 0.35, lineColor: '#d1d5db' }
+            ],
+            margin: [0, 6, 0, 6]
+        }, {
+            table: { widths: [150, '*'], body: [[{ stack: sidebar, margin: [0, 0, 13, 0] }, { stack: main, margin: [15, 0, 0, 0] }]] },
+            layout: {
+                hLineWidth: function () { return 0; },
+                vLineWidth: function (index) { return index === 1 ? 0.55 : 0; },
+                vLineColor: function () { return '#b8b8b8'; },
+                paddingLeft: function () { return 0; }, paddingRight: function () { return 0; },
+                paddingTop: function () { return 0; }, paddingBottom: function () { return 0; }
+            }
+        }];
+        return createDefinition(state, profile, content);
+    }
+
+    function buildEmeraldDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['skills', 'languages', 'interests', 'references'];
+        const sidebarProfile = templateProfile(profile, { accent: '#e9f7ee', headingType: 'compact', mutedColor: '#d7eee0' });
+        const mainProfile = templateProfile(profile, { accent: '#17633a', ruleWidth: 344 });
+        const sidebar = [];
+        const photo = profilePhotoNode(personal, 72, [0, 0, 0, 7]);
+        if (photo) sidebar.push(photo);
+        Array.prototype.push.apply(sidebar, identityStack(personal, 'left', '#ffffff'));
+        sidebar.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 129, y2: 0, lineWidth: 0.65, lineColor: '#7eb692' }], margin: [0, 7, 0, 5] });
+        Array.prototype.push.apply(sidebar, contactSection(personal, sidebarProfile, '#d8f3e1'));
+        Array.prototype.push.apply(sidebar, sectionContentFor(state, sidebarProfile, sidebarKeys));
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        return createDefinition(state, profile, [twoCellResume(142, sidebar, main, { fillColor: '#17633a', color: '#ffffff', margin: [11, 11, 10, 11], mainMargin: [16, 7, 8, 7] })]);
+    }
+
+    function buildModernDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['skills', 'achievementsAndCertifications', 'languages', 'interests', 'references'];
+        const sidebarProfile = templateProfile(profile, { accent: '#d9edf7', headingType: 'compact', mutedColor: '#d7e5ef' });
+        const mainProfile = templateProfile(profile, { accent: '#17324d', ruleWidth: 350 });
+        const sidebar = [];
+        const photo = profilePhotoNode(personal, 70, [0, 0, 0, 8]);
+        if (photo) sidebar.push(photo);
+        Array.prototype.push.apply(sidebar, contactSection(personal, sidebarProfile, '#cbe7f7'));
+        Array.prototype.push.apply(sidebar, sectionContentFor(state, sidebarProfile, sidebarKeys));
+        const main = identityStack(personal, 'left', '#17324d');
+        main.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 350, y2: 0, lineWidth: 1.4, lineColor: '#5b94b8' }], margin: [0, 6, 0, 4] });
+        Array.prototype.push.apply(main, remainingSectionContent(state, mainProfile, sidebarKeys));
+        return createDefinition(state, profile, [twoCellResume(145, sidebar, main, { fillColor: '#17324d', color: '#ffffff', margin: [11, 11, 10, 11], mainMargin: [16, 8, 7, 8] })]);
+    }
+
+    function buildExecutiveDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['skills', 'achievementsAndCertifications', 'languages', 'interests', 'references'];
+        const sidebarProfile = templateProfile(profile, { accent: '#777517', headingType: 'compact', headingSize: 8.1 });
+        const mainProfile = templateProfile(profile, { accent: '#777517', ruleWidth: 347 });
+        const photo = profilePhotoNode(personal, 82, [0, 0, 0, 0]);
+        const identity = identityStack(personal, 'left', '#ffffff');
+        const headerCells = photo
+            ? [{ stack: [photo], fillColor: '#777517', margin: [6, 5, 6, 5] }, { stack: identity, fillColor: '#777517', margin: [14, 20, 8, 12] }]
+            : [{ stack: identity, fillColor: '#777517', margin: [18, 18, 18, 14] }];
+        const header = {
+            table: { widths: photo ? [102, '*'] : ['*'], body: [headerCells] },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 7]
+        };
+        const sidebar = contactSection(personal, sidebarProfile, '#777517');
+        Array.prototype.push.apply(sidebar, sectionContentFor(state, sidebarProfile, sidebarKeys));
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        return createDefinition(state, profile, [header, twoCellResume(144, sidebar, main, { fillColor: '#f5f2e9', color: '#33312b', margin: [10, 8, 11, 8], mainMargin: [16, 5, 7, 7] })]);
+    }
+
+    function buildCompactDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['professionalSummary', 'skills', 'languages', 'interests', 'references'];
+        const sidebarProfile = templateProfile(profile, { accent: '#4e789f', headingType: 'compact', headingSize: 8.1 });
+        const mainProfile = templateProfile(profile, { accent: '#5b86b5', ruleWidth: 350 });
+        const sidebar = [];
+        const photo = profilePhotoNode(personal, 74, [0, 0, 0, 7]);
+        if (photo) sidebar.push(photo);
+        Array.prototype.push.apply(sidebar, identityStack(personal, 'center', '#3d638c'));
+        sidebar.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 136, y2: 0, lineWidth: 0.8, lineColor: '#87a9c9' }], margin: [0, 6, 0, 4] });
+        Array.prototype.push.apply(sidebar, contactSection(personal, sidebarProfile, '#3d638c'));
+        Array.prototype.push.apply(sidebar, sectionContentFor(state, sidebarProfile, sidebarKeys));
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        return createDefinition(state, profile, [twoCellResume(150, sidebar, main, { fillColor: '#edf3f8', color: '#33404c', margin: [11, 9, 11, 9], mainMargin: [16, 5, 7, 7] })]);
+    }
+
+    function buildMinimalDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const content = [{
+            stack: identityStack(personal, 'left'),
+            margin: [0, 0, 0, 2]
+        }, contactLine(personal, 'left', '#2563eb'), {
+            canvas: [{ type: 'line', x1: 0, y1: 0, x2: 531, y2: 0, lineWidth: 1.6, lineColor: '#2563eb' }],
+            margin: [0, 7, 0, 6]
+        }];
+        Array.prototype.push.apply(content, sectionContent(state, templateProfile(profile, { ruleWidth: 531, ruleWeight: 0.45 })));
+        return createDefinition(state, profile, content);
+    }
+
+    function buildCorporateDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['education', 'skills', 'achievementsAndCertifications', 'languages', 'interests', 'references'];
+        const sidebarProfile = templateProfile(profile, { accent: '#243b64', headingType: 'compact', headingSize: 7.9 });
+        const mainProfile = templateProfile(profile, { accent: '#243b64', ruleWidth: 350 });
+        const headerStack = identityStack(personal, 'left', '#ffffff');
+        headerStack.push(contactLine(personal, 'left', '#e6efff'));
+        const header = {
+            table: { widths: ['*'], body: [[{ stack: headerStack, fillColor: '#243b64', margin: [16, 12, 16, 11] }]] },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 7]
+        };
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        const sidebar = sectionContentFor(state, sidebarProfile, sidebarKeys);
+        return createDefinition(state, profile, [header, twoCellResumeRight(150, main, sidebar, {
+            fillColor: '#eef3fa', color: '#243044', margin: [11, 8, 10, 8], mainMargin: [4, 5, 16, 7]
+        })]);
+    }
+
+    function buildTimelineDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const bodyProfile = templateProfile(profile, { accent: '#0f766e', ruleWidth: 495, ruleWeight: 0.55 });
+        const body = sectionContent(state, bodyProfile);
+        const name = personal.fullName ? [pdfText(personal.fullName, { style: 'name' })] : [{ text: '' }];
+        const timelineBody = {
+            table: {
+                widths: [9, '*'],
+                body: [[
+                    { text: '', fillColor: '#0f766e', margin: [0, 0, 0, 0] },
+                    { stack: body, margin: [13, 2, 0, 2] }
+                ]]
+            },
+            layout: {
+                hLineWidth: function () { return 0; }, vLineWidth: function () { return 0; },
+                paddingLeft: function () { return 0; }, paddingRight: function () { return 0; },
+                paddingTop: function () { return 0; }, paddingBottom: function () { return 0; }
+            }
+        };
+        return createDefinition(state, profile, [{
+            columns: [
+                { width: '*', stack: name },
+                { width: 178, text: personal.professionalTitle || '', alignment: 'right', color: '#0f766e', bold: true, margin: [8, 7, 0, 0] }
+            ],
+            columnGap: 10,
+            margin: [0, 0, 0, 2]
+        }, contactLine(personal, 'left', '#0f766e'), {
+            canvas: [{ type: 'line', x1: 0, y1: 0, x2: 547, y2: 0, lineWidth: 0.75, lineColor: '#9fd3ce' }],
+            margin: [0, 6, 0, 6]
+        }, timelineBody]);
+    }
+
+    function buildStudioDefinition(state, profile) {
+        const personal = state.personalInformation;
+        const sidebarKeys = ['education', 'skills', 'achievementsAndCertifications', 'languages', 'interests', 'references'];
+        const mainProfile = templateProfile(profile, { accent: '#6d4c7d', ruleWidth: 338 });
+        const sidebarProfile = templateProfile(profile, { accent: '#6d4c7d', headingType: 'compact', headingSize: 7.9 });
+        const photo = profilePhotoNode(personal, 72, [0, 0, 0, 0]);
+        const identity = identityStack(personal, 'left', '#ffffff');
+        const headerCells = photo
+            ? [{ stack: [photo], fillColor: '#6d4c7d', margin: [8, 6, 8, 6] }, { stack: identity, fillColor: '#6d4c7d', margin: [14, 17, 10, 12] }]
+            : [{ stack: identity, fillColor: '#6d4c7d', margin: [17, 15, 17, 13] }];
+        const header = {
+            table: { widths: photo ? [92, '*'] : ['*'], body: [headerCells] },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 5]
+        };
+        const main = remainingSectionContent(state, mainProfile, sidebarKeys);
+        const sidebar = sectionContentFor(state, sidebarProfile, sidebarKeys);
+        return createDefinition(state, profile, [header, contactLine(personal, 'center', '#6d4c7d'), {
+            canvas: [{ type: 'line', x1: 0, y1: 0, x2: 555, y2: 0, lineWidth: 0.55, lineColor: '#d8cde0' }],
+            margin: [0, 5, 0, 4]
+        }, twoCellResumeRight(158, main, sidebar, {
+            fillColor: '#f5f0f7', color: '#342f38', margin: [11, 7, 10, 7], mainMargin: [3, 4, 16, 7]
+        })]);
+    }
+
+    function buildDocumentDefinition(value) {
+        const state = normalizeState(value);
+        const profile = TEMPLATE_PROFILES[state.templateId] || TEMPLATE_PROFILES[DEFAULT_TEMPLATE_ID];
+        switch (state.templateId) {
+            case 'emerald': return buildEmeraldDefinition(state, profile);
+            case 'modern': return buildModernDefinition(state, profile);
+            case 'executive': return buildExecutiveDefinition(state, profile);
+            case 'compact': return buildCompactDefinition(state, profile);
+            case 'minimal': return buildMinimalDefinition(state, profile);
+            case 'corporate': return buildCorporateDefinition(state, profile);
+            case 'timeline': return buildTimelineDefinition(state, profile);
+            case 'studio': return buildStudioDefinition(state, profile);
+            default: return buildClassicDefinition(state, profile);
+        }
     }
 
     function buildFilename(fullName) {
@@ -980,6 +1339,9 @@
             ],
             languages: [{ id: 'language-english', name: 'English', proficiency: 'Professional working proficiency' }, { id: 'language-urdu', name: 'Urdu', proficiency: 'Native proficiency' }],
             volunteerExperience: [],
+            references: [
+                { id: 'reference-priya', fullName: 'Priya Shah', jobTitle: 'Engineering Manager', company: 'Example Labs', emailAddress: 'priya.shah@example.com', phoneNumber: '+1 202 555 0179' }
+            ],
             interests: ['Open-source software', 'Competitive programming', 'System design'],
             customSections: [],
             sections: SECTION_DEFAULTS.map(function (section) { return Object.assign({}, section); })
@@ -989,7 +1351,7 @@
     // Browser controller is defined below; keeping helpers above DOM-free makes them safe in Node.
     const ALLOWED_PATH_ROOTS = new Set([
         'personalInformation', 'professionalSummary', 'education', 'experience', 'projects', 'skills',
-        'achievementsAndCertifications', 'languages', 'volunteerExperience', 'interests', 'customSections', 'sections'
+        'achievementsAndCertifications', 'languages', 'volunteerExperience', 'references', 'interests', 'customSections', 'sections'
     ]);
 
     function pathParts(path) {
@@ -1067,6 +1429,7 @@
         grade: LIMITS.shortText,
         descriptionOrCoursework: LIMITS.longText,
         companyName: LIMITS.shortText,
+        company: LIMITS.shortText,
         jobTitle: LIMITS.shortText,
         employmentType: LIMITS.shortText,
         projectName: LIMITS.shortText,
@@ -1093,6 +1456,7 @@
         achievementsAndCertifications: function () { return { id: newId('achievement'), title: '', issuingOrganization: '', date: '', credentialUrl: '', description: '' }; },
         languages: function () { return { id: newId('language'), name: '', proficiency: '' }; },
         volunteerExperience: function () { return { id: newId('volunteer'), organizationName: '', role: '', location: '', startDate: '', endDate: '', isCurrentlyVolunteering: false, bulletPoints: [''] }; },
+        references: function () { return { id: newId('reference'), fullName: '', jobTitle: '', company: '', emailAddress: '', phoneNumber: '' }; },
         customSections: function () { return { id: newId('custom-section'), title: '', entries: [] }; }
     });
 
@@ -1116,15 +1480,17 @@
         const saveStatus = root.querySelector('[data-save-status]');
         const pdfStatus = root.querySelector('[data-pdf-status]');
         const clearDialog = root.querySelector('[data-clear-dialog]');
+        const templateDialog = root.querySelector('[data-template-dialog]');
         const summaryCount = root.querySelector('[data-summary-count]');
         const pageFitStatus = root.querySelector('[data-page-fit-status]');
         const onePageWarning = root.querySelector('[data-one-page-warning]');
-        const readinessPanel = root.querySelector('[data-readiness-panel]');
-        const readinessMeter = root.querySelector('[data-readiness-meter]');
-        const readinessScore = root.querySelector('[data-readiness-score]');
-        const readinessSummary = root.querySelector('[data-readiness-summary]');
-        const readinessChecks = root.querySelector('[data-readiness-checks]');
-        const readinessNext = root.querySelector('[data-readiness-next]');
+        const templatePicker = root.querySelector('[data-template-picker]');
+        const photoField = root.querySelector('[data-photo-field]');
+        const photoInput = root.querySelector('[data-profile-photo-input]');
+        const photoPreview = root.querySelector('[data-photo-preview]');
+        const photoInitials = root.querySelector('[data-photo-initials]');
+        const photoStatus = root.querySelector('[data-photo-status]');
+        const dynamicSectionHost = root.querySelector('[data-dynamic-section-host]');
         const touched = new Set();
         let showAllErrors = false;
         let state = createEmptyState();
@@ -1132,7 +1498,6 @@
         let savedRevision = 0;
         let saveTimer = 0;
         let previewTimer = 0;
-        let readinessTimer = 0;
         let initialFocusTimer = 0;
         let targetHighlightTimer = 0;
         let previewRequest = 0;
@@ -1144,7 +1509,11 @@
         let destroyed = false;
         let initialSectionHandled = false;
         let storageEnabled = Boolean(storageKey);
-        const tabList = root.querySelector('[role="tablist"]');
+        let activeEditorTab = 'personal';
+        let photoRequest = 0;
+        let templateCursor = 0;
+        let templateDialogOpener = null;
+        const tabList = root.querySelector('.aw-rb-mobile-tabs');
 
         function isCompactLayout() {
             if (!tabList || !windowObject || typeof windowObject.getComputedStyle !== 'function') return false;
@@ -1226,6 +1595,203 @@
             if (summaryCount) {
                 const length = plainRichText(state.professionalSummary, LIMITS.summary).length;
                 summaryCount.textContent = length + ' characters - keep the summary to about 3 lines';
+            }
+        }
+
+        function syncTemplatePicker() {
+            const selectedTemplate = templateMetadata(state.templateId);
+            if (templatePicker) {
+                const mini = templatePicker.querySelector('[data-selected-template-mini]');
+                const name = templatePicker.querySelector('[data-selected-template-name]');
+                const description = templatePicker.querySelector('[data-selected-template-description]');
+                const status = templatePicker.querySelector('[data-template-status]');
+                if (mini) mini.className = 'aw-rb-template-mini aw-rb-template-mini-' + selectedTemplate.id;
+                if (name) name.textContent = selectedTemplate.name;
+                if (description) description.textContent = selectedTemplate.description;
+                if (status) status.textContent = selectedTemplate.name + ' selected · ' + (selectedTemplate.hasPhoto ? 'portrait layout' : 'photo-free layout') + '.';
+            }
+            syncPhotoField(selectedTemplate);
+        }
+
+        function renderTemplateDialog() {
+            if (!templateDialog) return;
+            templateCursor = Math.max(0, Math.min(TEMPLATE_CATALOG.length - 1, templateCursor));
+            const candidate = TEMPLATE_CATALOG[templateCursor];
+            const preview = templateDialog.querySelector('[data-template-dialog-preview]');
+            const name = templateDialog.querySelector('[data-template-dialog-name]');
+            const description = templateDialog.querySelector('[data-template-dialog-description]');
+            const position = templateDialog.querySelector('[data-template-dialog-position]');
+            const photo = templateDialog.querySelector('[data-template-dialog-photo]');
+            const font = templateDialog.querySelector('[data-template-dialog-font]');
+            const previous = templateDialog.querySelector('[data-action="previous-template"]');
+            const next = templateDialog.querySelector('[data-action="next-template"]');
+            const confirm = templateDialog.querySelector('[data-action="confirm-template"]');
+            templateDialog.dataset.templateId = candidate.id;
+            if (preview) preview.className = 'aw-rb-template-showcase aw-rb-template-showcase-' + candidate.id;
+            if (name) name.textContent = candidate.name;
+            if (description) description.textContent = candidate.description;
+            if (position) position.textContent = 'Template ' + (templateCursor + 1) + ' of ' + TEMPLATE_CATALOG.length;
+            if (photo) photo.textContent = candidate.hasPhoto ? 'Photo option' : 'No photo';
+            if (font) font.textContent = candidate.font + ' font';
+            if (previous) previous.disabled = templateCursor === 0;
+            if (next) next.disabled = templateCursor === TEMPLATE_CATALOG.length - 1;
+            if (confirm) {
+                confirm.textContent = candidate.id === state.templateId ? 'Keep template & add data' : 'Use template & add data';
+                confirm.setAttribute('aria-label', 'Use ' + candidate.name + ' template and add resume data');
+            }
+        }
+
+        function openTemplateDialog(trigger) {
+            if (!templateDialog) return;
+            templateDialogOpener = trigger || null;
+            templateCursor = Math.max(0, TEMPLATE_CATALOG.findIndex(function (template) { return template.id === state.templateId; }));
+            renderTemplateDialog();
+            if (typeof templateDialog.showModal === 'function') templateDialog.showModal();
+            else templateDialog.setAttribute('open', '');
+        }
+
+        function closeTemplateDialog(restoreFocus) {
+            if (!templateDialog) return;
+            if (typeof templateDialog.close === 'function' && templateDialog.open) templateDialog.close();
+            else templateDialog.removeAttribute('open');
+            if (restoreFocus && templateDialogOpener && typeof templateDialogOpener.focus === 'function') {
+                templateDialogOpener.focus();
+            }
+        }
+
+        function moveTemplateCursor(delta) {
+            templateCursor = Math.max(0, Math.min(TEMPLATE_CATALOG.length - 1, templateCursor + delta));
+            renderTemplateDialog();
+        }
+
+        function continueToResumeData() {
+            activateTab('form');
+            activateEditorTab('personal');
+            const firstField = root.querySelector('[data-editor-section="personalInformation"] [data-field]');
+            if (firstField && typeof firstField.focus === 'function') {
+                if (windowObject && typeof windowObject.setTimeout === 'function') windowObject.setTimeout(function () { firstField.focus(); }, 0);
+                else firstField.focus();
+            }
+        }
+
+        function initialsForName(value) {
+            const parts = text(value, LIMITS.name).split(/\s+/).filter(Boolean);
+            if (!parts.length) return 'AW';
+            return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toLocaleUpperCase();
+        }
+
+        function syncPhotoField(selectedTemplate) {
+            if (!photoField) return;
+            const template = selectedTemplate || templateMetadata(state.templateId);
+            photoField.hidden = !template.hasPhoto;
+            photoField.setAttribute('aria-hidden', String(!template.hasPhoto));
+            const help = photoField.querySelector('[data-photo-template-help]');
+            if (help) help.textContent = template.name + ' places a circular portrait in its professional layout.';
+            const photo = state.personalInformation.profilePhotoDataUrl;
+            if (photoPreview) {
+                photoPreview.hidden = !photo;
+                if (photo) photoPreview.src = photo;
+                else photoPreview.removeAttribute('src');
+            }
+            if (photoInitials) {
+                photoInitials.hidden = Boolean(photo);
+                photoInitials.textContent = initialsForName(state.personalInformation.fullName);
+            }
+            const remove = photoField.querySelector('[data-remove-profile-photo]');
+            if (remove) remove.hidden = !photo;
+        }
+
+        function syncEditorTabs() {
+            const group = EDITOR_TAB_GROUPS[activeEditorTab] || EDITOR_TAB_GROUPS.personal;
+            root.querySelectorAll('[data-editor-tab]').forEach(function (control) {
+                const active = control.dataset.editorTab === activeEditorTab;
+                control.classList.toggle('is-active', active);
+                control.setAttribute('aria-selected', String(active));
+                control.tabIndex = active ? 0 : -1;
+            });
+            root.querySelectorAll('[data-editor-section]').forEach(function (section) {
+                const visible = group.includes(section.dataset.editorSection);
+                section.hidden = !visible;
+                section.setAttribute('aria-hidden', String(!visible));
+            });
+            const showsDynamicSection = group.some(function (section) {
+                return section !== 'personalInformation' && section !== 'professionalSummary' && section !== 'arrange';
+            });
+            if (dynamicSectionHost) dynamicSectionHost.hidden = !showsDynamicSection;
+            const activeControl = root.querySelector('[data-editor-tab="' + activeEditorTab + '"]');
+            if (form && activeControl && activeControl.id) form.setAttribute('aria-labelledby', activeControl.id);
+        }
+
+        function activateEditorTab(name, focusTab) {
+            if (!Object.prototype.hasOwnProperty.call(EDITOR_TAB_GROUPS, name)) return false;
+            activeEditorTab = name;
+            syncEditorTabs();
+            const control = root.querySelector('[data-editor-tab="' + name + '"]');
+            if (focusTab && control && typeof control.focus === 'function') control.focus();
+            return true;
+        }
+
+        function resizeProfilePhoto(file) {
+            return new Promise(function (resolve, reject) {
+                if (!file || !/^image\/(?:png|jpe?g|webp)$/i.test(file.type || '')) {
+                    reject(new Error('Choose a PNG, JPG, or WebP image.'));
+                    return;
+                }
+                if (file.size > LIMITS.photoFileBytes) {
+                    reject(new Error('Choose an image smaller than 8 MB.'));
+                    return;
+                }
+                if (!windowObject || !windowObject.FileReader || !windowObject.Image) {
+                    reject(new Error('Photo processing is unavailable in this browser.'));
+                    return;
+                }
+                const reader = new windowObject.FileReader();
+                reader.onerror = function () { reject(new Error('The selected image could not be read.')); };
+                reader.onload = function () {
+                    const image = new windowObject.Image();
+                    image.onerror = function () { reject(new Error('The selected file is not a readable image.')); };
+                    image.onload = function () {
+                        const size = 240;
+                        const canvas = documentObject.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const context = canvas.getContext('2d');
+                        if (!context) { reject(new Error('Photo processing is unavailable in this browser.')); return; }
+                        const sourceSize = Math.min(image.naturalWidth || image.width, image.naturalHeight || image.height);
+                        const sourceX = ((image.naturalWidth || image.width) - sourceSize) / 2;
+                        const sourceY = ((image.naturalHeight || image.height) - sourceSize) / 2;
+                        context.clearRect(0, 0, size, size);
+                        context.beginPath();
+                        context.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+                        context.closePath();
+                        context.clip();
+                        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+                        const result = normalizeProfilePhotoDataUrl(canvas.toDataURL('image/png'));
+                        if (!result) { reject(new Error('The processed photo is too large. Try a simpler or smaller image.')); return; }
+                        resolve(result);
+                    };
+                    image.src = String(reader.result || '');
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function onPhotoChange() {
+            const file = photoInput && photoInput.files ? photoInput.files[0] : null;
+            if (!file) return;
+            const request = ++photoRequest;
+            setStatus(photoStatus, 'Preparing your portrait…');
+            try {
+                const photo = await resizeProfilePhoto(file);
+                if (destroyed || request !== photoRequest) return;
+                state.personalInformation.profilePhotoDataUrl = photo;
+                if (photoInput) photoInput.value = '';
+                changed(false);
+                setStatus(photoStatus, 'Portrait added to this resume.');
+            } catch (error) {
+                if (request !== photoRequest) return;
+                if (photoInput) photoInput.value = '';
+                setStatus(photoStatus, error && error.message ? error.message : 'The portrait could not be added.');
             }
         }
 
@@ -1539,6 +2105,15 @@
                 ],
                 extra: function (container, _entry, index) { renderBullets(container, 'volunteerExperience.' + index + '.bulletPoints', 'Highlights'); }
             });
+            renderCollection({
+                key: 'references', title: 'References', singular: 'reference', addLabel: '+ Add reference', empty: 'No references yet.',
+                help: 'Add only people who have agreed to be contacted.', entryTitle: function (entry, index) { return entry.fullName || 'Reference ' + String(index + 1); },
+                fields: [
+                    { property: 'fullName', label: 'Full name' }, { property: 'jobTitle', label: 'Job title' },
+                    { property: 'company', label: 'Company or organization' }, { property: 'emailAddress', label: 'Email address', type: 'email' },
+                    { property: 'phoneNumber', label: 'Phone number', type: 'tel' }
+                ]
+            });
             const interests = sectionCard('interests', 'Interests', 'Keep this concise and specific.', null);
             renderTags(interests, 'interests', 'Interests', 'Type an interest, then press Enter');
             dynamicEditor.appendChild(interests);
@@ -1633,13 +2208,16 @@
 
         function renderAll() {
             syncStaticFields();
+            syncTemplatePicker();
             renderSectionManager();
             renderDynamicEditor();
+            syncEditorTabs();
             updateValidation();
         }
 
         function focusInitialSection() {
             if (destroyed || initialSectionHandled || !initialSection) return false;
+            activateEditorTab(editorTabForSection(initialSection));
             const selector = builderSectionSelector(initialSection);
             const target = selector ? root.querySelector(selector) : null;
             if (!target) return false;
@@ -1675,43 +2253,6 @@
             if (!initialSection || !windowObject || initialSectionHandled) return;
             windowObject.clearTimeout(initialFocusTimer);
             initialFocusTimer = windowObject.setTimeout(focusInitialSection, 0);
-        }
-
-        function renderReadiness() {
-            if (!readinessPanel) return null;
-            const result = evaluateDraftReadiness(state);
-            readinessPanel.dataset.readinessTone = result.tone;
-            readinessPanel.style.setProperty('--aw-rb-readiness', String(result.score));
-            if (readinessScore) readinessScore.textContent = String(result.score);
-            if (readinessMeter) readinessMeter.setAttribute('aria-label', 'Draft readiness score: ' + result.score + ' out of 100');
-            if (readinessSummary) readinessSummary.textContent = result.summary;
-            if (readinessChecks) {
-                replaceChildren(readinessChecks);
-                result.checks.forEach(function (check) {
-                    const row = domElement(documentObject, 'div', 'aw-rb-readiness-check');
-                    const mark = domElement(documentObject, 'span', 'aw-rb-readiness-check-mark', check.status === 'ready' ? '\u2713' : check.status === 'missing' ? '!' : '\u2022');
-                    const copy = domElement(documentObject, 'span');
-                    row.dataset.readinessStatus = check.status;
-                    mark.setAttribute('aria-hidden', 'true');
-                    copy.appendChild(domElement(documentObject, 'strong', '', check.title));
-                    copy.appendChild(domElement(documentObject, 'small', '', check.message));
-                    row.appendChild(mark);
-                    row.appendChild(copy);
-                    readinessChecks.appendChild(row);
-                });
-            }
-            if (readinessNext) {
-                const warning = result.warnings[0];
-                readinessNext.hidden = !warning;
-                readinessNext.textContent = warning ? 'Next improvement: ' + warning : '';
-            }
-            return result;
-        }
-
-        function scheduleReadiness(delay) {
-            if (!readinessPanel || !windowObject) return;
-            windowObject.clearTimeout(readinessTimer);
-            readinessTimer = windowObject.setTimeout(renderReadiness, typeof delay === 'number' ? delay : READINESS_DEBOUNCE_MS);
         }
 
         function saveNow() {
@@ -1787,7 +2328,6 @@
                 showAllErrors = false;
                 renderAll();
                 schedulePreview(0);
-                scheduleReadiness(0);
                 setStatus(saveStatus, 'Resume cleared in another tab.');
                 setStatus(pdfStatus, '');
                 return;
@@ -1804,7 +2344,6 @@
             showAllErrors = false;
             renderAll();
             schedulePreview(0);
-            scheduleReadiness(0);
             setStatus(saveStatus, 'Draft updated from another tab.');
         }
 
@@ -1853,10 +2392,11 @@
                 renderDynamicEditor();
             }
             syncStaticFields();
+            syncTemplatePicker();
+            syncEditorTabs();
             updateValidation();
             scheduleSave();
             schedulePreview();
-            scheduleReadiness();
         }
 
         function notifyLimit(message) {
@@ -1917,12 +2457,12 @@
             savedRevision = revision;
             latestBlobRevision = -1;
             latestPageCount = 0;
+            activeEditorTab = 'personal';
             if (clearDialog && typeof clearDialog.close === 'function') clearDialog.close();
             renderAll();
             setStatus(saveStatus, 'Resume cleared.');
             setStatus(pdfStatus, '');
             schedulePreview(0);
-            scheduleReadiness(0);
             const first = root.querySelector('[data-field="personalInformation.fullName"]');
             if (first) first.focus();
         }
@@ -1938,6 +2478,7 @@
         function focusFirstError(errors) {
             const firstPath = Object.keys(errors)[0];
             if (!firstPath) return;
+            activateEditorTab(editorTabForSection(firstPath.split('.')[0]));
             const control = Array.from(root.querySelectorAll('[data-field], [data-bind-path]')).find(function (item) {
                 return item.dataset.field === firstPath || item.dataset.bindPath === firstPath;
             });
@@ -2029,12 +2570,35 @@
                     || state.sections.some(function (descriptor) { return hasSectionContent(state, descriptor.key); });
                 if (hasDraftContent && windowObject && !windowObject.confirm('Replace your current resume with the sample? Your saved draft will be overwritten.')) return;
                 state = readSample(); touched.clear(); showAllErrors = false; revision += 1; latestBlobRevision = -1; latestPageCount = 0;
-                renderAll(); scheduleSave(); schedulePreview(0); scheduleReadiness(0); setStatus(pdfStatus, 'Sample data loaded.'); return;
+                renderAll(); scheduleSave(); schedulePreview(0); setStatus(pdfStatus, 'Sample data loaded.'); return;
             }
             if (action === 'clear') { requestClear(); return; }
             if (action === 'confirm-clear') { confirmClear(); return; }
             if (action === 'cancel-clear') { if (clearDialog && typeof clearDialog.close === 'function') clearDialog.close(); return; }
             if (action === 'download') { downloadPdf(); return; }
+            if (action === 'remove-profile-photo') {
+                photoRequest += 1;
+                state.personalInformation.profilePhotoDataUrl = '';
+                if (photoInput) photoInput.value = '';
+                changed(false);
+                setStatus(photoStatus, 'Portrait removed.');
+                return;
+            }
+            if (action === 'open-template-picker') { openTemplateDialog(button); return; }
+            if (action === 'close-template-picker') { closeTemplateDialog(true); return; }
+            if (action === 'previous-template') { moveTemplateCursor(-1); return; }
+            if (action === 'next-template') { moveTemplateCursor(1); return; }
+            if (action === 'confirm-template') {
+                const selectedTemplate = TEMPLATE_CATALOG[templateCursor] || TEMPLATE_CATALOG[0];
+                const didChange = selectedTemplate.id !== state.templateId;
+                state.templateId = selectedTemplate.id;
+                if (didChange) changed(false);
+                else syncTemplatePicker();
+                setStatus(pdfStatus, selectedTemplate.name + ' template applied. Add your details, then download the finished CV.');
+                closeTemplateDialog(false);
+                continueToResumeData();
+                return;
+            }
             if (action === 'toggle-preview-size') {
                 const panel = root.querySelector('[data-tab-panel="preview"]');
                 const backdrop = root.querySelector('[data-preview-backdrop]');
@@ -2146,12 +2710,23 @@
         }
 
         function onClick(event) {
+            const editorTab = event.target.closest('[data-editor-tab]');
+            if (editorTab && root.contains(editorTab)) { activateEditorTab(editorTab.dataset.editorTab); return; }
             const tab = event.target.closest('[data-tab]');
             if (tab && root.contains(tab)) { activateTab(tab.dataset.tab); return; }
             const format = event.target.closest('[data-format]');
             if (format && root.contains(format)) { event.preventDefault(); applyTextFormat(format); return; }
             const action = event.target.closest('[data-action]');
             if (action && root.contains(action)) { event.preventDefault(); handleAction(action); }
+        }
+
+        function onTemplateDialogCancel(event) {
+            event.preventDefault();
+            closeTemplateDialog(true);
+        }
+
+        function onTemplateDialogClick(event) {
+            if (event.target === templateDialog) closeTemplateDialog(true);
         }
 
         function onKeyDown(event) {
@@ -2165,8 +2740,29 @@
                     return;
                 }
             }
+            if (templateDialog && templateDialog.hasAttribute('open') && templateDialog.contains(event.target)
+                && (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End')) {
+                event.preventDefault();
+                if (event.key === 'Home') templateCursor = 0;
+                else if (event.key === 'End') templateCursor = TEMPLATE_CATALOG.length - 1;
+                else moveTemplateCursor(event.key === 'ArrowRight' ? 1 : -1);
+                renderTemplateDialog();
+                return;
+            }
             const tagInput = event.target.closest('[data-tag-input]');
             if (tagInput && (event.key === 'Enter' || event.key === ',')) { event.preventDefault(); addTag(tagInput); return; }
+            const editorTab = event.target.closest('[data-editor-tab]');
+            if (editorTab && (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End')) {
+                event.preventDefault();
+                const tabs = Array.from(root.querySelectorAll('[data-editor-tab]'));
+                const current = tabs.indexOf(editorTab);
+                let nextIndex = current;
+                if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = tabs.length - 1;
+                else nextIndex = (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+                activateEditorTab(tabs[nextIndex].dataset.editorTab, true);
+                return;
+            }
             const tab = event.target.closest('[data-tab]');
             if (tab && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                 event.preventDefault();
@@ -2184,8 +2780,13 @@
         root.addEventListener('focusout', onBlur);
         root.addEventListener('click', onClick);
         root.addEventListener('keydown', onKeyDown);
+        if (photoInput) photoInput.addEventListener('change', onPhotoChange);
         if (form) form.addEventListener('submit', function (event) { event.preventDefault(); downloadPdf(); });
         if (clearDialog) clearDialog.addEventListener('cancel', function (event) { event.preventDefault(); clearDialog.close(); });
+        if (templateDialog) {
+            templateDialog.addEventListener('cancel', onTemplateDialogCancel);
+            templateDialog.addEventListener('click', onTemplateDialogClick);
+        }
         if (windowObject) {
             windowObject.addEventListener('beforeunload', saveNow);
             windowObject.addEventListener('pagehide', onPageHide);
@@ -2196,22 +2797,26 @@
         activateTab((root.querySelector('[data-tab].is-active') || {}).dataset ? root.querySelector('[data-tab].is-active').dataset.tab : 'form');
         scheduleInitialSectionFocus();
         schedulePreview(0);
-        scheduleReadiness(0);
 
         return {
             getState: function () { return normalizeState(state); },
-            setState: function (value) { state = normalizeState(value); touched.clear(); showAllErrors = false; revision += 1; latestBlobRevision = -1; latestPageCount = 0; renderAll(); scheduleSave(); schedulePreview(0); scheduleReadiness(0); },
+            setState: function (value) { state = normalizeState(value); touched.clear(); showAllErrors = false; revision += 1; latestBlobRevision = -1; latestPageCount = 0; renderAll(); scheduleSave(); schedulePreview(0); },
             saveNow: saveNow,
             refreshPreview: refreshPreview,
             downloadPdf: downloadPdf,
             destroy: function () {
                 saveNow();
                 destroyed = true;
-                windowObject.clearTimeout(saveTimer); windowObject.clearTimeout(previewTimer); windowObject.clearTimeout(readinessTimer);
+                windowObject.clearTimeout(saveTimer); windowObject.clearTimeout(previewTimer);
                 windowObject.clearTimeout(initialFocusTimer); windowObject.clearTimeout(targetHighlightTimer);
                 revokePreviewUrl();
                 root.removeEventListener('input', onInput); root.removeEventListener('change', onInput);
                 root.removeEventListener('focusout', onBlur); root.removeEventListener('click', onClick); root.removeEventListener('keydown', onKeyDown);
+                if (photoInput) photoInput.removeEventListener('change', onPhotoChange);
+                if (templateDialog) {
+                    templateDialog.removeEventListener('cancel', onTemplateDialogCancel);
+                    templateDialog.removeEventListener('click', onTemplateDialogClick);
+                }
                 windowObject.removeEventListener('beforeunload', saveNow);
                 windowObject.removeEventListener('pagehide', onPageHide);
                 windowObject.removeEventListener('pageshow', onPageShow);
@@ -2231,10 +2836,15 @@
         SCHEMA_VERSION: SCHEMA_VERSION,
         LIMITS: LIMITS,
         ONE_PAGE_RECOMMENDATIONS: ONE_PAGE_RECOMMENDATIONS,
-        READINESS_DEBOUNCE_MS: READINESS_DEBOUNCE_MS,
+        DEFAULT_TEMPLATE_ID: DEFAULT_TEMPLATE_ID,
+        TEMPLATE_CATALOG: TEMPLATE_CATALOG,
+        EDITOR_TAB_GROUPS: EDITOR_TAB_GROUPS,
         SECTION_DEFAULTS: SECTION_DEFAULTS,
         normalizeBuilderSection: normalizeBuilderSection,
         builderSectionSelector: builderSectionSelector,
+        editorTabForSection: editorTabForSection,
+        normalizeTemplateId: normalizeTemplateId,
+        normalizeProfilePhotoDataUrl: normalizeProfilePhotoDataUrl,
         createEmptyState: createEmptyState,
         createSampleState: createSampleState,
         normalizeState: normalizeState,
@@ -2249,7 +2859,6 @@
         richTextRuns: richTextRuns,
         plainRichText: plainRichText,
         onePageGuidance: onePageGuidance,
-        evaluateDraftReadiness: evaluateDraftReadiness,
         countPdfPages: countPdfPages,
         buildFilename: buildFilename,
         buildDocumentDefinition: buildDocumentDefinition,

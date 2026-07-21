@@ -17,10 +17,10 @@
         <div class="aw-rb-hero-copy">
             <span class="aw-kicker">
                 <svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>
-                ATS-friendly resume studio
+                Resume design studio
             </span>
-            <h2>Build a resume that is ready to apply.</h2>
-            <p>Enter your details once, arrange every section, and review the polished PDF as you type.</p>
+            <h2>Add your details. ApplyWise handles the design.</h2>
+            <p>Enter your information once, choose a template, and review the finished PDF as you type.</p>
         </div>
         <div class="aw-rb-toolbar" aria-label="Resume actions">
             <button class="btn btn-secondary-soft" type="button" data-action="load-sample">
@@ -95,13 +95,24 @@
             <div class="aw-rb-panel-heading">
                 <div>
                     <span class="aw-kicker">Resume details</span>
-                    <h3>Tell your professional story</h3>
-                    <p>Required fields are marked with an asterisk. Your information stays on this device.</p>
+                    <h3>Build one section at a time</h3>
+                    <p>Choose a tab, add only that information, and see the selected design update instantly.</p>
                 </div>
                 <span class="aw-status aw-status-info">Auto-save on</span>
             </div>
 
-            <form class="aw-rb-form" data-resume-form autocomplete="on" novalidate>
+            <nav class="aw-rb-editor-tabs" data-editor-tabs role="tablist" aria-label="Resume detail sections">
+                <button id="rb-detail-tab-personal" class="is-active" type="button" role="tab" data-editor-tab="personal" aria-selected="true" aria-controls="rb-resume-fields">Contact</button>
+                <button id="rb-detail-tab-summary" type="button" role="tab" data-editor-tab="summary" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Profile</button>
+                <button id="rb-detail-tab-experience" type="button" role="tab" data-editor-tab="experience" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Experience</button>
+                <button id="rb-detail-tab-education" type="button" role="tab" data-editor-tab="education" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Education</button>
+                <button id="rb-detail-tab-skills" type="button" role="tab" data-editor-tab="skills" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Skills</button>
+                <button id="rb-detail-tab-projects" type="button" role="tab" data-editor-tab="projects" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Projects</button>
+                <button id="rb-detail-tab-more" type="button" role="tab" data-editor-tab="more" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">More</button>
+                <button id="rb-detail-tab-arrange" type="button" role="tab" data-editor-tab="arrange" aria-selected="false" aria-controls="rb-resume-fields" tabindex="-1">Arrange</button>
+            </nav>
+
+            <form id="rb-resume-fields" class="aw-rb-form" data-resume-form role="tabpanel" aria-labelledby="rb-detail-tab-personal" autocomplete="on" novalidate>
                 <fieldset class="aw-rb-form-section" data-editor-section="personalInformation">
                     <legend>
                         <span class="aw-rb-section-number">1</span>
@@ -110,6 +121,31 @@
                             <small>The contact details employers see first.</small>
                         </span>
                     </legend>
+
+                    <div class="aw-rb-photo-field" data-photo-field hidden>
+                        <div class="aw-rb-photo-copy">
+                            <span class="aw-kicker aw-kicker-violet">For this template</span>
+                            <strong>Add a professional portrait</strong>
+                            <small data-photo-template-help>This design includes a profile photo.</small>
+                        </div>
+                        <div class="aw-rb-photo-controls">
+                            <span class="aw-rb-photo-preview" aria-hidden="true">
+                                <img data-photo-preview alt="" hidden />
+                                <span data-photo-initials>AW</span>
+                            </span>
+                            <div>
+                                <label class="btn btn-secondary-soft btn-sm" for="rb-profile-photo">Choose photo</label>
+                                <input id="rb-profile-photo"
+                                       class="visually-hidden"
+                                       type="file"
+                                       data-profile-photo-input
+                                       accept="image/png,image/jpeg,image/webp" />
+                                <button class="aw-rb-text-button" type="button" data-action="remove-profile-photo" data-remove-profile-photo hidden>Remove</button>
+                                <small>PNG, JPG, or WebP. ApplyWise crops it to a resume-ready circle.</small>
+                                <span class="aw-rb-photo-status" data-photo-status role="status" aria-live="polite"></span>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="aw-rb-field-grid">
                         <div class="aw-rb-field aw-rb-field-wide">
@@ -259,37 +295,7 @@
                     </div>
                 </fieldset>
 
-                @* Section order is intentionally rendered after the content editor. *@
-                @*
-                    <div class="aw-rb-section-heading">
-                        <div>
-                            <span class="aw-rb-section-number">3</span>
-                            <span>
-                                <h3 id="rb-section-order-title">Section order and visibility</h3>
-                                <p>Move sections into the order that best supports your application.</p>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="aw-rb-manager-list" data-section-manager>
-                        <div class="aw-rb-empty">
-                            <strong>Preparing section controls…</strong>
-                            <span>Your resume sections will appear here.</span>
-                        </div>
-                    </div>
-                *@
-
-                <section class="aw-rb-dynamic-sections" aria-labelledby="rb-content-sections-title">
-                    <div class="aw-rb-dynamic-heading">
-                        <div>
-                            <span class="aw-kicker">Resume content</span>
-                            <h3 id="rb-content-sections-title">Build each section</h3>
-                            <p>Add as many entries as you need, then fine-tune the order below.</p>
-                        </div>
-                        <button class="btn btn-secondary-soft btn-sm" type="button" data-action="add-custom-section">
-                            <svg class="ui-icon" aria-hidden="true"><use href="#i-plus" /></svg>
-                            Custom Section
-                        </button>
-                    </div>
+                <section class="aw-rb-dynamic-sections" data-dynamic-section-host aria-label="Resume content fields">
                     <div class="aw-rb-section-editor" data-section-editor>
                         <div class="aw-rb-empty">
                             <strong>Preparing your resume editor…</strong>
@@ -298,7 +304,7 @@
                     </div>
                 </section>
 
-                <section class="aw-rb-form-section" aria-labelledby="rb-section-order-title">
+                <section class="aw-rb-form-section" data-editor-section="arrange" aria-labelledby="rb-section-order-title">
                     <div class="aw-rb-section-heading">
                         <div>
                             <span class="aw-rb-section-number">3</span>
@@ -310,7 +316,7 @@
                     </div>
                     <div class="aw-rb-manager-list" data-section-manager>
                         <div class="aw-rb-empty">
-                            <strong>Preparing section controlsâ€¦</strong>
+                            <strong>Preparing section controls&hellip;</strong>
                             <span>Your resume sections will appear here.</span>
                         </div>
                     </div>
@@ -333,7 +339,7 @@
             <div class="aw-rb-preview-heading">
                 <div>
                     <span class="aw-kicker aw-kicker-green">Live PDF preview</span>
-                    <h3>Your ATS-ready resume</h3>
+                    <h3>Your finished resume</h3>
                 </div>
                 <div class="aw-rb-preview-actions">
                     <span class="aw-rb-preview-badge" title="PDF text remains selectable">A4 · one page · selectable</span>
@@ -343,29 +349,21 @@
                 </div>
             </div>
 
-            <section class="aw-rb-readiness" data-readiness-panel data-readiness-tone="starting" aria-labelledby="rb-readiness-title">
-                <header class="aw-rb-readiness-head">
-                    <div>
-                        <span class="aw-kicker aw-kicker-violet">Local draft check</span>
-                        <h3 id="rb-readiness-title">ATS readiness snapshot</h3>
-                        <p>Fast content checks in this browser - not a job-match score.</p>
-                    </div>
-                    <div class="aw-rb-readiness-meter" data-readiness-meter role="img" aria-label="Draft readiness score: 0 out of 100">
-                        <strong data-readiness-score>0</strong><span>/100</span>
-                    </div>
+            <section class="aw-rb-template-picker" data-template-picker aria-labelledby="rb-template-picker-title">
+                <header>
+                    <span class="aw-kicker aw-kicker-violet">Resume templates</span>
+                    <h3 id="rb-template-picker-title">Current design</h3>
                 </header>
-                <p class="aw-rb-readiness-summary" data-readiness-summary role="status" aria-live="polite" aria-atomic="true">Checking this local draft...</p>
-                <div class="aw-rb-readiness-checks" data-readiness-checks aria-label="Draft readiness checks"></div>
-                <p class="aw-rb-readiness-next" data-readiness-next hidden></p>
-                <div class="aw-rb-readiness-cta">
-                    <span>
-                        <strong>Want role-specific feedback?</strong>
-                        <small>Download this PDF and add it to your Resume Library first. This local draft is not uploaded automatically.</small>
+                <div class="aw-rb-selected-template">
+                    <span class="aw-rb-template-mini aw-rb-template-mini-classic" data-selected-template-mini aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="aw-rb-selected-template-copy">
+                        <strong data-selected-template-name>Editorial</strong>
+                        <small data-selected-template-description>A refined photo-free resume with formal two-column structure.</small>
+                        <span class="aw-rb-template-status" data-template-status role="status" aria-live="polite">Editorial selected.</span>
                     </span>
-                    <a class="btn btn-secondary-soft btn-sm" asp-controller="ResumeAnalyzer" asp-action="Index">
-                        <svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg>
-                        Analyze against a job
-                    </a>
+                    <button class="btn btn-secondary-soft aw-rb-choose-template" type="button" data-action="open-template-picker" aria-haspopup="dialog" aria-controls="rb-template-dialog">
+                        Select template
+                    </button>
                 </div>
             </section>
 
@@ -391,6 +389,54 @@
 
     <button class="aw-rb-preview-backdrop" type="button" data-preview-backdrop data-action="toggle-preview-size" aria-label="Close expanded preview" hidden></button>
 
+    <dialog id="rb-template-dialog"
+            class="aw-rb-template-dialog"
+            data-template-dialog
+            aria-labelledby="rb-template-dialog-title"
+            aria-describedby="rb-template-dialog-description">
+        <div class="aw-rb-template-dialog-card">
+            <header class="aw-rb-template-dialog-header">
+                <div>
+                    <span class="aw-kicker aw-kicker-violet">Resume templates</span>
+                    <h2 id="rb-template-dialog-title">Select a template</h2>
+                    <p id="rb-template-dialog-description">Preview one design at a time. Your resume data changes only after you choose a template.</p>
+                </div>
+                <button class="aw-rb-dialog-close" type="button" data-action="close-template-picker" aria-label="Close template picker">&times;</button>
+            </header>
+
+            <div class="aw-rb-template-dialog-body">
+                <div class="aw-rb-template-showcase aw-rb-template-showcase-classic" data-template-dialog-preview aria-hidden="true">
+                    <div class="aw-rb-template-showcase-sheet">
+                        <i class="aw-rb-template-showcase-photo"></i>
+                        <i class="aw-rb-template-showcase-header"></i>
+                        <i class="aw-rb-template-showcase-sidebar"></i>
+                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-one"></i>
+                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-two"></i>
+                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-three"></i>
+                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-four"></i>
+                    </div>
+                </div>
+
+                <div class="aw-rb-template-dialog-copy">
+                    <span class="aw-rb-template-position" data-template-dialog-position aria-live="polite">Template 1 of 9</span>
+                    <h3 data-template-dialog-name>Editorial</h3>
+                    <p data-template-dialog-description>A refined photo-free resume with formal two-column structure.</p>
+                    <div class="aw-rb-template-tags" aria-label="Template details">
+                        <span data-template-dialog-photo>No photo</span>
+                        <span data-template-dialog-font>Roboto font</span>
+                    </div>
+                    <p class="aw-rb-template-dialog-note">All sections remain editable after selection, and saved details stay in place when you switch designs.</p>
+                </div>
+            </div>
+
+            <footer class="aw-rb-template-dialog-actions">
+                <button class="btn btn-secondary-soft" type="button" data-action="previous-template">Previous</button>
+                <button class="btn btn-primary" type="button" data-action="confirm-template">Use template &amp; add data</button>
+                <button class="btn btn-secondary-soft" type="button" data-action="next-template">Next</button>
+            </footer>
+        </div>
+    </dialog>
+
     <dialog class="aw-rb-clear-dialog" data-clear-dialog aria-labelledby="rb-clear-title" aria-describedby="rb-clear-description">
         <form method="dialog" class="aw-rb-dialog-card">
             <span class="aw-rb-dialog-icon" aria-hidden="true">!</span>
@@ -410,5 +456,6 @@
 @section Scripts {
     <script src="~/lib/pdfmake/pdfmake.min.js" asp-append-version="true"></script>
     <script src="~/lib/pdfmake/vfs_fonts.js" asp-append-version="true"></script>
+    <script src="~/lib/pdfmake/poppins_vfs.js" asp-append-version="true"></script>
     <script src="~/js/resume-builder.js" asp-append-version="true"></script>
 }

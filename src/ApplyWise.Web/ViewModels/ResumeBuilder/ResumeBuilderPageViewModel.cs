@@ -43,6 +43,7 @@ public sealed class ResumeBuilderPageViewModel
             "projects" => "projects",
             "education" => "education",
             "skills" => "skills",
+            "references" => "references",
             "achievements" or "certifications" or "achievementsandcertifications"
                 => "achievementsAndCertifications",
             _ => null

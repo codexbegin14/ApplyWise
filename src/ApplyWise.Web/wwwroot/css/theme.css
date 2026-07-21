@@ -442,8 +442,6 @@ textarea::placeholder { color: var(--aw-muted); opacity: 1; }
 .aw-rb-one-page-metrics > span,
 .aw-rb-one-page-icon,
 .aw-rb-format-toolbar button { color: var(--aw-text-2); border-color: var(--aw-border); background: var(--aw-surface-2); }
-.aw-rb-readiness { color: var(--aw-text); border-color: var(--aw-border); background: var(--aw-surface-2); }
-.aw-rb-readiness-check { border-color: var(--aw-border); background: var(--aw-surface); }
 .aw-rb-preview-shell,
 .aw-rb-preview-frame { background: #fff !important; color-scheme: light; }
 

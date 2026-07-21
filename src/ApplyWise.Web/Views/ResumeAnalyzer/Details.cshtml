@@ -25,6 +25,6 @@
         <a class="btn btn-primary" asp-action="Index" asp-route-analysisId="@Model.Id">Run again</a>
     </header>
 
-    <partial name="_AnalyzerTabs" model='"pasted"' />
-    <partial name="_AnalysisResult" model="Model" />
+    <partial name="_AnalyzerTabs" model="@(Model.HasJobMatch ? "job" : "ats")" />
+    <partial name="@(Model.IsLegacy ? "_AnalysisResult" : "_CompactAnalysisResult")" model="Model" />
 </div>
