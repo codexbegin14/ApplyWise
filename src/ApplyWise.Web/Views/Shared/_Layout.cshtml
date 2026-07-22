@@ -21,12 +21,27 @@
     <title>@ViewData["Title"] - ApplyWise</title>
     <link rel="icon" type="image/png" href="~/images/applywise-logo-v2.png" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/images/applywise-logo-v2.png" asp-append-version="true" />
-    <script>try{const workspace=document.documentElement.dataset.authenticatedWorkspace==='true';const saved=workspace?localStorage.getItem('applywise-theme'):null;const theme=workspace&&saved==='dark'?'dark':'light';document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme}catch{document.documentElement.dataset.theme='light';document.documentElement.style.colorScheme='light'}</script>
+    <script>
+        try {
+            const workspace = document.documentElement.dataset.authenticatedWorkspace === 'true';
+            const paletteVersion = 'light-blue-v1';
+            if (workspace && localStorage.getItem('applywise-palette-version') !== paletteVersion) {
+                localStorage.setItem('applywise-theme', 'light');
+                localStorage.setItem('applywise-palette-version', paletteVersion);
+            }
+            const saved = workspace ? localStorage.getItem('applywise-theme') : null;
+            const theme = workspace && saved === 'dark' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.style.colorScheme = theme;
+        } catch {
+            document.documentElement.dataset.theme = 'light';
+            document.documentElement.style.colorScheme = 'light';
+        }
+    </script>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/release.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/application-form.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
     <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
 </head>
@@ -40,6 +55,7 @@
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
@@ -51,27 +67,21 @@
         <aside class="app-sidebar" id="appSidebar">
             <a class="brand" asp-controller="Dashboard" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
             <nav class="sidebar-nav" aria-label="Main navigation">
-                <a class="@(controller == "Dashboard" && action != "Settings" ? "active" : null)" asp-controller="Dashboard" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Dashboard</a>
-                <a class="@(controller == "JobApplications" ? "active" : null)" asp-controller="JobApplications" asp-action="Index"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Applications</a>
-                <a class="@(controller == "Resumes" ? "active" : null)" asp-controller="Resumes" asp-action="Index"><svg class="ui-icon"><use href="#i-file" /></svg>Resumes</a>
-                <a class="@(controller == "ResumeBuilder" ? "active" : null)" asp-controller="ResumeBuilder" asp-action="Index"><svg class="ui-icon"><use href="#i-edit-file" /></svg>Resume Builder</a>
-                <a class="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "active" : null)" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Resume tools</a>
-                <a class="@(controller == "Interviews" ? "active" : null)" asp-controller="Interviews" asp-action="Index"><svg class="ui-icon"><use href="#i-calendar" /></svg>Interviews</a>
-                <a class="@(controller == "Reminders" ? "active" : null)" asp-controller="Reminders" asp-action="Index"><svg class="ui-icon"><use href="#i-bell" /></svg>Reminders</a>
-                <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" asp-controller="Dashboard" asp-action="Settings"><svg class="ui-icon"><use href="#i-settings" /></svg>Settings</a>
-                <a class="@(controller == "Profile" ? "active" : null)" asp-controller="Profile" asp-action="Index"><svg class="ui-icon"><use href="#i-settings" /></svg>Profile</a>
+                <a class="@(controller == "Dashboard" && action != "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action != "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Dashboard</a>
+                <a class="@(controller == "JobApplications" ? "active" : null)" aria-current="@(controller == "JobApplications" ? "page" : null)" asp-controller="JobApplications" asp-action="Index"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Applications</a>
+                <a class="@(controller == "Resumes" ? "active" : null)" aria-current="@(controller == "Resumes" ? "page" : null)" asp-controller="Resumes" asp-action="Index"><svg class="ui-icon"><use href="#i-file" /></svg>Resumes</a>
+                <a class="@(controller == "ResumeBuilder" ? "active" : null)" aria-current="@(controller == "ResumeBuilder" ? "page" : null)" asp-controller="ResumeBuilder" asp-action="Index"><svg class="ui-icon"><use href="#i-edit-file" /></svg>Resume Builder</a>
+                <a class="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "active" : null)" aria-current="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "page" : null)" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-spark" /></svg>Resume tools</a>
+                <a class="@(controller == "Interviews" ? "active" : null)" aria-current="@(controller == "Interviews" ? "page" : null)" asp-controller="Interviews" asp-action="Index"><svg class="ui-icon"><use href="#i-calendar" /></svg>Interviews</a>
+                <a class="@(controller == "Reminders" ? "active" : null)" aria-current="@(controller == "Reminders" ? "page" : null)" asp-controller="Reminders" asp-action="Index"><svg class="ui-icon"><use href="#i-bell" /></svg>Reminders</a>
+                <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action == "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Settings"><svg class="ui-icon"><use href="#i-settings" /></svg>Settings</a>
+                <a class="@(controller == "Profile" ? "active" : null)" aria-current="@(controller == "Profile" ? "page" : null)" asp-controller="Profile" asp-action="Index"><svg class="ui-icon"><use href="#i-user" /></svg>Profile</a>
             </nav>
-            <div class="sidebar-footer"><span class="status-dot"></span> Workspace ready</div>
         </aside>
         <div class="app-main">
             <header class="topbar">
                 <button class="menu-button" type="button" data-sidebar-toggle aria-label="Close navigation sidebar" title="Close navigation sidebar" aria-controls="appSidebar" aria-expanded="true"><span></span><span></span><span></span></button>
-                <h1>@ViewData["Title"]</h1>
                 <div class="topbar-actions">
-                    <form class="search-box" asp-controller="JobApplications" asp-action="Index" method="get" role="search">
-                        <label class="visually-hidden" for="globalSearch">Search applications</label>
-                        <input id="globalSearch" name="SearchTerm" type="search" placeholder="Search applications..." />
-                    </form>
                     <partial name="_LoginPartial" />
                 </div>
             </header>
@@ -79,18 +89,33 @@
         </div>
         <button class="sidebar-backdrop" type="button" data-sidebar-toggle aria-label="Close navigation"></button>
     </div>
-    @* The Wiso assistant is intentionally removed from the authenticated layout. *@
-    @*
     <div class="wiso-widget" data-wiso-widget data-first-name="@(User.FindFirst("display_name")?.Value?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? User.Identity?.Name?.Split('@')[0] ?? "there")">
-        <button class="wiso-launcher" type="button" data-wiso-open aria-label="Open Wiso assistant"><img src="~/images/wiso.png" alt="" /><span class="wiso-online-dot" aria-hidden="true"></span></button>
-        <section class="wiso-panel" data-wiso-panel hidden aria-labelledby="wiso-title">
-            <header class="wiso-header"><img src="~/images/wiso.png" alt="" /><div><strong id="wiso-title">Wiso</strong><small>Your ApplyWise assistant · <span>Ready</span></small></div><button type="button" class="wiso-minimize" data-wiso-minimize aria-label="Minimize Wiso">−</button><button type="button" class="wiso-close" data-wiso-close aria-label="Close Wiso">×</button></header>
-            <div class="wiso-messages" data-wiso-messages aria-live="polite"></div>
-            <div class="wiso-suggestions" data-wiso-suggestions><button type="button">What should I focus on today?</button><button type="button">How many applications do I have?</button><button type="button">When is my next interview?</button><button type="button">Which resume is strongest?</button><button type="button">Do I have overdue reminders?</button></div>
-            <form class="wiso-form" data-wiso-form><input type="hidden" name="__RequestVerificationToken" value="@Antiforgery.GetTokens(Context).RequestToken" /><label class="visually-hidden" for="wiso-question">Ask Wiso</label><input id="wiso-question" name="question" maxlength="300" autocomplete="off" placeholder="Ask Wiso..." /><button type="submit" aria-label="Send question"><svg class="ui-icon"><use href="#i-arrow" /></svg></button></form>
+        <button class="wiso-launcher" type="button" data-wiso-open aria-label="Open Wiso assistant" aria-controls="wiso-panel" aria-expanded="false">
+            <img src="~/images/wiso.png" alt="" />
+            <span class="wiso-online-dot" aria-hidden="true"></span>
+        </button>
+        <section class="wiso-panel" id="wiso-panel" data-wiso-panel hidden role="dialog" aria-modal="false" aria-labelledby="wiso-title">
+            <header class="wiso-header">
+                <img src="~/images/wiso.png" alt="" />
+                <div><strong id="wiso-title">Wiso</strong><small>Your ApplyWise assistant <span>Ready</span></small></div>
+                <button type="button" class="wiso-close" data-wiso-close aria-label="Close Wiso assistant">&times;</button>
+            </header>
+            <div class="wiso-messages" data-wiso-messages aria-live="polite" aria-relevant="additions" aria-busy="false"></div>
+            <div class="wiso-suggestions" data-wiso-suggestions aria-label="Suggested questions">
+                <button type="button">What should I focus on today?</button>
+                <button type="button">How many applications do I have?</button>
+                <button type="button">When is my next interview?</button>
+                <button type="button">Which resume is strongest?</button>
+            </div>
+            <form class="wiso-form" data-wiso-form>
+                <input type="hidden" name="__RequestVerificationToken" value="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
+                <label class="visually-hidden" for="wiso-question">Ask Wiso</label>
+                <input id="wiso-question" name="question" maxlength="300" autocomplete="off" placeholder="Ask Wiso..." />
+                <button type="submit" data-wiso-submit aria-label="Send question"><svg class="ui-icon"><use href="#i-arrow" /></svg></button>
+            </form>
+            <p class="visually-hidden" role="status" data-wiso-status></p>
         </section>
     </div>
-    *@
 }
 else
 {
@@ -106,7 +131,6 @@ else
                     <div class="aw-home-nav-links">
                         <a href="#features">Features</a>
                         <a href="#how-it-works">How It Works</a>
-                        <a href="#how-to-use">How to Use</a>
                     </div>
                     <div class="aw-home-nav-actions">
                         <a class="aw-home-sign-in" asp-area="Identity" asp-page="/Account/Login">Sign In</a>

@@ -1,7 +1,7 @@
 @model ApplyWise.Web.ViewModels.JobApplications.JobApplicationEditViewModel
 @{ ViewData["Title"] = "Edit Application"; }
 
-<div class="page-heading"><div><h2>Edit Application</h2><p>Update the essentials or add custom details for this role.</p></div></div>
+<div class="page-heading"><div><h1>Edit Application</h1><p>Update the essentials or add custom details for this role.</p></div></div>
 <form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="application-form">
     <input asp-for="Id" type="hidden" />
     <partial name="_ApplicationForm" model="Model" />

@@ -2,7 +2,7 @@
 @{ ViewData["Title"] = "Something went wrong"; }
 <section class="empty-card error-card">
     <span class="empty-icon" aria-hidden="true">!</span>
-    <h2>We couldn’t complete that request.</h2>
+    <h1>We couldn’t complete that request.</h1>
     <p>Please try again. If the problem continues, return to your dashboard and repeat the last step.</p>
     @if (Model.ShowRequestId) { <small>Reference: <code>@Model.RequestId</code></small> }
     <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Return to ApplyWise</a>

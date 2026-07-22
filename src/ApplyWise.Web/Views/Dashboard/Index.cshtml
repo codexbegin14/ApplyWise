@@ -15,7 +15,6 @@
     <header class="aw-dashboard-greeting">
         <div>
             <span class="aw-dashboard-greeting-line" data-local-greeting>Good afternoon, @Model.DisplayName</span>
-            <span class="aw-wiso-chip"><span class="aw-sparkle">*</span> Wiso is ready</span>
             <p>@Model.CurrentTime.ToLocalTime().ToString("dddd, MMMM d, yyyy")</p>
         </div>
     </header>
@@ -35,7 +34,6 @@
             {
                 <a class="btn btn-primary" asp-controller="@focus.Controller" asp-action="@focus.Action" asp-route-id="@focus.Id">Open next step</a>
             }
-            <span class="aw-focus-wiso"><img src="~/images/wiso.png" alt="Wiso" /></span>
         </div>
     </section>
 
@@ -48,27 +46,17 @@
             </div>
             <a asp-controller="JobApplications" asp-action="Index">Open application workspace</a>
         </div>
-        <div class="aw-status-counts" aria-label="Application counts by status">
+        <nav class="aw-status-counts" aria-label="Applications by status">
             @foreach (var stage in pipelineStages)
             {
                 var count = Model.PipelineApplications.Count(application => application.Status == stage);
                 <a class="aw-status-count @(stage == selectedPipelineStatus ? "is-selected" : string.Empty)"
+                   aria-current="@(stage == selectedPipelineStatus ? "page" : null)"
                    asp-action="Index" asp-route-tab="@stage">
                     <span>@stage.GetDisplayName()</span><strong>@count</strong>
                 </a>
             }
-        </div>
-
-        <div class="aw-pipeline-tabs" role="tablist" aria-label="Application status">
-            @foreach (var stage in pipelineStages)
-            {
-                <a role="tab" aria-selected="@(stage == selectedPipelineStatus ? "true" : "false")"
-                   class="@(stage == selectedPipelineStatus ? "is-selected" : string.Empty)"
-                   asp-action="Index" asp-route-tab="@stage">
-                    @stage.GetDisplayName() <span>@Model.PipelineApplications.Count(application => application.Status == stage)</span>
-                </a>
-            }
-        </div>
+        </nav>
 
         <section class="aw-status-list" aria-label="@selectedPipelineStatus.GetDisplayName() applications">
             <div class="aw-status-heading">

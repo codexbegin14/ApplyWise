@@ -15,19 +15,17 @@
         {
             <div>
                 <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg>Job-specific review</span>
-                <h2>See how well your resume fits a role.</h2>
+                <h1>See how well your resume fits a role.</h1>
                 <p>Choose a saved resume and paste the real job description to find missing requirements and weak evidence.</p>
             </div>
-            <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>Match evidence, not buzzwords.</b><small>Only add experience that is true.</small></span></div>
         }
         else
         {
             <div>
                 <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>ATS Resume Check</span>
-                <h2>Upload your resume. See what is missing.</h2>
+                <h1>Upload your resume. See what is missing.</h1>
                 <p>No job description needed. Get an ATS readiness score, missing-section checks, and clear instructions for improving your resume.</p>
             </div>
-            <div class="aw-tool-guide"><img class="aw-avatar" src="~/images/wiso.png" alt="Wiso, your resume analysis helper" /><span><b>One PDF. Practical fixes.</b><small>Your report stays private in ApplyWise.</small></span></div>
         }
     </section>
 
@@ -35,9 +33,7 @@
 
     @if (isJobMode)
     {
-        <div class="aw-stepper" aria-label="Job match workflow"><span class="is-active"><b>1</b>Choose resume</span><i></i><span><b>2</b>Add job description</span><i></i><span><b>3</b>Review match</span></div>
-
-        <div class="aw-analyzer-grid aw-slide-up">
+        <div class="aw-slide-up">
             <section class="aw-panel aw-analyzer-form">
                 @if (!hasResumes)
                 {
@@ -62,18 +58,11 @@
                 </form>
             </section>
 
-            <aside class="aw-panel aw-helper-panel">
-                <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Before you compare</span><h3>Use accurate source material</h3></div></div>
-                <div class="aw-tip-list"><div><b>1</b><span><strong>Paste the real posting</strong><small>Keep requirements and responsibilities intact.</small></span></div><div><b>2</b><span><strong>Choose the sent version</strong><small>Test the exact resume you plan to use.</small></span></div><div><b>3</b><span><strong>Keep every edit truthful</strong><small>Strengthen real evidence; never invent experience.</small></span></div></div>
-                <div class="aw-privacy-note"><span>&check;</span><p><strong>Private and explainable</strong><small>Your report shows why each change is recommended.</small></p></div>
-            </aside>
         </div>
     }
     else
     {
-        <div class="aw-stepper" aria-label="ATS check workflow"><span class="is-active"><b>1</b>Upload PDF</span><i></i><span><b>2</b>Run ATS checks</span><i></i><span><b>3</b>Update resume</span></div>
-
-        <div class="aw-analyzer-grid aw-slide-up">
+        <div class="aw-slide-up">
             <section class="aw-panel aw-analyzer-form aw-ats-upload-panel">
                 <div class="aw-section-heading">
                     <div><span class="aw-kicker">Start a new check</span><h3>Add your resume PDF</h3><p>We will save it privately to your resume library, extract its text, and create an actionable ATS report.</p></div>
@@ -94,11 +83,6 @@
                 </form>
             </section>
 
-            <aside class="aw-panel aw-helper-panel aw-ats-report-preview">
-                <div class="aw-helper-heading"><img class="aw-avatar aw-avatar-small" src="~/images/wiso.png" alt="" /><div><span class="aw-kicker">Your ATS report</span><h3>What you will receive</h3></div></div>
-                <div class="aw-tip-list"><div><b>1</b><span><strong>What is missing</strong><small>Contact details, standard sections, dates, skills, and resume structure.</small></span></div><div><b>2</b><span><strong>What needs rewriting</strong><small>Weak bullets, vague evidence, and hard-to-read content.</small></span></div><div><b>3</b><span><strong>How to update it</strong><small>Prioritized actions, reasons, and truthful rewrite patterns.</small></span></div></div>
-                <div class="aw-privacy-note"><span>&check;</span><p><strong>No job description required</strong><small>This check measures general ATS readiness. Use Job Match for a specific role.</small></p></div>
-            </aside>
         </div>
 
         @if (hasResumes)

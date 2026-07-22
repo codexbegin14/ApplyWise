@@ -19,7 +19,7 @@
                 <svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>
                 Resume design studio
             </span>
-            <h2>Add your details. ApplyWise handles the design.</h2>
+            <h1>Add your details. ApplyWise handles the design.</h1>
             <p>Enter your information once, choose a template, and review the finished PDF as you type.</p>
         </div>
         <div class="aw-rb-toolbar" aria-label="Resume actions">
@@ -54,13 +54,16 @@
             </div>
         </div>
         <div class="aw-rb-page-fit-status is-checking" data-page-fit-status role="status" aria-live="polite">Checking page fit…</div>
-        <div class="aw-rb-one-page-metrics" aria-label="Recommended one-page content limits">
-            <span data-guide-metric="professionalSummary">Summary <strong>0 / 3 lines</strong></span>
-            <span data-guide-metric="education">Education <strong>0 / 2</strong></span>
-            <span data-guide-metric="experience">Experience <strong>0 / 3</strong></span>
-            <span data-guide-metric="projects">Projects <strong>0 / 3</strong></span>
-            <span data-guide-metric="achievementsAndCertifications">Achievements <strong>0 / 3</strong></span>
-        </div>
+        <details>
+            <summary>Recommended content limits</summary>
+            <div class="aw-rb-one-page-metrics" aria-label="Recommended one-page content limits">
+                <span data-guide-metric="professionalSummary">Summary <strong>0 / 3 lines</strong></span>
+                <span data-guide-metric="education">Education <strong>0 / 2</strong></span>
+                <span data-guide-metric="experience">Experience <strong>0 / 3</strong></span>
+                <span data-guide-metric="projects">Projects <strong>0 / 3</strong></span>
+                <span data-guide-metric="achievementsAndCertifications">Achievements <strong>0 / 3</strong></span>
+            </div>
+        </details>
         <p class="aw-rb-one-page-warning" data-one-page-warning role="alert" hidden></p>
     </section>
 
@@ -98,7 +101,6 @@
                     <h3>Build one section at a time</h3>
                     <p>Choose a tab, add only that information, and see the selected design update instantly.</p>
                 </div>
-                <span class="aw-status aw-status-info">Auto-save on</span>
             </div>
 
             <nav class="aw-rb-editor-tabs" data-editor-tabs role="tablist" aria-label="Resume detail sections">
@@ -342,7 +344,6 @@
                     <h3>Your finished resume</h3>
                 </div>
                 <div class="aw-rb-preview-actions">
-                    <span class="aw-rb-preview-badge" title="PDF text remains selectable">A4 · one page · selectable</span>
                     <button class="aw-rb-preview-size-button" type="button" data-action="toggle-preview-size" aria-expanded="false" aria-controls="rb-preview-panel">
                         <span data-preview-size-label>Expand preview</span>
                     </button>
@@ -359,7 +360,7 @@
                     <span class="aw-rb-selected-template-copy">
                         <strong data-selected-template-name>Editorial</strong>
                         <small data-selected-template-description>A refined photo-free resume with formal two-column structure.</small>
-                        <span class="aw-rb-template-status" data-template-status role="status" aria-live="polite">Editorial selected.</span>
+                        <span class="aw-rb-template-status visually-hidden" data-template-status role="status" aria-live="polite">Editorial selected.</span>
                     </span>
                     <button class="btn btn-secondary-soft aw-rb-choose-template" type="button" data-action="open-template-picker" aria-haspopup="dialog" aria-controls="rb-template-dialog">
                         Select template

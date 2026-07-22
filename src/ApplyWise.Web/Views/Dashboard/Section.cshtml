@@ -1,4 +1,0 @@
-@model ApplyWise.Web.Controllers.SectionViewModel
-@{ ViewData["Title"] = Model.Title; }
-<div class="page-heading"><div><h2>@Model.Title</h2><p>@Model.Description</p></div>@if (Model.ActionLabel is not null) { <button class="btn btn-primary" type="button">@Model.ActionLabel</button> }</div>
-<section class="panel empty-state"><span class="empty-icon">@Model.Title[0]</span><h3>@Model.Title workspace</h3><p>This area is ready for the next stage of ApplyWise.</p></section>

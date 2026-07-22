@@ -242,9 +242,6 @@ public class DashboardController(
         return RedirectToPage("/Account/Login", new { area = "Identity" });
     }
 
-    private IActionResult Section(string title, string description, string? actionLabel = null) =>
-        View("Section", new SectionViewModel(title, description, actionLabel));
-
     private async Task<SettingsViewModel> BuildSettingsModelAsync()
     {
         var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("The current user could not be loaded.");
@@ -280,5 +277,3 @@ public class DashboardController(
         return false;
     }
 }
-
-public sealed record SectionViewModel(string Title, string Description, string? ActionLabel = null);

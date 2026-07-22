@@ -8,7 +8,7 @@
 <div class="aw-page aw-fade-in">
     <a class="back-link" asp-action="Index">← Back to application workspace</a>
     <section class="aw-detail-hero aw-slide-up">
-        <div class="aw-detail-identity"><span class="aw-company-avatar aw-company-avatar-large">@Initial(Model.CompanyName)</span><div><span class="aw-status @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span><h2>@Model.JobTitle</h2><p>@Model.CompanyName @if (!string.IsNullOrWhiteSpace(Model.JobLocation)) { <span>· @Model.JobLocation</span> }</p></div></div>
+        <div class="aw-detail-identity"><span class="aw-company-avatar aw-company-avatar-large">@Initial(Model.CompanyName)</span><div><span class="aw-status @StatusClass(Model.Status)">@Model.Status.GetDisplayName()</span><h1>@Model.JobTitle</h1><p>@Model.CompanyName @if (!string.IsNullOrWhiteSpace(Model.JobLocation)) { <span>· @Model.JobLocation</span> }</p></div></div>
         <div class="aw-detail-actions"><a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit Application</a><a class="btn btn-secondary-soft" asp-controller="BestResumePicker" asp-action="Index" asp-route-jobApplicationId="@Model.Id"><svg class="ui-icon"><use href="#i-spark" /></svg>Find Best Resume</a><a class="aw-more-link" asp-action="Delete" asp-route-id="@Model.Id">Delete</a></div>
     </section>
 
