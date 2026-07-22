@@ -256,6 +256,30 @@ public sealed class ResumeAnalysisV2Tests
     }
 
     [Fact]
+    public void Ats_only_check_identifies_missing_content_and_explains_how_to_fix_it()
+    {
+        const string incompleteResume = """
+            Jordan Lee
+            jordan@example.test
+
+            Experience
+            Support Assistant | Jan 2024 - Present
+            Helped with tasks
+            """;
+
+        var result = _service.Analyze(incompleteResume);
+
+        Assert.Null(result.JobMatchScore);
+        Assert.Contains(result.SectionReviews, review => review.Section == "Summary" && review.Status == ReviewStatus.Missing);
+        Assert.Contains(result.SectionReviews, review => review.Section == "Education" && review.Status == ReviewStatus.Missing);
+        Assert.Contains(result.SectionReviews, review => review.Section == "Skills" && review.Status == ReviewStatus.Missing);
+        Assert.Contains(result.ReviewItems, review =>
+            review.Category == ReviewCategory.ContactInformation
+            && review.Issue.StartsWith("Phone number", StringComparison.Ordinal));
+        Assert.All(result.ReviewItems, review => Assert.False(string.IsNullOrWhiteSpace(review.RecommendedAction)));
+    }
+
+    [Fact]
     public void Overall_score_uses_exact_twenty_eighty_weighting()
     {
         var result = _service.Analyze(RepresentativeResume, RepresentativeJobDescription);

@@ -1,0 +1,131 @@
+@using ApplyWise.Web.Services.ResumeAnalysis
+@model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
+@{
+    var resultId = $"analysis-result-{Model.Id}";
+    var primaryScore = Model.HasJobMatch ? Model.OverallScore : Model.AtsReadinessScore ?? Model.OverallScore;
+    var primaryLabel = Model.HasJobMatch ? "Overall fit" : "ATS readiness";
+    var topFixes = Model.ReviewItems
+        .DistinctBy(item => item.Issue, StringComparer.OrdinalIgnoreCase)
+        .Take(4)
+        .ToArray();
+    var goodSections = Model.SectionReviews
+        .Where(item => item.Status is ReviewStatus.Strong or ReviewStatus.Good)
+        .Select(item => item.Section)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(4)
+        .ToArray();
+}
+
+<section id="@resultId"
+         class="aw-ra-result aw-ra-compact-result aw-slide-up"
+         data-analysis-result="@Model.Id"
+         tabindex="-1"
+         aria-labelledby="@($"{resultId}-title")">
+    <header class="aw-ra-compact-hero @ScoreTone(primaryScore)">
+        <div class="aw-ra-compact-score">
+            <div class="aw-ra-score-ring"
+                 style="--aw-ra-score: @primaryScore"
+                 role="progressbar"
+                 aria-label="@primaryLabel score: @primaryScore out of 100"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="@primaryScore">
+                <strong>@primaryScore</strong>
+                <small>/100</small>
+            </div>
+        </div>
+
+        <div class="aw-ra-compact-summary">
+            <span class="aw-kicker">@primaryLabel</span>
+            <h2 id="@($"{resultId}-title")">@ScoreTitle(primaryScore)</h2>
+            <p>@ScoreMessage(primaryScore)</p>
+            <small>@Model.ResumeVersionName · @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</small>
+
+            @if (Model.HasJobMatch)
+            {
+                <div class="aw-ra-compact-subscores" aria-label="Score summary">
+                    <span><small>ATS</small><strong>@(Model.AtsReadinessScore ?? 0)</strong></span>
+                    <span><small>Job match</small><strong>@Model.JobMatchScore</strong></span>
+                </div>
+            }
+        </div>
+
+        <div class="aw-ra-compact-actions">
+            <a class="btn btn-secondary-soft btn-sm" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-mode="@(Model.HasJobMatch ? "job" : "ats")">Check another</a>
+            <a class="btn btn-primary btn-sm" asp-controller="ResumeBuilder" asp-action="Index">Update resume</a>
+        </div>
+    </header>
+
+    <section class="aw-ra-panel aw-ra-compact-review" aria-labelledby="@($"{resultId}-review")">
+        <div class="aw-ra-panel-heading">
+            <div>
+                <span class="aw-kicker">Simple review</span>
+                <h3 id="@($"{resultId}-review")">@(topFixes.Length == 0 ? "Your resume looks ready" : "Fix these first")</h3>
+                <p>@(topFixes.Length == 0 ? "No priority problems were detected in this check." : $"Only the top {topFixes.Length} recommendations are shown.")</p>
+            </div>
+            <span class="aw-ra-count">@topFixes.Length</span>
+        </div>
+
+        @if (topFixes.Length == 0)
+        {
+            <div class="aw-ra-positive-empty"><span aria-hidden="true">&#10003;</span><p><strong>No priority fixes.</strong> Proofread once and keep every claim accurate.</p></div>
+        }
+        else
+        {
+            <div class="aw-ra-compact-fix-grid">
+                @for (var index = 0; index < topFixes.Length; index++)
+                {
+                    var item = topFixes[index];
+                    <article>
+                        <span aria-hidden="true">@(index + 1)</span>
+                        <div>
+                            <h4>@item.Issue</h4>
+                            <p>@item.RecommendedAction</p>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        @if (goodSections.Length > 0)
+        {
+            <div class="aw-ra-compact-good">
+                <strong>Already working</strong>
+                <div>
+                    @foreach (var sectionName in goodSections)
+                    {
+                        <span>@sectionName</span>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <p class="aw-ra-compact-note">This is an estimated readiness check, not an employer's ATS score. Keep every change truthful.</p>
+</section>
+
+@functions {
+    private static string ScoreTone(int score) => score switch
+    {
+        >= 85 => "is-strong",
+        >= 70 => "is-good",
+        >= 50 => "is-developing",
+        _ => "is-low"
+    };
+
+    private static string ScoreTitle(int score) => score switch
+    {
+        >= 85 => "Strong resume",
+        >= 70 => "Good resume",
+        >= 50 => "A few important fixes",
+        _ => "Needs improvement"
+    };
+
+    private static string ScoreMessage(int score) => score switch
+    {
+        >= 85 => "Your resume is clear and ATS-friendly. Give it one final proofread.",
+        >= 70 => "Your resume has a solid base. Complete the short review below.",
+        >= 50 => "Focus on the few changes below before using this resume.",
+        _ => "Start with the fixes below to make the resume easier to read and parse."
+    };
+}

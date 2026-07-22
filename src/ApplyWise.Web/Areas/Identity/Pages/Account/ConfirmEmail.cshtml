@@ -4,9 +4,9 @@
     ViewData["Title"] = Model.Succeeded ? "Email confirmed" : "Confirmation link problem";
 }
 
-<div class="aw-auth-status-shell aw-fade-in"
+<div class="aw-auth-status-shell aw-fade-in d-block"
      @if (Model.Succeeded) { <text>data-confirm-redirect="@Model.LoginUrl" data-confirm-redirect-seconds="5"</text> }>
-    <section class="aw-auth-status-card aw-slide-up" aria-labelledby="email-confirmation-title">
+    <section class="aw-auth-status-card aw-slide-up col-lg-8 mx-auto" aria-labelledby="email-confirmation-title">
         <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-spark" /></svg>Email confirmation</span>
         <span class="aw-auth-status-icon @(Model.Succeeded ? "aw-auth-status-icon-success" : "aw-auth-status-icon-error")" aria-hidden="true">
             @if (Model.Succeeded)
@@ -42,13 +42,4 @@
         }
     </section>
 
-    <aside class="aw-auth-status-visual @(Model.Succeeded ? "is-success" : "is-error")" aria-label="Wiso confirmation message">
-        <div>
-            <span class="aw-auth-kicker">Wiso says</span>
-            <h2>@(Model.Succeeded ? "Nice work. Your workspace is ready." : "That is fixable.")</h2>
-            <p>@(Model.Succeeded ? "Log in to continue building momentum with your applications, resumes, and next steps." : "Request a fresh confirmation email, then use the newest link you receive.")</p>
-        </div>
-        <span class="aw-auth-status-bubble">@(Model.Succeeded ? "Let’s get moving!" : "Try a fresh link")</span>
-        <img src="~/images/wiso.png" alt="Wiso, the ApplyWise career assistant" />
-    </aside>
 </div>

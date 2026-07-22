@@ -10,6 +10,7 @@ public enum ResumeSectionKind
     AchievementsAndCertifications,
     Languages,
     VolunteerExperience,
+    References,
     Interests,
     CustomSections
 }
@@ -35,6 +36,7 @@ public static class ResumeSectionCatalog
         new(ResumeSectionKind.AchievementsAndCertifications, "Achievements & Certifications", true),
         new(ResumeSectionKind.Languages, "Languages", false),
         new(ResumeSectionKind.VolunteerExperience, "Volunteer Experience", false),
+        new(ResumeSectionKind.References, "References", false),
         new(ResumeSectionKind.Interests, "Interests", false),
         new(ResumeSectionKind.CustomSections, "Custom Sections", false)
     ];

@@ -1,39 +1,17 @@
-@using ApplyWise.Web.Services.ResumeAnalysis
 @model ApplyWise.Web.ViewModels.ResumeAnalyzer.AnalysisResultViewModel
 @{
     var resultId = $"analysis-result-{Model.Id}";
-    var topImprovements = Model.ReviewItems.Take(8).ToArray();
-    var topActions = topImprovements
-        .Select(item => item.RecommendedAction)
-        .Where(item => !string.IsNullOrWhiteSpace(item))
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-    var lowerPrioritySuggestions = Model.ReviewItems
-        .Skip(8)
-        .Select(item => item.RecommendedAction)
-        .Concat(Model.Suggestions)
-        .Where(item => !string.IsNullOrWhiteSpace(item) && !topActions.Contains(item))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .Take(8)
-        .ToArray();
-    var parsingComponent = Model.ScoreBreakdown.FirstOrDefault(item =>
-        item.Key.EndsWith(".parseability", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(item.Key, "parseability", StringComparison.OrdinalIgnoreCase));
-    var parsingWarnings = Model.Warnings.Where(IsParsingWarning).ToArray();
-    var comparisonMetric = Model.HasJobMatch ? "ApplyWise Fit" : "ATS Readiness";
-    var requirementCoverage = Model.Evidence
-        .Select(item => (Name: item.RequirementName, item.Priority, Matched: true))
-        .Concat(Model.MissingRequirements.Select(item => (item.Name, item.Priority, Matched: false)))
-        .DistinctBy(item => (item.Name, item.Priority))
-        .ToArray();
+    var visibleSuggestions = Model.Suggestions.Take(5).ToArray();
 }
 
 <section id="@resultId"
          class="aw-ra-result aw-slide-up"
          data-analysis-result="@Model.Id"
+         tabindex="-1"
          aria-labelledby="@($"{resultId}-title")">
     <header class="aw-ra-result-header">
         <div>
-            <span class="aw-kicker">Analysis result</span>
+            <span class="aw-kicker">Saved analysis</span>
             <h2 id="@($"{resultId}-title")">@Model.ContextTitle</h2>
             <p>
                 <strong>@Model.ResumeVersionName</strong>
@@ -46,664 +24,121 @@
                 }
             </p>
         </div>
-        <div class="aw-ra-result-actions">
-            <span class="aw-ra-version-badge @(Model.IsLegacy ? "is-legacy" : "is-current")">
-                @(Model.IsLegacy ? "Legacy scoring" : "ATS v2.0")
-            </span>
-            <a class="btn btn-secondary-soft btn-sm" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-analysisId="@Model.Id">Run again</a>
-        </div>
+        <a class="btn btn-primary btn-sm"
+           asp-controller="ResumeAnalyzer"
+           asp-action="Index"
+           asp-route-analysisId="@Model.Id">
+            Re-run analysis
+        </a>
     </header>
 
-    @if (Model.IsLegacy)
-    {
-        <div class="aw-ra-legacy-notice" role="note">
-            <span class="aw-ra-notice-icon" aria-hidden="true">i</span>
-            <div>
-                <strong>This is a legacy analysis</strong>
-                <p>It predates ATS v2.0, so its score must not be compared directly with current ATS Readiness, Job Match, or ApplyWise Fit scores. Run it again for the current breakdown.</p>
-            </div>
+    <div class="aw-ra-legacy-notice" role="note" aria-label="Legacy score notice">
+        <span class="aw-ra-notice-icon" aria-hidden="true">i</span>
+        <p><strong>Legacy score.</strong> Re-run this resume to get the latest ATS checks and recommendations.</p>
+    </div>
+
+    <section class="aw-ra-legacy-score @ScoreTone(Model.OverallScore)" aria-labelledby="@($"{resultId}-score")">
+        <div class="aw-ra-score-ring"
+             style="--aw-ra-score: @Model.OverallScore"
+             role="progressbar"
+             aria-label="Legacy match score: @Model.OverallScore out of 100"
+             aria-valuemin="0"
+             aria-valuemax="100"
+             aria-valuenow="@Model.OverallScore">
+            <strong>@Model.OverallScore</strong>
+            <small>out of 100</small>
         </div>
-
-        <section class="aw-ra-legacy-score @ScoreTone(Model.OverallScore)" aria-labelledby="@($"{resultId}-legacy-score")">
-            <div class="aw-ra-score-ring" style="--aw-ra-score: @Model.OverallScore" role="progressbar" aria-label="Legacy match score: @Model.OverallScore out of 100" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.OverallScore">
-                <strong>@Model.OverallScore</strong><small>out of 100</small>
-            </div>
-            <div>
-                <span class="aw-kicker">Historical metric</span>
-                <h3 id="@($"{resultId}-legacy-score")">Legacy match score</h3>
-                <p>@ScoreBand(Model.OverallScore). This historical score used the earlier keyword-based method.</p>
-            </div>
-            <a class="btn btn-primary btn-sm" asp-controller="ResumeAnalyzer" asp-action="Index" asp-route-analysisId="@Model.Id">Re-run with ATS v2.0</a>
-        </section>
-
-        <div class="aw-ra-two-column">
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-legacy-matched")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-green">Legacy output</span><h3 id="@($"{resultId}-legacy-matched")">Matched keywords</h3></div>
-                    <span class="aw-ra-count">@Model.MatchedKeywords.Count</span>
-                </div>
-                @if (Model.MatchedKeywords.Count == 0)
-                {
-                    <p class="aw-ra-empty">No matched keywords were stored for this result.</p>
-                }
-                else
-                {
-                    <div class="aw-ra-chip-list">
-                        @foreach (var keyword in Model.MatchedKeywords) { <span class="aw-ra-chip is-positive">@keyword</span> }
-                    </div>
-                }
-            </section>
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-legacy-missing")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-amber">Legacy output</span><h3 id="@($"{resultId}-legacy-missing")">Missing keywords</h3></div>
-                    <span class="aw-ra-count">@Model.MissingKeywords.Count</span>
-                </div>
-                @if (Model.MissingKeywords.Count == 0)
-                {
-                    <p class="aw-ra-empty">No missing keywords were stored for this result.</p>
-                }
-                else
-                {
-                    <div class="aw-ra-chip-list">
-                        @foreach (var keyword in Model.MissingKeywords) { <span class="aw-ra-chip is-warning">@keyword</span> }
-                    </div>
-                }
-            </section>
+        <div>
+            <span class="aw-kicker">Resume score</span>
+            <h3 id="@($"{resultId}-score")">@ScoreBand(Model.OverallScore)</h3>
+            <p>This historical result used the earlier keyword-based scoring method.</p>
         </div>
+    </section>
 
-        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-legacy-suggestions")">
-            <div class="aw-ra-panel-heading"><div><span class="aw-kicker">Historical guidance</span><h3 id="@($"{resultId}-legacy-suggestions")">Saved suggestions</h3></div></div>
-            @if (Model.Suggestions.Count == 0)
+    <div class="aw-ra-two-column">
+        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-matched")">
+            <div class="aw-ra-panel-heading">
+                <h3 id="@($"{resultId}-matched")">Matched keywords</h3>
+                <span class="aw-ra-count" aria-label="@Model.MatchedKeywords.Count matched keywords">@Model.MatchedKeywords.Count</span>
+            </div>
+            @if (Model.MatchedKeywords.Count == 0)
             {
-                <p class="aw-ra-empty">No suggestions were stored for this legacy result.</p>
+                <p class="aw-ra-empty">No matched keywords were saved.</p>
             }
             else
             {
-                <ol class="aw-ra-numbered-list">
-                    @foreach (var suggestion in Model.Suggestions.Take(8)) { <li>@suggestion</li> }
-                </ol>
-            }
-        </section>
-    }
-    else
-    {
-        <section class="aw-ra-score-overview @(!Model.HasJobMatch ? "is-ats-only" : null)" aria-label="Score overview">
-            <article class="aw-ra-score-card @(Model.AtsReadinessScore.HasValue ? ScoreTone(Model.AtsReadinessScore.Value) : "is-unassessed")">
-                <div class="aw-ra-score-ring"
-                     style="--aw-ra-score: @(Model.AtsReadinessScore ?? 0)"
-                     role="@(Model.AtsReadinessScore.HasValue ? "progressbar" : null)"
-                     aria-label="@(Model.AtsReadinessScore.HasValue ? $"Estimated ATS Readiness: {Model.AtsReadinessScore.Value} out of 100, {ScoreBand(Model.AtsReadinessScore.Value)}" : "ATS Readiness not assessed")"
-                     aria-valuemin="@(Model.AtsReadinessScore.HasValue ? "0" : null)"
-                     aria-valuemax="@(Model.AtsReadinessScore.HasValue ? "100" : null)"
-                     aria-valuenow="@Model.AtsReadinessScore">
-                    @if (Model.AtsReadinessScore.HasValue) { <strong>@Model.AtsReadinessScore</strong><small>out of 100</small> }
-                    else { <strong aria-label="Not available">N/A</strong><small>not scored</small> }
+                <div class="aw-ra-chip-list">
+                    @foreach (var keyword in Model.MatchedKeywords)
+                    {
+                        <span class="aw-ra-chip is-positive">@keyword</span>
+                    }
                 </div>
-                <div><span class="aw-kicker">ATS Readiness</span><h3>@(Model.AtsReadinessScore.HasValue ? ScoreBand(Model.AtsReadinessScore.Value) : "Not assessed")</h3><p>Parseability, standard sections, contact details, dates, bullets, and clarity.</p></div>
-            </article>
-
-            @if (Model.HasJobMatch)
-            {
-                <article class="aw-ra-score-card @ScoreTone(Model.JobMatchScore!.Value)">
-                    <div class="aw-ra-score-ring" style="--aw-ra-score: @Model.JobMatchScore.Value" role="progressbar" aria-label="Estimated Job Match: @Model.JobMatchScore.Value out of 100, @ScoreBand(Model.JobMatchScore.Value)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.JobMatchScore.Value"><strong>@Model.JobMatchScore</strong><small>out of 100</small></div>
-                    <div><span class="aw-kicker">Job Match</span><h3>@ScoreBand(Model.JobMatchScore.Value)</h3><p>Coverage and evidence against the supplied job requirements.</p></div>
-                </article>
-
-                <article class="aw-ra-score-card is-fit @ScoreTone(Model.OverallScore)">
-                    <div class="aw-ra-score-ring" style="--aw-ra-score: @Model.OverallScore" role="progressbar" aria-label="Estimated ApplyWise Fit: @Model.OverallScore out of 100, @ScoreBand(Model.OverallScore)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.OverallScore"><strong>@Model.OverallScore</strong><small>out of 100</small></div>
-                    <div><span class="aw-kicker">ApplyWise Fit</span><h3>@ScoreBand(Model.OverallScore)</h3><p>ATS Readiness &times; 20% plus Job Match &times; 80%, rounded to the nearest point.</p></div>
-                </article>
             }
         </section>
 
-        <section class="aw-ra-score-meta" aria-label="Analysis confidence and version">
-            <div>
-                <span>Confidence</span>
-                <strong>@(Model.ConfidenceScore.HasValue ? $"{Model.ConfidenceScore}%" : "Not available")</strong>
-                @if (Model.ConfidenceScore.HasValue)
-                {
-                    <div class="aw-ra-meter" role="progressbar" aria-label="Analysis confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Model.ConfidenceScore"><i style="--aw-ra-progress: @Model.ConfidenceScore%"></i></div>
-                }
+        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-missing")">
+            <div class="aw-ra-panel-heading">
+                <h3 id="@($"{resultId}-missing")">Missing keywords</h3>
+                <span class="aw-ra-count" aria-label="@Model.MissingKeywords.Count missing keywords">@Model.MissingKeywords.Count</span>
             </div>
-            <div><span>Score version</span><strong>@Model.ScoreVersion</strong><small>Deterministic local rules</small></div>
-            <div><span>Job requirements detected</span><strong>@(Model.HasJobMatch ? Model.DetectedJobRequirementCount : 0)</strong><small>@(Model.HasJobMatch ? "Used for role-specific scoring" : "Job Match not assessed")</small></div>
+            @if (Model.MissingKeywords.Count == 0)
+            {
+                <p class="aw-ra-empty">No missing keywords were saved.</p>
+            }
+            else
+            {
+                <div class="aw-ra-chip-list">
+                    @foreach (var keyword in Model.MissingKeywords)
+                    {
+                        <span class="aw-ra-chip is-warning">@keyword</span>
+                    }
+                </div>
+            }
         </section>
+    </div>
 
-        @if (Model.Warnings.Count > 0)
+    <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-suggestions")">
+        <div class="aw-ra-panel-heading">
+            <div>
+                <span class="aw-kicker">Next steps</span>
+                <h3 id="@($"{resultId}-suggestions")">How to improve</h3>
+            </div>
+        </div>
+        @if (visibleSuggestions.Length == 0)
         {
-            <section class="aw-ra-warning-strip" aria-labelledby="@($"{resultId}-warnings")">
-                <div><span class="aw-ra-notice-icon" aria-hidden="true">!</span><h3 id="@($"{resultId}-warnings")">Analysis notes</h3></div>
-                <ul>
-                    @foreach (var warning in Model.Warnings)
-                    {
-                        <li class="@PriorityClass(warning.Priority)"><strong>@PriorityLabel(warning.Priority):</strong> @warning.Message</li>
-                    }
-                </ul>
-            </section>
+            <p class="aw-ra-empty">No suggestions were saved with this result.</p>
         }
-
-        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-breakdown")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker">Explainable scoring</span><h3 id="@($"{resultId}-breakdown")">Score breakdown</h3><p>Each component shows the deterministic points and reasons used in this result. Unavailable checks are marked not assessed.</p></div>
-                <span class="aw-ra-count">@Model.ScoreBreakdown.Count</span>
-            </div>
-            @if (Model.ScoreBreakdown.Count == 0)
-            {
-                <p class="aw-ra-empty">No component breakdown was stored for this result.</p>
-            }
-            else
-            {
-                <div class="aw-ra-breakdown-grid">
-                    @foreach (var component in Model.ScoreBreakdown)
-                    {
-                        <article class="@(component.Assessed ? null : "is-unassessed")">
-                            <div><span>@(component.Key.StartsWith("job.", StringComparison.OrdinalIgnoreCase) ? "Job Match" : "ATS Readiness")</span><strong>@component.Label</strong><small>@FormatComponentScore(component)</small></div>
-                            <div class="aw-ra-meter" role="progressbar" aria-label="@component.Label score" aria-valuemin="0" aria-valuemax="@Math.Round(component.Maximum)" aria-valuenow="@Math.Round(component.Score)"><i style="--aw-ra-progress: @ComponentPercent(component)%"></i></div>
-                            <ul>@foreach (var reason in component.Reasons) { <li>@reason</li> }</ul>
-                        </article>
-                    }
-                </div>
-            }
-        </section>
-
-        <section class="aw-ra-comparison aw-ra-panel" aria-labelledby="@($"{resultId}-comparison")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker aw-kicker-violet">Progress check</span><h3 id="@($"{resultId}-comparison")">Compared with the previous run</h3><p>@(Model.HasJobMatch ? "Same job context, including a newly uploaded resume version." : "Same resume record and ATS-only context." )</p></div>
-            </div>
-            @if (Model.PreviousScore.HasValue)
-            {
-                <div class="aw-ra-change-metrics" aria-label="@comparisonMetric score change">
-                    <div><span>Previous @comparisonMetric</span><strong>@Model.PreviousScore</strong></div>
-                    <div><span>New @comparisonMetric</span><strong>@Model.OverallScore</strong></div>
-                    <div class="@ChangeTone(Model.ScoreChange)"><span>Change</span><strong>@FormatChange(Model.ScoreChange)</strong></div>
-                </div>
-                <div class="aw-ra-comparison-grid">
-                    <div>
-                        <h4>Resolved issues <span>@Model.ResolvedIssues.Count</span></h4>
-                        @if (Model.ResolvedIssues.Count == 0) { <p class="aw-ra-empty">No previously detected issues were resolved in this run.</p> }
-                        else { <ul>@foreach (var item in Model.ResolvedIssues) { <li>@item</li> }</ul> }
-                    </div>
-                    <div>
-                        <h4>Remaining issues <span>@Model.RemainingIssues.Count</span></h4>
-                        @if (Model.RemainingIssues.Count == 0) { <p class="aw-ra-empty">No issues persisted from the previous run.</p> }
-                        else { <ul>@foreach (var item in Model.RemainingIssues) { <li>@item</li> }</ul> }
-                    </div>
-                    <div>
-                        <h4>New evidence <span>@Model.NewlyDetectedEvidence.Count</span></h4>
-                        @if (Model.NewlyDetectedEvidence.Count == 0) { <p class="aw-ra-empty">No newly detected requirement evidence in this run.</p> }
-                        else { <ul>@foreach (var item in Model.NewlyDetectedEvidence) { <li>@item</li> }</ul> }
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="aw-ra-baseline-note"><span aria-hidden="true">1</span><p><strong>This run is the baseline.</strong> Analyze an honestly updated resume in the same context to see resolved issues, remaining issues, and newly supported evidence.</p></div>
-            }
-        </section>
-
-        <section class="aw-ra-panel aw-ra-improvements" aria-labelledby="@($"{resultId}-improvements")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker">Priority queue</span><h3 id="@($"{resultId}-improvements")">Top improvements</h3><p>Up to eight deterministic recommendations, ordered by likely score impact. Only make changes that remain truthful.</p></div>
-                <span class="aw-ra-count">@topImprovements.Length</span>
-            </div>
-            @if (topImprovements.Length == 0)
-            {
-                <div class="aw-ra-positive-empty"><span aria-hidden="true">&#10003;</span><p><strong>No priority issues were detected.</strong> Review the detailed checks below and tailor evidence for each real application.</p></div>
-            }
-            else
-            {
-                <div class="aw-ra-filter-bar" data-review-filters role="group" aria-label="Filter top improvements">
-                    <button class="is-active" type="button" data-review-filter="all" aria-pressed="true" aria-controls="@($"{resultId}-improvement-list")">All <span>@topImprovements.Length</span></button>
-                    <button type="button" data-review-filter="critical" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Critical <span>@topImprovements.Count(item => item.Priority == ReviewPriority.Critical)</span></button>
-                    <button type="button" data-review-filter="job" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Job Match <span>@FilterCount(topImprovements, "job")</span></button>
-                    <button type="button" data-review-filter="ats" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">ATS Readiness <span>@FilterCount(topImprovements, "ats")</span></button>
-                    <button type="button" data-review-filter="content" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Content <span>@FilterCount(topImprovements, "content")</span></button>
-                    <button type="button" data-review-filter="formatting" aria-pressed="false" aria-controls="@($"{resultId}-improvement-list")">Formatting <span>@FilterCount(topImprovements, "formatting")</span></button>
-                </div>
-                <p class="visually-hidden" data-review-filter-status aria-live="polite">Showing all @topImprovements.Length improvements.</p>
-                <div id="@($"{resultId}-improvement-list")" class="aw-ra-improvement-list" data-review-list>
-                    @for (var index = 0; index < topImprovements.Length; index++)
-                    {
-                        var item = topImprovements[index];
-                        var builderSection = BuilderSection(item.ResumeSection);
-                        <article class="aw-ra-improvement @PriorityClass(item.Priority)"
-                                 data-review-card
-                                 data-review-priority="@item.Priority.ToString().ToLowerInvariant()"
-                                 data-review-groups="@FilterKeys(item)"
-                                 data-review-category="@item.Category.ToString()">
-                            <div class="aw-ra-improvement-number" aria-hidden="true">@(index + 1)</div>
-                            <div class="aw-ra-improvement-body">
-                                <header>
-                                    <div class="aw-ra-label-row">
-                                        <span class="aw-ra-priority @PriorityClass(item.Priority)">@PriorityLabel(item.Priority)</span>
-                                        <span>@item.CategoryLabel</span>
-                                        @if (!string.IsNullOrWhiteSpace(item.ResumeSection)) { <span>@item.ResumeSection</span> }
-                                        @if (item.EstimatedScoreImpact > 0) { <span>Up to +@FormatImpact(item.EstimatedScoreImpact) pts</span> }
-                                    </div>
-                                    <h4>@item.Issue</h4>
-                                </header>
-                                <p>@item.WhyItMatters</p>
-                                @if (!string.IsNullOrWhiteSpace(item.Evidence))
-                                {
-                                    <blockquote><span>Extracted evidence</span><p>@item.Evidence</p></blockquote>
-                                }
-                                <div class="aw-ra-action-box"><strong>Recommended action</strong><p>@item.RecommendedAction</p></div>
-                                @if (!string.IsNullOrWhiteSpace(item.ExampleImprovement))
-                                {
-                                    <div class="aw-ra-example"><strong>Truthful rewrite pattern</strong><code>@item.ExampleImprovement</code></div>
-                                }
-                                @if (builderSection is not null)
-                                {
-                                    <a class="btn btn-secondary-soft btn-sm aw-ra-builder-link"
-                                       asp-controller="ResumeBuilder"
-                                       asp-action="Index"
-                                       asp-route-section="@BuilderSectionKey(item.ResumeSection)"
-                                       asp-fragment="rb-editor-panel"
-                                       title="Open the local Resume Builder editor for @builderSection">
-                                        Fix in Resume Builder <span class="visually-hidden">: @builderSection</span>
-                                    </a>
-                                }
-                            </div>
-                        </article>
-                    }
-                </div>
-                <div class="aw-ra-filter-empty" data-review-filter-empty hidden role="status">No top improvements match this filter.</div>
-            }
-        </section>
-
-        <div class="aw-ra-two-column aw-ra-diagnostic-grid">
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-parsing")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-green">ATS foundation</span><h3 id="@($"{resultId}-parsing")">ATS parsing</h3><p>Whether selectable resume text could be extracted and interpreted.</p></div>
-                    @if (parsingComponent is not null) { <span class="aw-ra-component-score">@FormatComponentScore(parsingComponent)</span> }
-                </div>
-                @if (parsingComponent is null)
+        else
+        {
+            <ol class="aw-ra-numbered-list">
+                @foreach (var suggestion in visibleSuggestions)
                 {
-                    <p class="aw-ra-empty">No parseability component was stored for this result.</p>
+                    <li>@suggestion</li>
                 }
-                else
-                {
-                    <div class="aw-ra-meter"
-                         role="progressbar"
-                         aria-label="ATS parsing score"
-                         aria-valuemin="0"
-                         aria-valuemax="@Math.Round(parsingComponent.Maximum)"
-                         aria-valuenow="@Math.Round(parsingComponent.Score)">
-                        <i style="--aw-ra-progress: @ComponentPercent(parsingComponent)%"></i>
-                    </div>
-                    <ul class="aw-ra-check-list">
-                        @foreach (var reason in parsingComponent.Reasons) { <li>@reason</li> }
-                    </ul>
-                    @if (!parsingComponent.Assessed)
-                    {
-                        <p class="aw-ra-unassessed-note">Other ATS checks were not assessed because reliable text was unavailable.</p>
-                    }
-                }
-                @if (parsingWarnings.Length > 0)
-                {
-                    <ul class="aw-ra-warning-list">
-                        @foreach (var warning in parsingWarnings) { <li>@warning.Message</li> }
-                    </ul>
-                }
-            </section>
-
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-coverage")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-violet">Role evidence</span><h3 id="@($"{resultId}-coverage")">Requirement coverage</h3><p>Coverage is based only on the supplied job description and detected resume evidence.</p></div>
-                </div>
-                @if (!Model.HasJobMatch)
-                {
-                    <div class="aw-ra-not-assessed"><strong>Job Match was not assessed</strong><p>No job description was supplied. ATS Readiness remains available independently.</p></div>
-                }
-                else
-                {
-                    var mustHaveCoverage = CoveragePercent(Model.MustHaveCoverage);
-                    var requiredCoverage = CoveragePercent(Model.RequiredCoverage);
-                    var evidenceQuality = CoveragePercent(Model.EvidenceQuality);
-                    var hasMustHave = requirementCoverage.Any(item => item.Priority == RequirementPriority.MustHave);
-                    var hasRequired = requirementCoverage.Any(item => item.Priority == RequirementPriority.Required);
-                    <div class="aw-ra-coverage-summary">
-                        <strong>@Model.Evidence.Count</strong><span>matched evidence items</span>
-                        <i aria-hidden="true"></i>
-                        <strong>@Model.MissingRequirements.Count</strong><span>missing requirements</span>
-                    </div>
-                    <div class="aw-ra-coverage-meter">
-                        <div><span>Must-have coverage</span><strong>@(hasMustHave ? $"{mustHaveCoverage}%" : "Not listed")</strong></div>
-                        @if (hasMustHave)
-                        {
-                            <div class="aw-ra-meter" role="progressbar" aria-label="Must-have coverage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@mustHaveCoverage"><i style="--aw-ra-progress: @mustHaveCoverage%"></i></div>
-                        }
-                    </div>
-                    <div class="aw-ra-coverage-meter">
-                        <div><span>Required coverage</span><strong>@(hasRequired ? $"{requiredCoverage}%" : "Not listed")</strong></div>
-                        @if (hasRequired)
-                        {
-                            <div class="aw-ra-meter" role="progressbar" aria-label="Required coverage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@requiredCoverage"><i style="--aw-ra-progress: @requiredCoverage%"></i></div>
-                        }
-                    </div>
-                    <div class="aw-ra-coverage-meter">
-                        <div><span>Evidence quality</span><strong>@evidenceQuality%</strong></div>
-                        <div class="aw-ra-meter" role="progressbar" aria-label="Evidence quality" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@evidenceQuality"><i style="--aw-ra-progress: @evidenceQuality%"></i></div>
-                    </div>
-                    <div class="aw-ra-priority-coverage" aria-label="Requirements grouped by priority">
-                        @foreach (var priority in new[] { RequirementPriority.MustHave, RequirementPriority.Required, RequirementPriority.Preferred })
-                        {
-                            var group = requirementCoverage.Where(item => item.Priority == priority).ToArray();
-                            <section>
-                                <h4>@RequirementPriorityLabel(priority) <span>@group.Count(item => item.Matched)/@group.Length detected</span></h4>
-                                @if (group.Length == 0)
-                                {
-                                    <p>None listed in the supplied job description.</p>
-                                }
-                                else
-                                {
-                                    <ul>
-                                        @foreach (var requirement in group)
-                                        {
-                                            <li class="@(requirement.Matched ? "is-matched" : "is-missing")"><span aria-hidden="true">@(requirement.Matched ? "✓" : "!")</span>@requirement.Name<small>@(requirement.Matched ? "Evidence detected" : "Not detected")</small></li>
-                                        }
-                                    </ul>
-                                }
-                            </section>
-                        }
-                    </div>
-                    <p class="aw-ra-footnote">@Model.DetectedJobRequirementCount total job requirements were detected.</p>
-                }
-            </section>
-        </div>
-
-        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-sections")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker">Resume anatomy</span><h3 id="@($"{resultId}-sections")">Section reviews</h3><p>Detected structure, strengths, problems, and section-specific improvements.</p></div>
-                <span class="aw-ra-count">@Model.SectionReviews.Count</span>
-            </div>
-            @if (Model.SectionReviews.Count == 0)
-            {
-                <p class="aw-ra-empty">No section-level reviews were available.</p>
-            }
-            else
-            {
-                <div class="aw-ra-section-grid">
-                    @foreach (var review in Model.SectionReviews)
-                    {
-                        var builderSection = BuilderSection(review.Section);
-                        <details class="aw-ra-section-review @StatusClass(review.Status)">
-                            <summary><span><strong>@review.Section</strong><small>@StatusLabel(review.Status)</small></span><span class="aw-ra-mini-score">@review.Score</span></summary>
-                            <div class="aw-ra-detail-body">
-                                @if (review.Strengths.Count > 0)
-                                {
-                                    <div class="aw-ra-detail-list is-positive"><h4>Strengths</h4><ul>@foreach (var item in review.Strengths) { <li>@item</li> }</ul></div>
-                                }
-                                @if (review.Problems.Count > 0)
-                                {
-                                    <div class="aw-ra-detail-list is-warning"><h4>Problems</h4><ul>@foreach (var item in review.Problems) { <li>@item</li> }</ul></div>
-                                }
-                                @if (review.RecommendedImprovements.Count > 0)
-                                {
-                                    <div class="aw-ra-detail-list is-action"><h4>Recommended improvements</h4><ul>@foreach (var item in review.RecommendedImprovements) { <li>@item</li> }</ul></div>
-                                }
-                                @if (review.RelevantJobRequirements.Count > 0)
-                                {
-                                    <div><h4>Relevant job requirements</h4><div class="aw-ra-chip-list">@foreach (var requirement in review.RelevantJobRequirements) { <span class="aw-ra-chip">@requirement</span> }</div></div>
-                                }
-                                @if (builderSection is not null)
-                                {
-                                    <a class="btn btn-secondary-soft btn-sm aw-ra-builder-link"
-                                       asp-controller="ResumeBuilder"
-                                       asp-action="Index"
-                                       asp-route-section="@BuilderSectionKey(review.Section)"
-                                       asp-fragment="rb-editor-panel">
-                                        Fix in Resume Builder <span class="visually-hidden">: @builderSection</span>
-                                    </a>
-                                }
-                            </div>
-                        </details>
-                    }
-                </div>
-            }
-        </section>
-
-        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-bullets")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker aw-kicker-amber">Evidence quality</span><h3 id="@($"{resultId}-bullets")">Bullet reviews</h3><p>Action, method, outcome, measurable support, and readable length.</p></div>
-                <span class="aw-ra-count">@Model.BulletReviews.Count</span>
-            </div>
-            @if (Model.BulletReviews.Count == 0)
-            {
-                <p class="aw-ra-empty">No individual bullets were available to review.</p>
-            }
-            else
-            {
-                <div class="aw-ra-bullet-list">
-                    @foreach (var bullet in Model.BulletReviews)
-                    {
-                        var builderSection = BuilderSection(bullet.Section);
-                        <details class="aw-ra-bullet-review @StatusClass(bullet.Status)">
-                            <summary>
-                                <span class="aw-ra-status-dot" aria-hidden="true"></span>
-                                <span><strong>@bullet.Section</strong><small>@Truncate(bullet.Original, 110)</small></span>
-                                <span class="aw-ra-status-label">@StatusLabel(bullet.Status)</span>
-                            </summary>
-                            <div class="aw-ra-detail-body">
-                                <blockquote><span>Original extracted bullet</span><p>@bullet.Original</p></blockquote>
-                                <div class="aw-ra-two-column aw-ra-mini-columns">
-                                    @if (bullet.Strengths.Count > 0)
-                                    {
-                                        <div class="aw-ra-detail-list is-positive"><h4>Strengths</h4><ul>@foreach (var item in bullet.Strengths) { <li>@item</li> }</ul></div>
-                                    }
-                                    @if (bullet.Problems.Count > 0)
-                                    {
-                                        <div class="aw-ra-detail-list is-warning"><h4>Problems</h4><ul>@foreach (var item in bullet.Problems) { <li>@item</li> }</ul></div>
-                                    }
-                                </div>
-                                <div class="aw-ra-example"><strong>Rewrite template</strong><code>@bullet.SuggestedTemplate</code></div>
-                                @if (builderSection is not null)
-                                {
-                                    <a class="btn btn-secondary-soft btn-sm aw-ra-builder-link"
-                                       asp-controller="ResumeBuilder"
-                                       asp-action="Index"
-                                       asp-route-section="@BuilderSectionKey(bullet.Section)"
-                                       asp-fragment="rb-editor-panel">
-                                        Fix in Resume Builder <span class="visually-hidden">: @builderSection</span>
-                                    </a>
-                                }
-                            </div>
-                        </details>
-                    }
-                </div>
-            }
-        </section>
-
-        <div class="aw-ra-two-column aw-ra-evidence-grid">
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-evidence")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-green">Supported</span><h3 id="@($"{resultId}-evidence")">Matched evidence</h3><p>Detected resume evidence and its estimated contribution for each supplied requirement.</p></div>
-                    <span class="aw-ra-count">@Model.Evidence.Count</span>
-                </div>
-                @if (!Model.HasJobMatch)
-                {
-                    <p class="aw-ra-empty">Add a job description to assess matched evidence.</p>
-                }
-                else if (Model.Evidence.Count == 0)
-                {
-                    <p class="aw-ra-empty">No requirement evidence was detected.</p>
-                }
-                else
-                {
-                    <div class="aw-ra-evidence-list">
-                        @foreach (var evidence in Model.Evidence)
-                        {
-                            <article>
-                                <div class="aw-ra-label-row">
-                                    <span class="aw-ra-priority @RequirementPriorityClass(evidence.Priority)">@RequirementPriorityLabel(evidence.Priority)</span>
-                                    <span>@Humanize(evidence.Category.ToString())</span>
-                                    @if (!string.IsNullOrWhiteSpace(evidence.ResumeSection))
-                                    {
-                                        <span>Resume section: @evidence.ResumeSection</span>
-                                    }
-                                </div>
-                                <h4>@evidence.RequirementName</h4>
-                                <blockquote><span>Extracted resume text</span><p>@evidence.Snippet</p></blockquote>
-                                <dl class="aw-ra-evidence-metrics">
-                                    <div><dt>Match strength</dt><dd>@CoveragePercent(evidence.MatchStrength)%</dd></div>
-                                    <div><dt>Evidence strength</dt><dd>@CoveragePercent(evidence.EvidenceStrength)%</dd></div>
-                                    <div><dt>Points contribution</dt><dd>@evidence.PointsContributed.ToString("0.##")</dd></div>
-                                </dl>
-                            </article>
-                        }
-                    </div>
-                }
-            </section>
-
-            <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-missing-requirements")">
-                <div class="aw-ra-panel-heading">
-                    <div><span class="aw-kicker aw-kicker-amber">Not detected</span><h3 id="@($"{resultId}-missing-requirements")">Missing requirements</h3><p>Do not add a requirement unless it truthfully reflects your experience.</p></div>
-                    <span class="aw-ra-count">@Model.MissingRequirements.Count</span>
-                </div>
-                @if (!Model.HasJobMatch)
-                {
-                    <p class="aw-ra-empty">Add a job description to assess missing requirements.</p>
-                }
-                else if (Model.MissingRequirements.Count == 0)
-                {
-                    <div class="aw-ra-positive-empty"><span aria-hidden="true">&#10003;</span><p><strong>No extracted requirements are currently missing.</strong> Confirm that the detected evidence is accurate and specific.</p></div>
-                }
-                else
-                {
-                    <div class="aw-ra-requirement-list">
-                        @foreach (var requirement in Model.MissingRequirements)
-                        {
-                            <article>
-                                <div class="aw-ra-label-row">
-                                    <span class="aw-ra-priority @RequirementPriorityClass(requirement.Priority)">@RequirementPriorityLabel(requirement.Priority)</span>
-                                    <span>@Humanize(requirement.Category.ToString())</span>
-                                </div>
-                                <h4>@requirement.Name</h4>
-                                <blockquote><span>Job-description source</span><p>@requirement.SourceText</p></blockquote>
-                                <p class="aw-ra-requirement-why"><strong>Why it matters</strong><span>@RequirementWhy(requirement)</span></p>
-                                <div class="aw-ra-action-box"><strong>Honest next step</strong><p>If you genuinely have this experience, add evidence showing where and how you used it. If you do not, leave it off rather than claiming it.</p></div>
-                            </article>
-                        }
-                    </div>
-                }
-            </section>
-        </div>
-
-        <section class="aw-ra-panel" aria-labelledby="@($"{resultId}-lower-priority")">
-            <div class="aw-ra-panel-heading">
-                <div><span class="aw-kicker">After the essentials</span><h3 id="@($"{resultId}-lower-priority")">Lower-priority suggestions</h3><p>Consider these after the top queue, without adding unsupported claims.</p></div>
-                <span class="aw-ra-count">@lowerPrioritySuggestions.Length</span>
-            </div>
-            @if (lowerPrioritySuggestions.Length == 0)
-            {
-                <p class="aw-ra-empty">No additional lower-priority suggestions were stored for this run.</p>
-            }
-            else
-            {
-                <ul class="aw-ra-suggestion-list">@foreach (var suggestion in lowerPrioritySuggestions) { <li>@suggestion</li> }</ul>
-            }
-        </section>
-    }
+            </ol>
+        }
+    </section>
 
     <footer class="aw-ra-disclaimer">
-        <strong>How to use this result</strong>
-        <p>ApplyWise provides an explainable compatibility estimate. It does not represent a score from an employer's actual applicant tracking system. It cannot guarantee an interview or hiring outcome. Keep every edit accurate and verifiable. Resume Builder actions open the browser-local draft and do not modify the uploaded resume automatically.</p>
+        <strong>Keep every update accurate</strong>
+        <p>This is an ApplyWise estimate, not an employer ATS score, and it cannot guarantee an interview or hiring outcome.</p>
     </footer>
 </section>
 
-<script>
-    (function () {
-        document.querySelectorAll('[data-analysis-result]').forEach(function (result) {
-            var filters = result.querySelector('[data-review-filters]');
-            if (!filters || filters.dataset.ready === 'true') return;
-            filters.dataset.ready = 'true';
-            var buttons = Array.from(filters.querySelectorAll('[data-review-filter]'));
-            var cards = Array.from(result.querySelectorAll('[data-review-card]'));
-            var empty = result.querySelector('[data-review-filter-empty]');
-            var status = result.querySelector('[data-review-filter-status]');
-
-            filters.addEventListener('click', function (event) {
-                var button = event.target.closest('[data-review-filter]');
-                if (!button || !filters.contains(button)) return;
-                var selected = button.dataset.reviewFilter;
-                var visible = 0;
-                buttons.forEach(function (item) {
-                    var active = item === button;
-                    item.classList.toggle('is-active', active);
-                    item.setAttribute('aria-pressed', String(active));
-                });
-                cards.forEach(function (card) {
-                    var show = selected === 'all'
-                        || (selected === 'critical' && card.dataset.reviewPriority === 'critical')
-                        || (card.dataset.reviewGroups || '').split(' ').includes(selected);
-                    card.hidden = !show;
-                    if (show) visible += 1;
-                });
-                if (empty) empty.hidden = visible !== 0;
-                if (status) status.textContent = 'Showing ' + visible + ' of ' + cards.length + ' top improvements.';
-            });
-        });
-    }());
-</script>
-
 @functions {
-    private static string ScoreTone(int score) => score switch { >= 85 => "is-strong", >= 70 => "is-good", >= 50 => "is-developing", _ => "is-low" };
-    private static string ScoreBand(int score) => score switch { >= 85 => "Strong alignment", >= 70 => "Good alignment", >= 50 => "Needs targeted improvement", _ => "Significant gaps" };
-    private static string StatusClass(ReviewStatus status) => status switch { ReviewStatus.Strong => "is-strong", ReviewStatus.Good => "is-good", ReviewStatus.NeedsImprovement => "is-developing", _ => "is-low" };
-    private static string StatusLabel(ReviewStatus status) => status == ReviewStatus.NeedsImprovement ? "Needs improvement" : Humanize(status.ToString());
-    private static string PriorityClass(ReviewPriority priority) => "priority-" + priority.ToString().ToLowerInvariant();
-    private static string PriorityLabel(ReviewPriority priority) => Humanize(priority.ToString());
-    private static string RequirementPriorityClass(RequirementPriority priority) => "priority-" + priority.ToString().ToLowerInvariant();
-    private static string RequirementPriorityLabel(RequirementPriority priority) => priority == RequirementPriority.MustHave ? "Must-have" : Humanize(priority.ToString());
-    private static string RequirementWhy(JobRequirement requirement)
+    private static string ScoreTone(int score) => score switch
     {
-        var category = Humanize(requirement.Category.ToString()).ToLowerInvariant();
-        return requirement.Priority switch
-        {
-            RequirementPriority.MustHave => $"The job description presents this as a must-have {category}. Missing must-have evidence has the greatest effect on the estimated Job Match.",
-            RequirementPriority.Required => $"The job description presents this as a required {category}, so detected evidence materially affects the estimated Job Match.",
-            RequirementPriority.Preferred => $"The job description presents this as a preferred {category}. It carries less weight than must-have or required items, but can strengthen alignment.",
-            _ => $"The job description provides this as informational {category}. It has only a small effect on estimated alignment."
-        };
-    }
-    private static string ChangeTone(int? change) => change > 0 ? "is-positive" : change < 0 ? "is-negative" : "is-neutral";
-    private static string FormatChange(int? change) => !change.HasValue ? "N/A" : change.Value > 0 ? $"+{change.Value}" : change.Value.ToString();
-    private static string FormatImpact(double value) => value.ToString("0.#");
-    private static int CoveragePercent(double value) => (int)Math.Round(Math.Clamp(value, 0d, 1d) * 100, MidpointRounding.AwayFromZero);
-    private static int ComponentPercent(ScoreComponent component) => component.Maximum <= 0 ? 0 : (int)Math.Round(Math.Clamp(component.Score / component.Maximum, 0d, 1d) * 100, MidpointRounding.AwayFromZero);
-    private static string FormatComponentScore(ScoreComponent component) => component.Assessed ? $"{component.Score:0.#}/{component.Maximum:0.#}" : "Not assessed";
-    private static bool IsParsingWarning(AnalysisWarning warning) => warning.Code is AnalysisWarningCode.UnreadableText or AnalysisWarningCode.LimitedText or AnalysisWarningCode.ParsingOrder;
-    private static string FilterKey(string? group) => group?.Trim().ToLowerInvariant() switch { "job match" => "job", "ats readiness" => "ats", "formatting" => "formatting", _ => "content" };
-    private static string FilterKeys(ReviewItem item)
-    {
-        var primary = FilterKey(item.FilterGroup);
-        return item.Category == ReviewCategory.DatesAndConsistency && primary != "formatting"
-            ? primary + " formatting"
-            : primary;
-    }
-    private static int FilterCount(IEnumerable<ReviewItem> items, string key) => items.Count(item => FilterKeys(item).Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(key, StringComparer.Ordinal));
-    private static string Humanize(string value) => System.Text.RegularExpressions.Regex.Replace(value, "(?<!^)([A-Z])", " $1");
-    private static string Truncate(string value, int maximum) => string.IsNullOrEmpty(value) || value.Length <= maximum ? value : value[..(maximum - 3)].TrimEnd() + "...";
-    private static string? BuilderSection(string? section) => section?.Trim().ToLowerInvariant() switch
-    {
-        "contact" or "contact information" => "Contact information",
-        "summary" or "professional summary" => "Professional summary",
-        "experience" => "Experience",
-        "projects" => "Projects",
-        "education" => "Education",
-        "skills" => "Skills",
-        "achievements" or "certifications" or "achievements and certifications" => "Achievements and certifications",
-        _ => null
+        >= 85 => "is-strong",
+        >= 70 => "is-good",
+        >= 50 => "is-developing",
+        _ => "is-low"
     };
-    private static string? BuilderSectionKey(string? section) => section?.Trim().ToLowerInvariant() switch
+
+    private static string ScoreBand(int score) => score switch
     {
-        "contact" or "contact information" => "personalInformation",
-        "summary" or "professional summary" => "professionalSummary",
-        "experience" => "experience",
-        "projects" => "projects",
-        "education" => "education",
-        "skills" => "skills",
-        "achievements" or "certifications" or "achievements and certifications" => "achievementsAndCertifications",
-        _ => null
+        >= 85 => "Strong alignment",
+        >= 70 => "Good alignment",
+        >= 50 => "Needs targeted improvement",
+        _ => "Significant gaps"
     };
 }

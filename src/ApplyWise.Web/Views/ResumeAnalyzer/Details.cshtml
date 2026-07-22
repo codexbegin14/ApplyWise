@@ -12,7 +12,7 @@
         <div>
             <a class="back-link" asp-action="Index">Back to resume analyzer</a>
             <span class="aw-kicker">Saved result</span>
-            <h2>Analysis details</h2>
+            <h1>Analysis details</h1>
             @if (Model.HasJobMatch)
             {
                 <p>@Model.ResumeVersionName reviewed against @Model.ContextTitle.</p>
@@ -25,6 +25,6 @@
         <a class="btn btn-primary" asp-action="Index" asp-route-analysisId="@Model.Id">Run again</a>
     </header>
 
-    <partial name="_AnalyzerTabs" model='"pasted"' />
-    <partial name="_AnalysisResult" model="Model" />
+    <partial name="_AnalyzerTabs" model="@(Model.HasJobMatch ? "job" : "ats")" />
+    <partial name="@(Model.IsLegacy ? "_AnalysisResult" : "_CompactAnalysisResult")" model="Model" />
 </div>

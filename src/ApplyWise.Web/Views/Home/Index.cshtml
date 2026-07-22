@@ -13,15 +13,20 @@
             <div class="aw-home-hero-copy">
                 <h1 id="home-hero-title">Build the right resume. Apply with confidence. Track every opportunity.</h1>
                 <p class="aw-home-lead">Track applications, choose the right resume, and know your next step&mdash;all in one workspace.</p>
+                <div class="d-flex flex-wrap gap-2 mt-4" aria-label="ApplyWise account actions">
+                    <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Create your free account</a>
+                    <a class="btn btn-secondary-soft btn-lg" asp-area="Identity" asp-page="/Account/Login">Log in</a>
+                </div>
             </div>
 
             <figure class="aw-home-wiso-visual">
                 <div class="aw-home-wiso-orbit">
+                    <span class="aw-home-wiso-intro"><b>Meet Wiso</b><small>Your friendly ApplyWise guide</small></span>
                     <span class="aw-home-wiso-card aw-home-wiso-card-tracking"><b>Application tracked</b><small>Your next step stays clear</small></span>
                     <img src="~/images/wiso.png" alt="Wiso, the ApplyWise career assistant, holding a resume checklist" />
-                    <span class="aw-home-wiso-card aw-home-wiso-card-reminder"><b>Interview ready</b><small>Reminder and preparation saved</small></span>
+                    <span class="aw-home-wiso-card aw-home-wiso-card-reminder"><b>Interview ready</b><small>Reminders stay close</small></span>
                 </div>
-                <figcaption class="visually-hidden">Wiso, the ApplyWise guide, helps organize applications, resumes, and interviews.</figcaption>
+                <figcaption class="visually-hidden">Wiso helps organize applications, resumes, reminders, and interviews inside ApplyWise.</figcaption>
             </figure>
         </div>
     </section>
@@ -106,36 +111,12 @@
         </div>
     </section>
 
-    <section class="aw-home-section aw-home-video" id="how-to-use" aria-labelledby="how-to-use-title">
-        <div class="aw-home-container aw-home-video-layout">
-            <div class="aw-home-video-copy">
-                <span class="aw-home-kicker">How to use ApplyWise</span>
-                <h2 id="how-to-use-title">See the complete job-search workflow.</h2>
-                <p>This space is ready for your walkthrough video showing how to track an application, choose the right resume, and create a new resume when needed.</p>
-                <ol class="aw-home-video-steps" aria-label="ApplyWise walkthrough topics">
-                    <li><span>1</span><div><strong>Track each opportunity</strong><small>Save applications, deadlines, interviews, and reminders.</small></div></li>
-                    <li><span>2</span><div><strong>Choose the right resume</strong><small>Compare your saved resume versions with the job.</small></div></li>
-                    <li><span>3</span><div><strong>Build when you need to</strong><small>Create and download a polished one-page resume.</small></div></li>
-                </ol>
-            </div>
-            <figure class="aw-home-video-frame">
-                @* Replace this placeholder with a controls-enabled <video> or a titled <iframe> when the walkthrough is ready. *@
-                <div class="aw-home-video-placeholder" role="img" aria-label="Reserved space for the ApplyWise how-to video">
-                    <span class="aw-home-video-play" aria-hidden="true"><i></i></span>
-                    <strong>ApplyWise walkthrough</strong>
-                    <small>Your how-to video will appear here</small>
-                </div>
-                <figcaption>Video guide: track your jobs, choose the right resume, and build a new one.</figcaption>
-            </figure>
-        </div>
-    </section>
-
 </main>
 
 <footer class="aw-home-footer">
     <div class="aw-home-container aw-home-footer-grid">
         <div class="aw-home-footer-brand"><a class="brand" asp-controller="Home" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a><p>Track every application. Choose the right version. Build smarter resumes.</p></div>
-        <nav aria-label="Product links"><h2>Product</h2><a href="#job-tracker">Job Tracker</a><a href="#resume-match">Best Resume Match</a><a href="#resume-builder">Resume Builder</a><a href="#how-to-use">How to Use</a></nav>
+        <nav aria-label="Product links"><h2>Product</h2><a href="#job-tracker">Job Tracker</a><a href="#resume-match">Best Resume Match</a><a href="#resume-builder">Resume Builder</a></nav>
         <nav aria-label="Account links"><h2>Account</h2><a asp-area="Identity" asp-page="/Account/Register">Create Account</a><a asp-area="Identity" asp-page="/Account/Login">Sign In</a></nav>
         <nav aria-label="Legal links"><h2>Legal</h2><a asp-controller="Home" asp-action="Privacy">Privacy</a></nav>
     </div>

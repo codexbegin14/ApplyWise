@@ -182,6 +182,7 @@ builder.Services.AddOptions<ResumeStorageOptions>()
         "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
+builder.Services.AddScoped<IResumeIngestionService, ResumeIngestionService>();
 builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();

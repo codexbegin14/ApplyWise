@@ -202,7 +202,7 @@ public class JobApplicationsController(
 
     [HttpPost("{id:int}/status")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateStatus(int id, ApplicationStatus status)
+    public async Task<IActionResult> UpdateStatus(int id, ApplicationStatus status, string? returnUrl = null)
     {
         if (!Enum.IsDefined(status))
         {
@@ -219,6 +219,10 @@ public class JobApplicationsController(
         application.UpdatedAt = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync();
         TempData["SuccessMessage"] = $"{application.JobTitle} moved to {status.GetDisplayName()}.";
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
         return RedirectToAction(nameof(Details), new { id = application.Id });
     }
 

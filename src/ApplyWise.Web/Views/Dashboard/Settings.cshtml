@@ -5,7 +5,7 @@
 }
 
 <div class="page-heading aw-settings-heading">
-    <div><h2>Settings</h2><p>Manage your account, privacy, and workspace preferences.</p></div>
+    <div><h1>Settings</h1><p>Manage your account, privacy, and workspace preferences.</p></div>
 </div>
 
 @if (TempData["SettingsSuccess"] is string success)
@@ -23,12 +23,12 @@
 
 <div class="aw-settings-grid">
     <section class="panel aw-settings-card">
-        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Appearance</span><h3>Dashboard theme</h3><p>Choose the look of your signed-in workspace.</p></div><span class="aw-settings-icon">◐</span></div>
+        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Appearance</span><h2>Dashboard theme</h2><p>Choose the look of your signed-in workspace.</p></div></div>
         <label class="aw-settings-switch-row" for="theme-toggle"><span><strong>Dark mode</strong><small>Darken the dashboard after you sign in. Public and account pages always stay light.</small></span><input id="theme-toggle" type="checkbox" data-theme-toggle role="switch" /><i aria-hidden="true"></i></label>
     </section>
 
     <section class="panel aw-settings-card aw-settings-account">
-        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h3>Sign-in details</h3><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div><span class="aw-settings-icon">⌁</span></div>
+        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h2>Sign-in details</h2><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div></div>
         <p class="aw-settings-security-note">For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.</p>
 
         <details class="aw-settings-disclosure" open="@(openSection == "password")">

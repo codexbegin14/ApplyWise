@@ -19,7 +19,10 @@ public sealed class ResumeBuilderTests
     {
         var sample = ResumeSampleFactory.Create();
 
+        Assert.Equal(3, ResumeDocument.CurrentSchemaVersion);
         Assert.Equal(ResumeDocument.CurrentSchemaVersion, sample.SchemaVersion);
+        Assert.Equal(ResumeDocument.DefaultTemplateId, sample.TemplateId);
+        Assert.Equal(string.Empty, sample.PersonalInformation.ProfilePhotoDataUrl);
         Assert.All(
             new[]
             {
@@ -64,6 +67,16 @@ public sealed class ResumeBuilderTests
         Assert.NotEmpty(sample.Languages);
         Assert.NotEmpty(sample.VolunteerExperience);
         Assert.All(sample.VolunteerExperience, entry => Assert.NotEmpty(entry.BulletPoints));
+        Assert.Equal(2, sample.References.Count);
+        Assert.All(sample.References, entry =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(entry.Id));
+            Assert.False(string.IsNullOrWhiteSpace(entry.FullName));
+            Assert.False(string.IsNullOrWhiteSpace(entry.JobTitle));
+            Assert.False(string.IsNullOrWhiteSpace(entry.Company));
+            Assert.False(string.IsNullOrWhiteSpace(entry.EmailAddress));
+            Assert.False(string.IsNullOrWhiteSpace(entry.PhoneNumber));
+        });
         Assert.NotEmpty(sample.Interests);
         Assert.NotEmpty(sample.CustomSections);
         Assert.All(sample.CustomSections, section => Assert.NotEmpty(section.Entries));
@@ -93,6 +106,7 @@ public sealed class ResumeBuilderTests
         Assert.All(
             defaults.Where(section => section.Key is ResumeSectionKind.Languages
                 or ResumeSectionKind.VolunteerExperience
+                or ResumeSectionKind.References
                 or ResumeSectionKind.Interests
                 or ResumeSectionKind.CustomSections),
             section => Assert.False(section.IsVisible));
@@ -106,9 +120,11 @@ public sealed class ResumeBuilderTests
 
         first.Sections.RemoveAt(0);
         first.Education.Clear();
+        first.References.Clear();
 
         Assert.Equal(Enum.GetValues<ResumeSectionKind>().Length, second.Sections.Count);
         Assert.NotEmpty(second.Education);
+        Assert.NotEmpty(second.References);
     }
 
     [Fact]
@@ -119,11 +135,15 @@ public sealed class ResumeBuilderTests
         var root = json.RootElement;
 
         Assert.Equal(ResumeDocument.CurrentSchemaVersion, root.GetProperty("schemaVersion").GetInt32());
-        Assert.Equal("Jordan Lee", root.GetProperty("personalInformation").GetProperty("fullName").GetString());
+        Assert.Equal(ResumeDocument.DefaultTemplateId, root.GetProperty("templateId").GetString());
+        var personalInformation = root.GetProperty("personalInformation");
+        Assert.Equal("Jordan Lee", personalInformation.GetProperty("fullName").GetString());
+        Assert.Equal(string.Empty, personalInformation.GetProperty("profilePhotoDataUrl").GetString());
         Assert.Equal(
             "professionalSummary",
             root.GetProperty("sections")[0].GetProperty("key").GetString());
         Assert.Equal(JsonValueKind.Array, root.GetProperty("customSections").ValueKind);
+        Assert.Equal(2, root.GetProperty("references").GetArrayLength());
     }
 
     [Theory]
@@ -133,6 +153,7 @@ public sealed class ResumeBuilderTests
     [InlineData("projects", "projects")]
     [InlineData("education", "education")]
     [InlineData("skills", "skills")]
+    [InlineData("references", "references")]
     [InlineData("achievements", "achievementsAndCertifications")]
     [InlineData("certifications", "achievementsAndCertifications")]
     [InlineData("achievementsAndCertifications", "achievementsAndCertifications")]

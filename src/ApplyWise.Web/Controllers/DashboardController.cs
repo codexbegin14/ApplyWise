@@ -23,7 +23,7 @@ public class DashboardController(
     SignInManager<IdentityUser> signInManager,
     ILogger<DashboardController> logger) : Controller
 {
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(ApplicationStatus? tab)
     {
         var userId = userManager.GetUserId(User)
             ?? throw new InvalidOperationException("The current user does not have an identifier.");
@@ -142,6 +142,9 @@ public class DashboardController(
         model.TodayActions = todayInterviews.Concat(todayReminders).Concat(todayDeadlines)
             .OrderBy(item => item.SortAt).Take(8).ToArray();
         model.TodayActionCount = todayInterviews.Count + todayReminders.Count + todayDeadlines.Count;
+        ViewData["SelectedPipelineStatus"] = tab is { } selectedStatus && Enum.IsDefined(selectedStatus)
+            ? selectedStatus
+            : ApplicationStatus.Applied;
         return View(model);
     }
 
@@ -239,9 +242,6 @@ public class DashboardController(
         return RedirectToPage("/Account/Login", new { area = "Identity" });
     }
 
-    private IActionResult Section(string title, string description, string? actionLabel = null) =>
-        View("Section", new SectionViewModel(title, description, actionLabel));
-
     private async Task<SettingsViewModel> BuildSettingsModelAsync()
     {
         var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("The current user could not be loaded.");
@@ -277,5 +277,3 @@ public class DashboardController(
         return false;
     }
 }
-
-public sealed record SectionViewModel(string Title, string Description, string? ActionLabel = null);

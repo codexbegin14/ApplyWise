@@ -5,7 +5,7 @@
 
 <div class="page-heading">
     <div>
-        <h2>Resumes</h2>
+        <h1>Resumes</h1>
         <p>Manage resume versions and track which file you use for each application.</p>
     </div>
     <div class="form-actions">
@@ -27,7 +27,7 @@
 @if (Model.Count == 0)
 {
     <section class="panel empty-state">
-        <img class="empty-wiso" src="~/images/wiso.png" alt="Wiso holding a resume checklist" />
+        <span class="empty-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-file" /></svg></span>
         <h3>No resumes yet</h3>
         <p>Upload your first resume version so ApplyWise can help you compare it with job requirements.</p>
         <a class="btn btn-primary" asp-action="Create"><svg class="ui-icon"><use href="#i-plus" /></svg>Upload Resume</a>
