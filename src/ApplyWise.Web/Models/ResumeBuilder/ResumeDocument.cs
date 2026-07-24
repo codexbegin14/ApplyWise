@@ -7,11 +7,12 @@ namespace ApplyWise.Web.Models.ResumeBuilder;
 /// </summary>
 public sealed class ResumeDocument
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     public const string DefaultTemplateId = "classic";
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public string TemplateId { get; init; } = DefaultTemplateId;
+    public bool TemplateSelectionConfirmed { get; init; }
     public PersonalInformation PersonalInformation { get; init; } = new();
     public string ProfessionalSummary { get; init; } = string.Empty;
     public List<EducationEntry> Education { get; init; } = [];
@@ -84,7 +85,14 @@ public sealed class SkillCategory
 {
     public string Id { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
-    public List<string> Skills { get; init; } = [];
+    public List<SkillItem> Skills { get; init; } = [];
+}
+
+public sealed class SkillItem
+{
+    public string Id { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public int? Level { get; init; }
 }
 
 public sealed class AchievementCertificationEntry
@@ -102,6 +110,7 @@ public sealed class LanguageEntry
     public string Id { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string Proficiency { get; init; } = string.Empty;
+    public int? Level { get; init; }
 }
 
 public sealed class VolunteerExperienceEntry

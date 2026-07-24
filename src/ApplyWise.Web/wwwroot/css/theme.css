@@ -1253,27 +1253,36 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
     letter-spacing: -.045em;
 }
 .identity-body .aw-auth-quote p { max-width: 420px; margin: 0; color: var(--aw-text-2); font-size: .875rem; line-height: 1.6; }
-.identity-body .aw-auth-avatar-wrap { position: relative; display: flex; min-height: 250px; flex: 1; align-items: flex-end; justify-content: center; }
-.identity-body .aw-auth-avatar-wrap::before { bottom: -150px; width: 420px; height: 330px; background: rgba(255, 255, 255, .76); }
-.identity-body .aw-auth-avatar-wrap img {
+.identity-body .aw-auth-product-stack {
     position: relative;
-    z-index: 1;
-    width: min(250px, 42vh);
-    height: min(250px, 42vh);
-    max-height: 100%;
-    object-fit: contain;
-    object-position: center bottom;
-    border-radius: 28%;
-    mix-blend-mode: multiply;
+    z-index: 2;
+    display: grid;
+    gap: 10px;
+    margin: 28px 0 36px;
 }
-.identity-body .aw-auth-avatar-wrap > span {
-    top: 18%;
-    right: 5%;
-    color: var(--aw-info-text);
-    border-color: var(--aw-border-strong);
+.identity-body .aw-auth-product-stack > div {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 2px 12px;
+    padding: 13px 14px;
+    border: 1px solid var(--aw-border);
+    border-radius: var(--aw-radius-card);
     background: var(--aw-surface);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, .08);
 }
+.identity-body .aw-auth-product-stack span {
+    display: grid;
+    grid-row: 1 / 3;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: var(--aw-info-text);
+    border-radius: 10px;
+    background: var(--aw-primary-soft);
+    font-size: .6875rem;
+    font-weight: 800;
+}
+.identity-body .aw-auth-product-stack strong { color: var(--aw-text); font-size: .8125rem; }
+.identity-body .aw-auth-product-stack small { color: var(--aw-muted); font-size: .6875rem; line-height: 1.4; }
 .identity-body .aw-login-heading { margin-bottom: var(--aw-space-3); }
 .identity-body .aw-login-heading h1,
 .aw-auth-status-card h1 { margin: 0 0 8px; color: var(--aw-text); font-size: 1.75rem; }
@@ -1314,98 +1323,6 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 }
 .public-info-grid > div { border-color: var(--aw-border); background: var(--aw-surface-2); }
 .public-header::after { display: none !important; content: none !important; }
-
-/* Wiso is decorative on public pages and interactive inside the signed-in workspace. */
-.wiso-widget { position: fixed; z-index: 1200; right: 24px; bottom: 24px; }
-.wiso-launcher {
-    position: relative;
-    display: grid;
-    width: 64px;
-    height: 64px;
-    place-items: center;
-    padding: 4px;
-    overflow: visible;
-    border: 2px solid var(--aw-border-strong);
-    border-radius: 50%;
-    background: var(--aw-surface);
-    box-shadow: 0 10px 28px rgba(15, 23, 42, .16);
-    cursor: pointer;
-    transition: transform .16s ease, border-color .16s ease;
-}
-.wiso-launcher:hover { border-color: var(--aw-primary); transform: translateY(-2px); }
-.wiso-launcher:focus-visible { outline: 3px solid var(--aw-focus); outline-offset: 3px; }
-.wiso-launcher img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-.wiso-online-dot {
-    position: absolute;
-    right: 2px;
-    bottom: 3px;
-    width: 13px;
-    height: 13px;
-    border: 2px solid var(--aw-surface);
-    border-radius: 50%;
-    background: #16a34a;
-}
-.wiso-panel {
-    position: absolute;
-    right: 0;
-    bottom: 76px;
-    display: flex;
-    width: min(370px, calc(100vw - 32px));
-    max-height: min(620px, calc(100vh - 112px));
-    flex-direction: column;
-    overflow: hidden;
-    color: var(--aw-text);
-    border: 1px solid var(--aw-border);
-    border-radius: var(--aw-radius-dialog);
-    background: var(--aw-surface);
-    box-shadow: var(--aw-shadow-menu);
-}
-.wiso-panel[hidden] { display: none !important; }
-.wiso-header { display: flex; min-height: 64px; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--aw-border); background: var(--aw-surface-2); }
-.wiso-header > img { width: 40px; height: 40px; object-fit: contain; }
-.wiso-header > div { min-width: 0; flex: 1; }
-.wiso-header strong,
-.wiso-header small { display: block; }
-.wiso-header small { margin-top: 2px; color: var(--aw-muted); font-size: .6875rem; }
-.wiso-header small span { margin-left: 4px; color: var(--aw-success-text); font-weight: 800; }
-.wiso-close {
-    display: grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
-    place-items: center;
-    padding: 0;
-    color: var(--aw-text-2);
-    border: 0;
-    border-radius: var(--aw-radius-control);
-    background: transparent;
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-.wiso-close:hover { color: var(--aw-text); background: var(--aw-primary-soft); }
-.wiso-close:focus-visible { outline: 3px solid var(--aw-focus); outline-offset: 1px; }
-.wiso-messages { display: grid; min-height: 140px; max-height: 300px; gap: 10px; overflow-y: auto; padding: 14px; overscroll-behavior: contain; }
-.wiso-message { max-width: 88%; padding: 10px 12px; overflow-wrap: anywhere; border-radius: 12px; font-size: .8125rem; line-height: 1.5; }
-.wiso-message.assistant { color: var(--aw-text-2); background: var(--aw-surface-2); }
-.wiso-message.user { margin-left: auto; color: #ffffff; background: var(--aw-primary); }
-.wiso-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.wiso-actions a { display: inline-flex; min-height: 36px; align-items: center; padding: 6px 10px; color: var(--aw-link); border: 1px solid var(--aw-border-strong); border-radius: 999px; background: var(--aw-surface); font-size: .6875rem; font-weight: 700; }
-.wiso-actions a:hover { color: var(--aw-link-hover); background: var(--aw-primary-soft); }
-.wiso-suggestions { display: flex; flex: 0 0 auto; gap: 6px; padding: 0 12px 12px; overflow-x: auto; scrollbar-width: thin; }
-.wiso-suggestions button { min-height: 36px; flex: 0 0 auto; padding: 6px 10px; color: var(--aw-text-2); border: 1px solid var(--aw-border); border-radius: 999px; background: var(--aw-surface); font-size: .6875rem; font-weight: 650; cursor: pointer; }
-.wiso-suggestions button:hover { color: var(--aw-link-hover); border-color: var(--aw-border-strong); background: var(--aw-primary-soft); }
-.wiso-suggestions button:focus-visible { outline: 3px solid var(--aw-focus); outline-offset: 1px; }
-.wiso-form { display: flex; flex: 0 0 auto; gap: 8px; padding: 12px; border-top: 1px solid var(--aw-border); background: var(--aw-surface); }
-.wiso-form input[name="question"] { min-width: 0; min-height: 44px; flex: 1; padding: 10px 12px; color: var(--aw-text); border: 1px solid var(--aw-border-strong); border-radius: var(--aw-radius-control); background: var(--aw-input); }
-.wiso-form input[name="question"]:focus { border-color: var(--aw-primary); outline: 3px solid var(--aw-primary-soft); }
-.wiso-form button[type="submit"] { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; color: #ffffff; border: 1px solid var(--aw-primary); border-radius: var(--aw-radius-control); background: var(--aw-primary); }
-.wiso-form button[type="submit"]:hover { border-color: var(--aw-primary-hover); background: var(--aw-primary-hover); }
-.wiso-form button[type="submit"]:disabled { color: var(--aw-muted); border-color: var(--aw-disabled); background: var(--aw-disabled); cursor: wait; }
-.wiso-form button[type="submit"]:focus-visible { outline: 3px solid var(--aw-focus); outline-offset: 2px; }
-.wiso-typing span { display: inline-block; width: 6px; height: 6px; margin: 2px; border-radius: 50%; background: var(--aw-muted); animation: wiso-dot .8s infinite alternate; }
-.wiso-typing span:nth-child(2) { animation-delay: .15s; }
-.wiso-typing span:nth-child(3) { animation-delay: .3s; }
-@keyframes wiso-dot { to { opacity: .35; transform: translateY(-2px); } }
 
 /* Application custom fields live in the shared system instead of a page-global stylesheet. */
 .aw-simple-application-form { max-width: 860px; }
@@ -1602,10 +1519,7 @@ html[data-theme="dark"] .account-avatar-fallback {
     }
     .identity-body .aw-auth-quote blockquote { max-width: 70%; padding: 0; font-size: 1.5rem; }
     .identity-body .aw-auth-quote p { max-width: 62%; padding: 0; font-size: .75rem; }
-    .identity-body .aw-auth-avatar-wrap { position: absolute; right: -12px; bottom: 0; min-height: 0; }
-    .identity-body .aw-auth-avatar-wrap::before,
-    .identity-body .aw-auth-avatar-wrap > span { display: none; }
-    .identity-body .aw-auth-avatar-wrap img { width: 180px; height: 180px; }
+    .identity-body .aw-auth-product-stack { margin: 22px 0 6px; }
 }
 
 @media (max-width: 640px) {
@@ -1715,17 +1629,15 @@ html[data-theme="dark"] .account-avatar-fallback {
     .schedule-table td::before,
     .scam-history-table td::before { content: attr(data-label); color: var(--aw-muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; }
     .schedule-table .table-actions { justify-content: flex-start; }
-    .wiso-widget { right: 12px; bottom: 12px; }
-    .wiso-panel { position: fixed; right: 8px; bottom: 8px; left: 8px; width: auto; max-height: calc(100dvh - 16px); }
-    .wiso-widget.is-open .wiso-launcher { visibility: hidden; }
-    .wiso-messages { max-height: 46dvh; }
 }
 
 @media (max-width: 420px) {
     .identity-body .aw-auth-visual { min-height: 210px; padding: 20px 18px 0; }
     .identity-body .aw-auth-quote blockquote { max-width: 68%; font-size: 1.25rem; }
     .identity-body .aw-auth-quote p { display: none; }
-    .identity-body .aw-auth-avatar-wrap img { width: 150px; height: 150px; }
+    .identity-body .aw-auth-product-stack { gap: 8px; margin-bottom: 18px; }
+    .identity-body .aw-auth-product-stack > div { padding: 10px; }
+    .identity-body .aw-auth-product-stack small { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -378,15 +378,15 @@ fieldset.aw-rb-form-section {
 
 .aw-rb-photo-controls {
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-columns: 82px minmax(0, 1fr);
     align-items: center;
-    gap: 11px;
+    gap: 14px;
 }
 
 .aw-rb-photo-preview {
     display: grid;
-    width: 58px;
-    height: 58px;
+    width: 82px;
+    height: 82px;
     overflow: hidden;
     place-items: center;
     border: 3px solid #fff;
@@ -409,8 +409,48 @@ fieldset.aw-rb-form-section {
     gap: 5px;
 }
 
-.aw-rb-photo-controls .aw-rb-text-button {
-    padding: 0;
+.aw-rb-photo-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.aw-rb-photo-actions .btn,
+.aw-rb-photo-remove {
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: .64rem;
+    font-weight: 750;
+    line-height: 1.2;
+}
+
+.aw-rb-photo-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    background: #fff7f7;
+    cursor: pointer;
+}
+
+.aw-rb-photo-remove > span {
+    font-size: .9rem;
+    line-height: .7;
+}
+
+.aw-rb-photo-remove:hover {
+    color: #991b1b;
+    border-color: #fca5a5;
+    background: #fee2e2;
+}
+
+.aw-rb-photo-remove:focus-visible {
+    outline: 3px solid rgba(248, 113, 113, .25);
+    outline-offset: 2px;
 }
 
 .aw-rb-photo-status {
@@ -2033,6 +2073,592 @@ html[data-theme="dark"] .aw-resume-builder [data-editor-section].is-deep-link-ta
     }
 }
 
+/* Gallery-first template selection */
+.aw-resume-builder.is-choosing-template > :not(.aw-rb-template-gallery):not([data-sample-resume]) {
+    display: none !important;
+}
+
+.aw-rb-template-gallery {
+    min-height: calc(100vh - 150px);
+    padding: clamp(18px, 3vw, 34px);
+    border: 1px solid #dbe4f0;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, .12), transparent 28%),
+        linear-gradient(150deg, #f8fbff 0%, #fff 48%, #f8fafc 100%);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, .1);
+}
+
+.aw-rb-template-gallery-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.aw-rb-template-gallery-header h1 {
+    max-width: 780px;
+    margin: 8px 0 7px;
+    color: #111827;
+    font-size: clamp(1.7rem, 3.1vw, 2.65rem);
+    line-height: 1.07;
+    letter-spacing: -.045em;
+}
+
+.aw-rb-template-gallery-header p {
+    max-width: 760px;
+    margin: 0;
+    color: #5d6b80;
+    font-size: .91rem;
+    line-height: 1.6;
+}
+
+.aw-rb-template-gallery-layout {
+    display: block;
+}
+
+.aw-rb-template-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+.aw-rb-template-gallery-loading {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 220px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    color: #64748b;
+    background: rgba(255, 255, 255, .72);
+}
+
+.aw-rb-template-card {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid #d8e1ec;
+    border-radius: 15px;
+    outline: none;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, .07);
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.aw-rb-template-card:hover {
+    transform: translateY(-2px);
+    border-color: #a5b4fc;
+    box-shadow: 0 13px 28px rgba(30, 41, 59, .12);
+}
+
+.aw-rb-template-card:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, .28);
+    outline-offset: 3px;
+}
+
+.aw-rb-template-card.is-selected {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, .14), 0 16px 34px rgba(79, 70, 229, .15);
+}
+
+.aw-rb-template-card-preview {
+    position: relative;
+    aspect-ratio: 210 / 297;
+    overflow: hidden;
+    border: 1px solid #d5dde7;
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, transparent 18%, #e7ebf0 18% 20%, transparent 20%),
+        repeating-linear-gradient(#fff 0 13px, #edf1f5 13px 15px);
+}
+
+.aw-rb-template-card-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #eef2f7;
+    pointer-events: none;
+}
+
+.aw-rb-template-card.has-preview-error .aw-rb-template-card-preview::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    color: #64748b;
+    background: rgba(248, 250, 252, .92);
+    content: "Preview unavailable";
+    font-size: .68rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.aw-rb-template-preview-dialog {
+    width: min(1400px, calc(100vw - 14px));
+    max-width: none;
+    max-height: calc(100vh - 12px);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #d7e0eb;
+    border-radius: 14px;
+    color: #172033;
+    background: #fff;
+    box-shadow: 0 32px 90px rgba(15, 23, 42, .28);
+}
+
+.aw-rb-template-preview-dialog::backdrop {
+    background: rgba(15, 23, 42, .72);
+    backdrop-filter: blur(6px);
+}
+
+.aw-rb-template-preview-shell {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: calc(100vh - 14px);
+    max-height: 920px;
+}
+
+.aw-rb-template-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 62px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #dce3ec;
+    background: #fff;
+}
+
+.aw-rb-template-preview-copy {
+    min-width: 0;
+}
+
+.aw-rb-template-preview-title-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.aw-rb-template-preview-header h2 {
+    margin: 0;
+    color: #111827;
+    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    letter-spacing: -.03em;
+}
+
+.aw-rb-template-preview-header p {
+    max-width: 620px;
+    margin: 3px 0 0;
+    overflow: hidden;
+    color: #617087;
+    font-size: .68rem;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aw-rb-template-preview-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.aw-rb-template-preview-actions button {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid #d6deea;
+    border-radius: 8px;
+    color: #334155;
+    background: #fff;
+    font: inherit;
+    font-size: .7rem;
+    font-weight: 720;
+    cursor: pointer;
+}
+
+.aw-rb-template-preview-actions button:hover:not(:disabled) {
+    color: #1d4ed8;
+    border-color: #93b4f9;
+    background: #f5f8ff;
+}
+
+.aw-rb-template-preview-actions button:disabled {
+    opacity: .38;
+    cursor: not-allowed;
+}
+
+.aw-rb-template-preview-actions button.is-primary {
+    color: #fff;
+    border-color: #2563eb;
+    background: #2563eb;
+}
+
+.aw-rb-template-preview-actions button.is-primary:hover {
+    color: #fff;
+    border-color: #1d4ed8;
+    background: #1d4ed8;
+}
+
+.aw-rb-template-preview-close {
+    display: grid;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #d6deea;
+    border-radius: 50%;
+    color: #334155;
+    background: #f8fafc;
+    cursor: pointer;
+}
+
+.aw-rb-template-preview-close:hover {
+    color: #111827;
+    border-color: #a5b4fc;
+    background: #eef2ff;
+}
+
+.aw-rb-template-preview-close:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, .28);
+    outline-offset: 2px;
+}
+
+.aw-rb-template-preview-close span {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.aw-rb-template-preview-body {
+    display: block;
+    min-height: 0;
+    overflow: hidden;
+    background: #dfe5ee;
+}
+
+.aw-rb-template-card-copy {
+    padding: 11px 5px 4px;
+    text-align: center;
+}
+
+.aw-rb-template-card-copy strong {
+    display: block;
+    overflow: hidden;
+    color: #172033;
+    font-size: .8rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aw-rb-template-gallery-preview {
+    position: sticky;
+    top: 20px;
+    overflow: hidden;
+    border: 1px solid #d8e1ec;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 46px rgba(15, 23, 42, .12);
+}
+
+.aw-rb-template-gallery-sheet {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #e9eef5;
+    box-shadow: none;
+}
+
+.aw-rb-template-gallery-sheet iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.aw-rb-template-gallery-preview-state {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #64748b;
+    background: rgba(248, 250, 252, .92);
+    font-size: .76rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.aw-rb-template-gallery-detail {
+    min-width: 0;
+    padding: 18px;
+    overflow-y: auto;
+    border-left: 1px solid #d8e1ec;
+    background: #fff;
+}
+
+.aw-rb-template-gallery-detail h2 {
+    margin: 8px 0 5px;
+    color: #111827;
+    font-size: 1.28rem;
+    letter-spacing: -.025em;
+}
+
+.aw-rb-template-gallery-detail > p {
+    margin: 0;
+    color: #617087;
+    font-size: .75rem;
+    line-height: 1.52;
+}
+
+.aw-rb-template-classification {
+    display: inline-flex;
+    padding: 3px 6px;
+    border-radius: 999px;
+    color: #166534;
+    background: #dcfce7;
+    font-size: .56rem;
+    font-weight: 850;
+}
+
+.aw-rb-template-classification[data-classification="balanced"] {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.aw-rb-template-classification[data-classification="visual"] {
+    color: #9a3412;
+    background: #ffedd5;
+}
+
+.aw-rb-template-gallery-detail dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 13px 0;
+}
+
+.aw-rb-template-gallery-detail dl > div {
+    padding: 8px 9px;
+    border-radius: 9px;
+    background: #f6f8fb;
+}
+
+.aw-rb-template-gallery-detail dt {
+    color: #8793a5;
+    font-size: .58rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.aw-rb-template-gallery-detail dd {
+    margin: 2px 0 0;
+    color: #263248;
+    font-size: .68rem;
+    font-weight: 750;
+}
+
+.aw-rb-template-gallery-detail .aw-rb-template-budget {
+    margin: 0 0 10px;
+    padding: 9px 10px;
+    border-left: 3px solid #818cf8;
+    color: #475569;
+    background: #f5f7ff;
+}
+
+.aw-rb-template-gallery-detail .aw-rb-template-ats-caution {
+    margin: 0 0 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    color: #9a3412;
+    background: #fff7ed;
+}
+
+.aw-rb-template-gallery-detail .btn {
+    width: 100%;
+    margin-top: 3px;
+}
+
+.aw-rb-template-preview-navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+
+/* Structured proficiency fields and locked layout guidance */
+.aw-rb-skill-items {
+    display: grid;
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.aw-rb-skill-items-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.aw-rb-skill-items-heading p {
+    margin: 0;
+}
+
+.aw-rb-skill-item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .55fr) auto;
+    align-items: end;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #e1e7ef;
+    border-radius: 11px;
+    background: #f8fafc;
+}
+
+.aw-rb-manager-lock-note {
+    display: grid;
+    gap: 2px;
+    padding: 12px;
+    border: 1px solid #c7d2fe;
+    border-radius: 11px;
+    color: #3730a3;
+    background: #eef2ff;
+}
+
+.aw-rb-manager-lock-note strong {
+    font-size: .78rem;
+}
+
+.aw-rb-manager-lock-note span {
+    font-size: .68rem;
+    line-height: 1.45;
+}
+
+.aw-rb-manager-list.is-locked .aw-rb-icon-button:disabled {
+    opacity: .32;
+    cursor: not-allowed;
+}
+
+/* Compact selected-template diagrams for the six new designs. */
+.aw-rb-template-mini-evergreen-professional {
+    background: linear-gradient(90deg, #0f5b4c 0 37%, #fff 37%);
+}
+
+.aw-rb-template-mini-monochrome-timeline {
+    background: linear-gradient(90deg, #fff 0 35%, #d2d2d2 35% 36%, #fff 36%);
+}
+
+.aw-rb-template-mini-mint-horizon {
+    background: linear-gradient(180deg, #45e2ad 0 27%, #fff 27%);
+}
+
+.aw-rb-template-mini-amber-academic {
+    border-top: 5px solid #d89a4c;
+    background: #fffdf9;
+}
+
+.aw-rb-template-mini-graphite-impact {
+    background: linear-gradient(180deg, #fff 0 35%, #ececec 35% 52%, #fff 52%);
+}
+
+.aw-rb-template-mini-midnight-executive {
+    background: #10131b;
+    box-shadow: inset 0 0 0 2px #9b9384;
+}
+
+@media (max-width: 1050px) {
+    .aw-rb-template-gallery-grid {
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .aw-rb-template-gallery {
+        padding: 16px;
+        border-radius: 17px;
+    }
+
+    .aw-rb-template-gallery-header {
+        display: grid;
+    }
+
+    .aw-rb-template-gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aw-rb-template-preview-dialog {
+        width: calc(100vw - 8px);
+        max-height: calc(100vh - 8px);
+        border-radius: 12px;
+    }
+
+    .aw-rb-template-preview-shell {
+        height: calc(100vh - 10px);
+        max-height: none;
+    }
+
+    .aw-rb-template-preview-header {
+        display: grid;
+        gap: 7px;
+        min-height: 0;
+        padding: 8px 10px;
+    }
+
+    .aw-rb-template-preview-actions {
+        width: 100%;
+    }
+
+    .aw-rb-template-preview-actions button {
+        flex: 1 1 auto;
+        min-height: 32px;
+        padding-inline: 7px;
+    }
+
+    .aw-rb-template-preview-body {
+        display: block;
+        overflow: hidden;
+    }
+
+    .aw-rb-template-gallery-sheet {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+    }
+
+    .aw-rb-skill-item-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 480px) {
+    .aw-rb-template-gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .aw-rb-template-card {
+        padding: 6px;
+        border-radius: 12px;
+    }
+
+    .aw-rb-template-preview-header p {
+        display: none;
+    }
+
+}
+
 @media (max-width: 480px) {
     .aw-rb-toolbar {
         grid-template-columns: 1fr;
@@ -2324,21 +2950,29 @@ html[data-theme="dark"] .aw-resume-builder [data-editor-section].is-deep-link-ta
     }
 }
 
-/* Keep the utility panels compact so the editor starts higher in the viewport. */
+/* Minimal workspace controls keep the editor and PDF preview above the fold. */
 .aw-resume-builder .aw-rb-hero {
-    gap: 10px 20px;
-    padding: 15px 20px;
-    border-radius: 13px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 18px;
+    padding: 12px 14px 0;
+    overflow: visible;
+    border-color: #dbe5f1;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
 }
 
-.aw-resume-builder .aw-rb-hero-copy h2 {
-    margin: 3px 0 4px;
-    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+.aw-resume-builder .aw-rb-hero-copy h1 {
+    margin: 0;
+    font-size: 1.16rem;
+    line-height: 1.25;
+    letter-spacing: -.02em;
 }
 
 .aw-resume-builder .aw-rb-hero-copy p {
-    font-size: .76rem;
-    line-height: 1.4;
+    margin-top: 2px;
+    font-size: .72rem;
+    line-height: 1.35;
 }
 
 .aw-resume-builder .aw-rb-toolbar {
@@ -2346,69 +2980,121 @@ html[data-theme="dark"] .aw-resume-builder [data-editor-section].is-deep-link-ta
 }
 
 .aw-resume-builder .aw-rb-toolbar .btn {
-    min-height: 36px;
-    padding: .48rem .78rem;
-    font-size: .75rem;
+    min-height: 34px;
+    padding: .4rem .68rem;
+    border-radius: 8px;
+    font-size: .72rem;
 }
 
 .aw-resume-builder .aw-rb-status-line {
-    min-height: 16px;
-    padding-top: 7px;
-    font-size: .64rem;
+    justify-content: flex-start;
+    min-height: 14px;
+    margin-top: 4px;
+    padding: 0;
+    border: 0;
+    font-size: .6rem;
 }
 
 .aw-resume-builder .aw-rb-one-page-guide {
-    gap: 8px 14px;
-    padding: 10px 14px;
-    border-radius: 12px;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px 12px;
+    min-height: 37px;
+    margin: 0 -14px;
+    padding: 7px 14px;
+    border: 0;
+    border-top: 1px solid #e7edf5;
+    border-radius: 0 0 12px 12px;
+    color: #475569;
+    background: #f8fafc;
 }
 
 .aw-resume-builder .aw-rb-one-page-copy {
-    gap: 8px;
+    gap: 7px;
 }
 
-.aw-resume-builder .aw-rb-one-page-icon {
-    flex-basis: 29px;
-    width: 29px;
-    height: 34px;
-    font-size: .7rem;
+.aw-resume-builder .aw-rb-one-page-copy strong {
+    color: #334155;
+    font-size: .68rem;
+    white-space: nowrap;
 }
 
-.aw-resume-builder .aw-rb-one-page-copy h3 {
-    font-size: .78rem;
+.aw-resume-builder .aw-rb-one-page-hint {
+    color: #64748b;
+    font-size: .62rem;
 }
 
-.aw-resume-builder .aw-rb-one-page-copy p {
-    margin-top: 1px;
-    font-size: .61rem;
-    line-height: 1.3;
+.aw-resume-builder .aw-rb-one-page-guide details {
+    position: relative;
+    font-size: .63rem;
+}
+
+.aw-resume-builder .aw-rb-one-page-guide summary {
+    padding: 4px 0;
+    color: #2563eb;
+    font-weight: 750;
+    cursor: pointer;
 }
 
 .aw-resume-builder .aw-rb-page-fit-status {
-    padding: 5px 8px;
-    font-size: .6rem;
+    padding: 4px 7px;
+    font-size: .57rem;
+}
+
+.aw-resume-builder .aw-rb-one-page-guide details[open] {
+    grid-column: 1 / -1;
 }
 
 .aw-resume-builder .aw-rb-one-page-metrics {
     gap: 5px;
+    margin-top: 5px;
 }
 
 .aw-resume-builder .aw-rb-one-page-metrics > span {
-    padding: 4px 7px;
-    font-size: .58rem;
+    padding: 4px 6px;
+    font-size: .57rem;
+}
+
+.aw-resume-builder .aw-rb-one-page-warning {
+    padding: 7px 9px;
+    font-size: .63rem;
 }
 
 @media (max-width: 700px) {
     .aw-resume-builder .aw-rb-hero {
-        padding: 13px 14px;
+        grid-template-columns: 1fr;
+        gap: 9px;
+        padding: 11px 11px 0;
     }
 
-    .aw-resume-builder .aw-rb-hero-copy h2 {
-        font-size: 1.25rem;
+    .aw-resume-builder .aw-rb-hero-copy h1 {
+        font-size: 1.08rem;
+    }
+
+    .aw-resume-builder .aw-rb-toolbar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .aw-resume-builder .aw-rb-toolbar .aw-rb-download {
+        grid-column: auto;
+    }
+
+    .aw-resume-builder .aw-rb-toolbar .btn {
+        padding-inline: .45rem;
     }
 
     .aw-resume-builder .aw-rb-one-page-guide {
-        padding: 9px 11px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        margin-inline: -11px;
+        padding: 7px 11px;
+    }
+
+    .aw-resume-builder .aw-rb-one-page-hint {
+        display: none;
+    }
+
+    .aw-resume-builder .aw-rb-one-page-guide details {
+        grid-column: 1 / -1;
     }
 }
 
@@ -2577,6 +3263,18 @@ html[data-theme="dark"] .aw-resume-builder .aw-rb-photo-status {
     color: #bfdbfe;
 }
 
+html[data-theme="dark"] .aw-resume-builder .aw-rb-photo-remove {
+    color: #fecaca;
+    border-color: #7f3440;
+    background: #49202a;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-photo-remove:hover {
+    color: #fff;
+    border-color: #b45360;
+    background: #642a37;
+}
+
 @media (max-width: 720px) {
     .aw-rb-editor-tabs {
         top: 4px;
@@ -2587,4 +3285,742 @@ html[data-theme="dark"] .aw-resume-builder .aw-rb-photo-status {
     .aw-rb-photo-field {
         grid-template-columns: 1fr;
     }
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery {
+    border-color: #334a66;
+    background:
+        radial-gradient(circle at 88% 8%, rgba(99, 102, 241, .18), transparent 28%),
+        linear-gradient(150deg, #101b2b 0%, #132238 52%, #101b2b 100%);
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-header h1,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-header h2,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-detail h2,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-card-copy strong {
+    color: #edf4ff;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-header p,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-header p,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-detail > p,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-card-copy small {
+    color: #aec0d6;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-card,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-preview,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-dialog,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-header,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-detail {
+    border-color: #3b526d;
+    background: #16263b;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-body {
+    background: #0e1928;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-close {
+    color: #dce8f7;
+    border-color: #405977;
+    background: #192a40;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-actions button {
+    color: #dce8f7;
+    border-color: #405977;
+    background: #192a40;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-preview-actions button.is-primary {
+    color: #fff;
+    border-color: #3b82f6;
+    background: #2563eb;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-detail dl > div,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-skill-item-row {
+    border-color: #405977;
+    background: #192a40;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-template-gallery-detail dd {
+    color: #dce8f7;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-hero {
+    border-color: #344a66;
+    background: #172337;
+    box-shadow: none;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-one-page-guide {
+    color: #c4d2e3;
+    border-top-color: #344a66;
+    background: #142033;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-one-page-copy strong {
+    color: #eef4ff;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-one-page-hint {
+    color: #aebed2;
+}
+
+/* Clear, document-first builder workspace. */
+.aw-resume-builder {
+    gap: 12px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.aw-resume-builder .aw-rb-workspace {
+    grid-template-columns: minmax(560px, 1.1fr) minmax(420px, .9fr);
+    gap: 12px;
+}
+
+.aw-resume-builder .aw-rb-editor {
+    padding: 16px;
+    border: 1px solid #dbe5f1;
+    border-radius: 12px;
+    background: #f8fafc;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+
+.aw-resume-builder .aw-rb-panel-heading {
+    margin-bottom: 12px;
+}
+
+.aw-resume-builder .aw-rb-panel-heading h2,
+.aw-resume-builder .aw-rb-preview-heading h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    line-height: 1.25;
+    letter-spacing: -.015em;
+}
+
+.aw-resume-builder .aw-rb-panel-heading p {
+    margin-top: 3px;
+    font-size: .68rem;
+    line-height: 1.4;
+}
+
+.aw-resume-builder .aw-rb-editor-tabs {
+    top: 6px;
+    gap: 3px;
+    margin: 0 0 12px;
+    padding: 4px;
+    border-color: #dbe5f1;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, .04);
+}
+
+.aw-resume-builder .aw-rb-editor-tabs button {
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: .64rem;
+}
+
+.aw-resume-builder .aw-rb-editor-tabs button.is-active {
+    box-shadow: none;
+}
+
+.aw-resume-builder .aw-rb-form {
+    gap: 12px;
+}
+
+.aw-resume-builder .aw-rb-form-section {
+    padding: 14px;
+    border-color: #dbe5f1;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: none;
+}
+
+.aw-resume-builder .aw-rb-form-section:nth-of-type(2n) {
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-form-section > legend {
+    margin-bottom: 12px;
+}
+
+.aw-resume-builder .aw-rb-section-number {
+    flex-basis: 25px;
+    width: 25px;
+    height: 25px;
+    border-radius: 7px;
+    font-size: .65rem;
+}
+
+.aw-resume-builder .aw-rb-field-grid,
+.aw-resume-builder .aw-rb-dynamic-grid {
+    gap: 10px 12px;
+}
+
+.aw-resume-builder .aw-rb-field,
+.aw-resume-builder .aw-rb-tag-entry {
+    gap: 4px;
+}
+
+.aw-resume-builder .form-control,
+.aw-resume-builder .form-select {
+    min-height: 38px;
+    padding: .5rem .65rem;
+    border-radius: 8px;
+    font-size: .76rem;
+}
+
+.aw-resume-builder textarea.form-control {
+    min-height: 96px;
+}
+
+.aw-resume-builder textarea.aw-rb-summary {
+    min-height: 120px;
+}
+
+.aw-resume-builder .aw-rb-preview-panel {
+    position: sticky;
+    top: 88px;
+    display: grid;
+    grid-template-rows: auto auto minmax(320px, 1fr) auto;
+    gap: 9px;
+    height: calc(100vh - 106px);
+    min-height: 500px;
+    max-height: none;
+    padding: 11px;
+    overflow: hidden;
+    border: 1px solid #dbe5f1;
+    border-radius: 12px;
+    background: #f8fafc;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+}
+
+.aw-resume-builder .aw-rb-preview-heading {
+    align-items: center;
+    flex-direction: row;
+    margin: 0;
+}
+
+.aw-resume-builder .aw-rb-preview-title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+}
+
+.aw-resume-builder .aw-rb-preview-title > span:last-child {
+    padding: 3px 6px;
+    border-radius: 999px;
+    color: #047857;
+    background: #dcfce7;
+    font-size: .55rem;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.aw-resume-builder .aw-rb-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, .14);
+}
+
+.aw-resume-builder .aw-rb-preview-actions {
+    width: auto;
+    margin-left: auto;
+}
+
+.aw-resume-builder .aw-rb-preview-size-button {
+    min-height: 28px;
+    padding: 4px 8px;
+    border-color: #d6e0ed;
+    border-radius: 7px;
+    color: #334155;
+    background: #fff;
+    font-size: .61rem;
+}
+
+.aw-resume-builder .aw-rb-template-picker {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.aw-resume-builder .aw-rb-selected-template {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 8px;
+    min-height: 46px;
+    padding: 6px 7px;
+    border-color: #dbe5f1;
+    border-radius: 8px;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, .03);
+}
+
+.aw-resume-builder .aw-rb-template-mini {
+    width: 28px;
+    height: 36px;
+}
+
+.aw-resume-builder .aw-rb-template-mini i {
+    left: 4px;
+    right: 4px;
+}
+
+.aw-resume-builder .aw-rb-template-mini i:nth-child(1) {
+    top: 7px;
+    height: 3px;
+}
+
+.aw-resume-builder .aw-rb-template-mini i:nth-child(2) {
+    top: 18px;
+}
+
+.aw-resume-builder .aw-rb-template-mini i:nth-child(3) {
+    top: 26px;
+}
+
+.aw-resume-builder .aw-rb-selected-template-copy strong {
+    font-size: .68rem;
+}
+
+.aw-resume-builder .aw-rb-selected-template-copy small {
+    display: none;
+}
+
+.aw-resume-builder .aw-rb-choose-template {
+    min-height: 28px;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-size: .62rem;
+}
+
+.aw-resume-builder .aw-rb-preview-shell {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(15, 23, 42, .1);
+}
+
+.aw-resume-builder .aw-rb-preview-help {
+    margin: 0;
+    color: #758399;
+    font-size: .59rem;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.aw-resume-builder .aw-rb-preview-panel.is-expanded {
+    grid-template-rows: auto minmax(420px, 1fr) auto;
+    height: auto;
+}
+
+.aw-resume-builder .aw-rb-preview-panel.is-expanded .aw-rb-preview-shell {
+    height: auto;
+    min-height: 420px;
+}
+
+@media (max-width: 1280px) {
+    .aw-resume-builder .aw-rb-workspace {
+        display: block;
+    }
+
+    .aw-resume-builder .aw-rb-preview-panel {
+        position: static;
+        height: min(720px, calc(100vh - 140px));
+        min-height: 500px;
+    }
+}
+
+@media (max-width: 700px) {
+    .aw-resume-builder .aw-rb-editor {
+        padding: 11px;
+    }
+
+    .aw-resume-builder .aw-rb-panel-heading {
+        margin-bottom: 9px;
+    }
+
+    .aw-resume-builder .aw-rb-form-section {
+        padding: 11px;
+    }
+
+    .aw-resume-builder .aw-rb-preview-panel {
+        height: 72vh;
+        min-height: 470px;
+        padding: 9px;
+    }
+
+    .aw-resume-builder .aw-rb-selected-template {
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+    }
+
+    .aw-resume-builder .aw-rb-choose-template {
+        grid-column: auto;
+        width: auto;
+    }
+}
+
+html[data-theme="dark"] .aw-resume-builder {
+    background: transparent;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-editor,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-preview-panel {
+    border-color: #344a66;
+    background: #142033;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-panel-heading h2,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-preview-heading h2 {
+    color: #eef4ff;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-form-section,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-form-section:nth-of-type(2n),
+html[data-theme="dark"] .aw-resume-builder .aw-rb-selected-template {
+    border-color: #344a66;
+    background: #17263a;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-selected-template-copy strong {
+    color: #eef4ff;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-preview-size-button {
+    color: #dce8f7;
+    border-color: #405977;
+    background: #192a40;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-preview-title > span:last-child {
+    color: #6ee7b7;
+    background: #123d34;
+}
+
+/* Guided split builder inspired by professional step-by-step resume tools. */
+.aw-resume-builder {
+    gap: 8px;
+}
+
+.aw-resume-builder .aw-rb-hero {
+    gap: 7px 14px;
+    padding: 9px 12px 0;
+}
+
+.aw-resume-builder .aw-rb-hero-copy h1 {
+    font-size: 1rem;
+}
+
+.aw-resume-builder .aw-rb-hero-copy > p {
+    display: none;
+}
+
+.aw-resume-builder .aw-rb-status-line {
+    margin-top: 2px;
+}
+
+.aw-resume-builder .aw-rb-toolbar .btn {
+    min-height: 31px;
+    padding: .32rem .6rem;
+}
+
+.aw-resume-builder .aw-rb-one-page-guide {
+    min-height: 31px;
+    margin-inline: -12px;
+    padding: 5px 12px;
+}
+
+.aw-resume-builder .aw-rb-workspace {
+    grid-template-columns: minmax(540px, 1.02fr) minmax(500px, .98fr);
+    gap: 8px;
+}
+
+.aw-resume-builder .aw-rb-editor {
+    padding: 0;
+    overflow: hidden;
+    border-color: #e1e7ef;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-completion {
+    display: grid;
+    gap: 8px;
+    padding: 11px 16px;
+    border-bottom: 1px solid #e8edf4;
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-completion-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #64748b;
+    font-size: .66rem;
+}
+
+.aw-resume-builder .aw-rb-completion-row > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.aw-resume-builder .aw-rb-completion-row strong {
+    display: inline-flex;
+    padding: 4px 6px;
+    border-radius: 5px;
+    color: #fff;
+    background: #2563eb;
+    font-size: .62rem;
+    line-height: 1;
+}
+
+.aw-resume-builder [data-builder-next-step] {
+    color: #1d4ed8;
+    font-weight: 750;
+}
+
+.aw-resume-builder .aw-rb-completion-track {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e7edf5;
+}
+
+.aw-resume-builder .aw-rb-completion-track > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2563eb, #06b6d4);
+    transition: width .28s ease;
+}
+
+.aw-resume-builder .aw-rb-panel-heading {
+    margin: 0;
+    padding: 14px 16px 10px;
+}
+
+.aw-resume-builder .aw-rb-panel-heading h2 {
+    font-size: .96rem;
+}
+
+.aw-resume-builder .aw-rb-panel-heading p {
+    margin-top: 2px;
+}
+
+.aw-resume-builder .aw-rb-editor-tabs {
+    top: 6px;
+    margin: 0 16px 10px;
+    border-color: #e0e7f0;
+    background: #f8fafc;
+    box-shadow: none;
+}
+
+.aw-resume-builder .aw-rb-form {
+    padding: 0 16px 16px;
+}
+
+.aw-resume-builder .aw-rb-form-section {
+    padding: 12px 0 4px;
+    border: 0;
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-form-section:nth-of-type(2n) {
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-form-section > legend {
+    margin-bottom: 13px;
+}
+
+.aw-resume-builder .form-control,
+.aw-resume-builder .form-select {
+    border-color: transparent;
+    background: #f1f5f9;
+}
+
+.aw-resume-builder .form-control:hover,
+.aw-resume-builder .form-select:hover {
+    border-color: #cbd5e1;
+}
+
+.aw-resume-builder .form-control:focus,
+.aw-resume-builder .form-select:focus {
+    border-color: #3b82f6;
+    background: #fff;
+}
+
+.aw-resume-builder .aw-rb-photo-field {
+    margin-bottom: 13px;
+    padding: 11px;
+    border-color: #dbe5f1;
+    border-radius: 10px;
+    background: #f8fbff;
+}
+
+.aw-resume-builder .aw-rb-editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 16px;
+    border-top: 1px solid #e8edf4;
+    color: #7c899c;
+    background: #fff;
+    font-size: .61rem;
+}
+
+.aw-resume-builder .aw-rb-editor-footer .btn {
+    display: inline-flex;
+    min-width: 190px;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 8px;
+    font-size: .73rem;
+}
+
+.aw-resume-builder .aw-rb-preview-panel {
+    grid-template-rows: auto minmax(420px, 1fr) auto;
+    gap: 8px;
+    padding: 9px;
+    border-color: #e1e7ef;
+    background: #f1f5f9;
+}
+
+.aw-resume-builder .aw-rb-preview-heading {
+    min-height: 38px;
+    padding: 0 2px;
+}
+
+.aw-resume-builder .aw-rb-preview-title [data-selected-template-name] {
+    max-width: 150px;
+    overflow: hidden;
+    padding: 4px 7px;
+    color: #5b21b6;
+    background: #ede9fe;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aw-resume-builder .aw-rb-preview-size-button {
+    min-height: 29px;
+    padding: 4px 8px;
+}
+
+.aw-resume-builder .aw-rb-preview-shell {
+    border-radius: 7px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+}
+
+.aw-resume-builder .aw-rb-preview-help {
+    font-size: .56rem;
+}
+
+@media (max-width: 1280px) {
+    .aw-resume-builder .aw-rb-editor {
+        overflow: visible;
+    }
+
+    .aw-resume-builder .aw-rb-preview-panel {
+        height: min(720px, calc(100vh - 140px));
+    }
+}
+
+@media (max-width: 700px) {
+    .aw-resume-builder .aw-rb-editor {
+        padding: 0;
+    }
+
+    .aw-resume-builder .aw-rb-completion,
+    .aw-resume-builder .aw-rb-panel-heading,
+    .aw-resume-builder .aw-rb-editor-footer {
+        padding-inline: 11px;
+    }
+
+    .aw-resume-builder .aw-rb-editor-tabs {
+        margin-inline: 11px;
+    }
+
+    .aw-resume-builder .aw-rb-form {
+        padding-inline: 11px;
+    }
+
+    .aw-resume-builder .aw-rb-completion-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .aw-resume-builder .aw-rb-editor-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .aw-resume-builder .aw-rb-editor-footer .btn {
+        width: 100%;
+    }
+
+    .aw-resume-builder .aw-rb-preview-actions {
+        width: auto;
+        flex-wrap: nowrap;
+    }
+
+    .aw-resume-builder .aw-rb-preview-size-button {
+        white-space: nowrap;
+    }
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-completion,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-editor-footer {
+    border-color: #344a66;
+    background: #172337;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-completion-row,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-editor-footer {
+    color: #aebed2;
+}
+
+html[data-theme="dark"] .aw-resume-builder [data-builder-next-step] {
+    color: #93c5fd;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-completion-track {
+    background: #2a3d55;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-form-section,
+html[data-theme="dark"] .aw-resume-builder .aw-rb-form-section:nth-of-type(2n) {
+    background: transparent;
+}
+
+html[data-theme="dark"] .aw-resume-builder .form-control,
+html[data-theme="dark"] .aw-resume-builder .form-select {
+    border-color: #40546e;
+    background: #101b2b;
+}
+
+html[data-theme="dark"] .aw-resume-builder .aw-rb-preview-title [data-selected-template-name] {
+    color: #ddd6fe;
+    background: #37265d;
 }

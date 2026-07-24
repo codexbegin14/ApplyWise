@@ -6,8 +6,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const builder = require(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/js/resume-builder.js'));
-const TEMPLATE_IDS = Object.freeze(['classic', 'emerald', 'modern', 'executive', 'compact', 'minimal', 'corporate', 'timeline', 'studio']);
-const PHOTO_TEMPLATE_IDS = Object.freeze(['emerald', 'modern', 'executive', 'compact', 'studio']);
+const NEW_TEMPLATE_IDS = Object.freeze([
+    'evergreen-professional', 'monochrome-timeline', 'mint-horizon',
+    'amber-academic', 'graphite-impact', 'midnight-executive'
+]);
+const TEMPLATE_IDS = Object.freeze([
+    'classic', 'emerald', 'modern', 'executive', 'compact', 'minimal', 'corporate', 'timeline', 'studio',
+    ...NEW_TEMPLATE_IDS
+]);
+const PHOTO_TEMPLATE_IDS = Object.freeze([
+    'emerald', 'modern', 'executive', 'compact', 'studio',
+    'evergreen-professional', 'monochrome-timeline', 'mint-horizon', 'graphite-impact', 'midnight-executive'
+]);
 const EDITOR_TAB_IDS = Object.freeze(['personal', 'summary', 'experience', 'education', 'skills', 'projects', 'more', 'arrange']);
 const PROFILE_PHOTO_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
@@ -54,8 +64,9 @@ function images(value) {
 
 test('empty state implements the complete versioned server contract', () => {
     const state = builder.createEmptyState();
-    assert.equal(builder.SCHEMA_VERSION, 3);
+    assert.equal(builder.SCHEMA_VERSION, 4);
     assert.equal(state.schemaVersion, builder.SCHEMA_VERSION);
+    assert.equal(state.templateSelectionConfirmed, false);
     assert.deepEqual(Object.keys(state.personalInformation), [
         'fullName', 'professionalTitle', 'phoneNumber', 'emailAddress', 'location',
         'linkedInUrl', 'gitHubUrl', 'portfolioUrl', 'profilePhotoDataUrl'
@@ -67,6 +78,27 @@ test('empty state implements the complete versioned server contract', () => {
     assert.equal(state.sections.length, 11);
     assert.deepEqual(state.references, []);
     assert.ok(state.sections.every((section) => typeof section.title === 'string' && typeof section.isVisible === 'boolean'));
+});
+
+test('schema v4 migrates v3 skill strings and language data without inventing ratings', () => {
+    const parsed = builder.parseDraft(JSON.stringify({
+        schemaVersion: 3,
+        templateId: 'modern',
+        skills: [{ id: 'frontend', name: 'Frontend', skills: ['React', 'TypeScript', 'react'] }],
+        languages: [{ id: 'english', name: 'English', proficiency: 'Fluent' }]
+    }));
+
+    assert.equal(parsed.recovered, false);
+    assert.equal(parsed.state.schemaVersion, 4);
+    assert.equal(parsed.state.templateSelectionConfirmed, true);
+    assert.deepEqual(parsed.state.skills[0].skills, [
+        { id: 'skill-1-1', name: 'React', level: null },
+        { id: 'skill-1-2', name: 'TypeScript', level: null }
+    ]);
+    assert.equal(parsed.state.languages[0].level, null);
+    assert.equal(builder.normalizeLevel(0), null);
+    assert.equal(builder.normalizeLevel(6), null);
+    assert.equal(builder.normalizeLevel('4'), 4);
 });
 
 test('normalization keeps exact nested field names and drops unknown data', () => {
@@ -155,6 +187,7 @@ test('draft parsing recovers from malformed, oversized, and non-object data', ()
     assert.equal(versionTwo.recovered, false);
     assert.equal(versionTwo.state.schemaVersion, builder.SCHEMA_VERSION);
     assert.equal(versionTwo.state.templateId, 'modern');
+    assert.equal(versionTwo.state.templateSelectionConfirmed, true);
     assert.equal(versionTwo.state.personalInformation.profilePhotoDataUrl, '');
     assert.deepEqual(versionTwo.state.references, []);
 });
@@ -338,7 +371,7 @@ test('one-page guidance tracks the recommended content limits', () => {
     assert.ok(overGuide.exceeded.includes('professionalSummary'));
 });
 
-test('template catalog exposes nine professional immutable choices in deterministic picker order', () => {
+test('template catalog exposes fifteen professional immutable choices in deterministic gallery order', () => {
     assert.equal(builder.DEFAULT_TEMPLATE_ID, 'classic');
     assert.equal(Object.isFrozen(builder.TEMPLATE_CATALOG), true);
     assert.deepEqual(builder.TEMPLATE_CATALOG.map((template) => template.id), TEMPLATE_IDS);
@@ -353,6 +386,15 @@ test('template catalog exposes nine professional immutable choices in determinis
     });
     assert.equal(new Set(builder.TEMPLATE_CATALOG.map((template) => template.layout)).size, TEMPLATE_IDS.length);
     assert.deepEqual(builder.TEMPLATE_CATALOG.filter((template) => template.hasPhoto).map((template) => template.id), PHOTO_TEMPLATE_IDS);
+    const newTemplates = builder.TEMPLATE_CATALOG.filter((template) => NEW_TEMPLATE_IDS.includes(template.id));
+    assert.equal(newTemplates.length, 6);
+    assert.ok(newTemplates.every((template) => template.locked === true));
+    assert.deepEqual(newTemplates.map((template) => template.classification), [
+        'Balanced', 'ATS-optimized', 'Balanced', 'ATS-optimized', 'Visual', 'Visual'
+    ]);
+    assert.deepEqual(newTemplates.filter((template) => template.photoRequired).map((template) => template.id), [
+        'evergreen-professional', 'monochrome-timeline', 'mint-horizon', 'graphite-impact', 'midnight-executive'
+    ]);
 });
 
 test('template selection is normalized and persists with the local draft', () => {
@@ -381,7 +423,7 @@ test('template selection is normalized and persists with the local draft', () =>
     assert.equal(legacyDraft.state.personalInformation.profilePhotoDataUrl, '');
 });
 
-test('builder view offers a guided template picker, eight editor tabs, conditional photo controls, and no ATS readiness feature', () => {
+test('builder view offers a gallery-first picker, eight editor tabs, and conditional portrait controls', () => {
     const view = fs.readFileSync(path.resolve(__dirname, '../../src/ApplyWise.Web/Views/ResumeBuilder/Index.cshtml'), 'utf8');
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/css/resume-builder.css'), 'utf8');
     const script = fs.readFileSync(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/js/resume-builder.js'), 'utf8');
@@ -391,36 +433,40 @@ test('builder view offers a guided template picker, eight editor tabs, condition
     const photoInput = (view.match(/<input\b[^>]*>/g) || []).find((tag) => tag.includes('data-profile-photo-input'));
     const removePhotoButton = (view.match(/<button\b[^>]*>/g) || []).find((tag) => tag.includes('data-action="remove-profile-photo"'));
 
-    assert.match(view, /data-template-picker/);
+    assert.match(view, /data-template-gallery/);
+    assert.doesNotMatch(view, /aw-rb-mode-switch|data-action="focus-editor"/);
+    assert.match(view, /data-builder-progress/);
+    assert.match(view, /data-builder-progress-bar/);
+    assert.match(view, /data-builder-next-step/);
+    assert.match(view, /data-action="next-editor-tab"/);
+    assert.match(script, /function syncGuidedProgress/);
+    assert.match(view, /data-template-gallery-grid[^>]*role="listbox"/);
+    assert.match(view, /data-template-preview-dialog/);
+    assert.match(view, /data-template-gallery-large-preview/);
+    assert.match(view, /data-gallery-photo-url="@Url\.Content\("~\/images\/wiso\.png"\)"/);
+    assert.match(view, /Preparing real PDF previews/);
     assert.doesNotMatch(view, /data-action="select-template"/);
-    assert.doesNotMatch(view, /aw-rb-template-grid/, 'the always-visible template grid is removed');
     const openTemplatePicker = actionButton('open-template-picker');
     assert.ok(openTemplatePicker, 'view exposes the template picker trigger');
     assert.match(openTemplatePicker, /type="button"/);
-    assert.match(openTemplatePicker, /aria-haspopup="dialog"/);
-
-    const templateDialog = view.match(/<dialog\b[^>]*data-template-dialog[^>]*>/)?.[0];
-    assert.ok(templateDialog, 'view exposes a native template dialog');
-    assert.match(templateDialog, /aria-labelledby="[^"]+"/);
-    ['close-template-picker', 'previous-template', 'next-template', 'confirm-template'].forEach((action) => {
+    assert.match(openTemplatePicker, /aria-controls="rb-template-gallery"/);
+    ['exit-template-gallery', 'close-template-preview', 'previous-gallery-template', 'next-gallery-template', 'choose-gallery-template'].forEach((action) => {
         const button = actionButton(action);
-        assert.ok(button, `template dialog exposes ${action}`);
+        assert.ok(button, `template gallery exposes ${action}`);
         assert.match(button, /type="button"/);
     });
-    ['name', 'description', 'position', 'photo', 'font', 'preview'].forEach((hook) => {
-        assert.match(view, new RegExp(`data-template-dialog-${hook}(?:\\s|=|>)`), `template dialog exposes ${hook} content`);
+    ['name', 'description', 'classification'].forEach((hook) => {
+        assert.match(view, new RegExp(`data-gallery-${hook}(?:\\s|=|>)`), `template gallery exposes ${hook} content`);
     });
-
-    function actionBranch(action) {
-        const marker = `if (action === '${action}')`;
-        const start = script.indexOf(marker);
-        assert.notEqual(start, -1, `script handles ${action}`);
-        const next = script.indexOf("\n            if (action === '", start + marker.length);
-        return script.slice(start, next === -1 ? script.length : next);
-    }
-    assert.doesNotMatch(actionBranch('previous-template'), /state\.templateId\s*=/, 'browsing backward does not change the saved template');
-    assert.doesNotMatch(actionBranch('next-template'), /state\.templateId\s*=/, 'browsing forward does not change the saved template');
-    assert.match(actionBranch('confirm-template'), /state\.templateId\s*=/, 'only confirmation applies the browsed template');
+    assert.doesNotMatch(view, /aw-rb-template-gallery-detail/);
+    assert.match(script, /function prepareGalleryPdfPreviews/);
+    assert.match(script, /function loadGalleryPhotoDataUrl/);
+    assert.match(script, /canvas\.toDataURL\('image\/jpeg'/);
+    assert.match(script, /function openTemplatePreview/);
+    assert.match(script, /galleryPdfUrl\(candidate\.id\)/);
+    assert.match(script, /state\.templateSelectionConfirmed = true/);
+    assert.match(script, /copy\.appendChild\(domElement\(documentObject, 'strong'/);
+    assert.doesNotMatch(script, /copy\.appendChild\(domElement\(documentObject, 'span'/);
 
     assert.match(view, /data-editor-tabs[^>]*role="tablist"/);
     assert.equal(editorTabButtons.length, EDITOR_TAB_IDS.length);
@@ -442,7 +488,6 @@ test('builder view offers a guided template picker, eight editor tabs, condition
     assert.match(stylesheet, /\[data-photo-field\]\[hidden\]/);
     assert.match(script, /querySelector\('\[data-profile-photo-input\]'\)/);
 
-    assert.doesNotMatch(view, /\bATS\b|data-readiness/i);
     assert.doesNotMatch(script, /READINESS_DEBOUNCE_MS|evaluateDraftReadiness|data-readiness/);
     assert.doesNotMatch(stylesheet, /\.aw-rb-readiness/);
     assert.equal(builder.READINESS_DEBOUNCE_MS, undefined);
@@ -459,9 +504,9 @@ test('templates produce distinct A4 selectable-text document definitions', () =>
 
         assert.equal(JSON.stringify(state), before, `${template.id} rendering does not mutate the draft`);
         assert.equal(documentDefinition.pageSize, 'A4');
-        assert.equal(documentDefinition.defaultStyle.font, template.font);
+        assert.equal(documentDefinition.defaultStyle.font, template.id === 'midnight-executive' ? 'Poppins' : template.font);
         assert.ok(Array.isArray(documentDefinition.content));
-        assert.equal(documentDefinition.footer, undefined);
+        assert.equal(Boolean(documentDefinition.footer), template.id === 'midnight-executive');
         assert.equal(JSON.stringify(documentDefinition).includes('image'), false);
         assert.ok(JSON.stringify(documentDefinition).includes(template.accent), `${template.id} applies its accent`);
         const output = allText(documentDefinition);
@@ -507,6 +552,30 @@ test('portrait templates render a safe profile image while photo-free templates 
     assert.deepEqual(images(builder.buildDocumentDefinition(classicState)), []);
 });
 
+test('photo and proficiency requirements are template-specific and block invalid locked drafts', () => {
+    const evergreen = builder.createSampleState();
+    evergreen.templateId = 'evergreen-professional';
+    evergreen.templateSelectionConfirmed = true;
+    evergreen.sections.find((section) => section.key === 'languages').isVisible = true;
+    evergreen.personalInformation.profilePhotoDataUrl = '';
+    evergreen.skills[0].skills[0].level = null;
+    evergreen.languages[0].level = null;
+    const evergreenErrors = builder.validateState(evergreen);
+    assert.match(evergreenErrors['personalInformation.profilePhotoDataUrl'], /requires/i);
+    assert.match(evergreenErrors['skills.0.skills.0.level'], /1-5/);
+    assert.match(evergreenErrors['languages.0.level'], /1-5/);
+
+    const amber = builder.createSampleState();
+    amber.templateId = 'amber-academic';
+    amber.templateSelectionConfirmed = true;
+    amber.skills[0].skills[0].level = null;
+    assert.equal(builder.validateState(amber)['personalInformation.profilePhotoDataUrl'], undefined);
+    assert.equal(builder.validateState(amber)['skills.0.skills.0.level'], undefined);
+
+    const blank = builder.createEmptyState();
+    assert.match(builder.validateState(blank).templateSelectionConfirmed, /choose/i);
+});
+
 test('PDF omits placeholder identity and suppresses hidden or empty sections', () => {
     const empty = builder.createEmptyState();
     const emptyText = allText(builder.buildDocumentDefinition(empty));
@@ -530,6 +599,72 @@ test('PDF respects user section ordering within a professional template region',
     state.sections = [projects, experience, ...state.sections.filter((section) => section !== projects && section !== experience)];
     const output = allText(builder.buildDocumentDefinition(state));
     assert.ok(output.indexOf(state.projects[0].projectName) < output.indexOf(state.experience[0].companyName));
+});
+
+test('fidelity-locked templates preserve their documented section order', () => {
+    NEW_TEMPLATE_IDS.forEach((templateId) => {
+        const state = builder.createSampleState();
+        state.templateId = templateId;
+        const projects = state.sections.find((section) => section.key === 'projects');
+        const experience = state.sections.find((section) => section.key === 'experience');
+        state.sections = [projects, experience, ...state.sections.filter((section) => section !== projects && section !== experience)];
+
+        const output = allText(builder.buildDocumentDefinition(state));
+        assert.ok(
+            output.indexOf(state.experience[0].companyName) < output.indexOf(state.projects[0].projectName),
+            `${templateId} ignores free-form ordering and keeps experience before projects`
+        );
+    });
+});
+
+test('fidelity-locked templates render every supported optional section in fallback regions', () => {
+    NEW_TEMPLATE_IDS.forEach((templateId) => {
+        const state = builder.createSampleState();
+        state.templateId = templateId;
+        state.sections.forEach((section) => { section.isVisible = true; });
+        state.volunteerExperience = [{
+            id: 'volunteer-marker',
+            organizationName: 'Community Systems Guild',
+            role: 'Volunteer Mentor',
+            location: 'Remote',
+            startDate: '2025-01',
+            endDate: '',
+            isCurrentlyVolunteering: true,
+            description: 'Mentored first-generation technologists.',
+            bulletPoints: []
+        }];
+        state.languages = [{
+            id: 'language-marker',
+            name: 'Urdu',
+            proficiency: 'Native',
+            level: 5
+        }];
+        state.interests = ['Accessible product design'];
+        state.customSections = [{
+            id: 'custom-marker',
+            title: 'Selected Writing',
+            entries: [{
+                id: 'custom-entry-marker',
+                heading: 'Systems That Welcome Everyone',
+                subheading: 'ApplyWise Journal',
+                startDate: '2025-03',
+                endDate: '',
+                isCurrent: false,
+                url: 'https://example.com/writing',
+                bulletPoints: ['Explores inclusive career tooling.']
+            }]
+        }];
+
+        const output = allText(builder.buildDocumentDefinition(state));
+        [
+            'Community Systems Guild',
+            'Urdu',
+            'Accessible product design',
+            'SELECTED WRITING',
+            'Systems That Welcome Everyone',
+            'Priya Shah'
+        ].forEach((marker) => assert.ok(output.toLowerCase().includes(marker.toLowerCase()), `${templateId} renders ${marker}`));
+    });
 });
 
 test('PDF links are sanitized and contact details remain visibly clickable', () => {
@@ -588,10 +723,24 @@ test('all generated PDF separator strings use ASCII hyphens', () => {
     assert.match(output, /Jan 2025 - Present/);
 });
 
+test('preview and download reuse the same unchanged PDF blob and mobile gallery rules are present', () => {
+    const script = fs.readFileSync(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/js/resume-builder.js'), 'utf8');
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/css/resume-builder.css'), 'utf8');
+
+    assert.match(script, /latestBlob && latestBlobRevision === revision/);
+    assert.match(script, /downloadBlob\(blob,\s*buildFilename/);
+    assert.match(script, /previewFrame\.src = currentPreviewUrl \+ '#view=FitH&navpanes=0'/);
+    assert.match(stylesheet, /@media\s*\(max-width:\s*760px\)/);
+    assert.match(stylesheet, /\.aw-rb-template-preview-dialog\s*\{[\s\S]*width:\s*calc\(100vw - 8px\)/);
+    assert.match(stylesheet, /\.aw-rb-template-preview-body\s*\{[\s\S]*display:\s*block/);
+    assert.match(stylesheet, /\.aw-rb-template-gallery-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+});
+
 test('vendored pdfmake creates one-page text and portrait PDFs for every template and detects overflow', async () => {
     const pdfMake = require(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/lib/pdfmake/pdfmake.min.js'));
     require(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/lib/pdfmake/vfs_fonts.js'));
     require(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/lib/pdfmake/poppins_vfs.js'));
+    require(path.resolve(__dirname, '../../src/ApplyWise.Web/wwwroot/lib/pdfmake/libre_baskerville_vfs.js'));
 
     for (const templateId of TEMPLATE_IDS) {
         const sample = builder.createSampleState();
