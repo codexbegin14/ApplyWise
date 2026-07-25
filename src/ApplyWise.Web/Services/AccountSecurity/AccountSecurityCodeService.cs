@@ -47,8 +47,7 @@ public sealed class AccountSecurityCodeService(
 
         try
         {
-            var label = action == AccountSecurityAction.ChangePassword ? "change your password" : "delete your account";
-            await emailSender.SendAccountSecurityCodeAsync(email, label, value);
+            await emailSender.SendAccountSecurityCodeAsync(email, action, value);
         }
         catch
         {
@@ -57,7 +56,12 @@ public sealed class AccountSecurityCodeService(
             throw;
         }
 
-        return new SecurityCodeIssueResult(true, "A six-digit confirmation code was sent to your email. It expires in 10 minutes.");
+        return new SecurityCodeIssueResult(true, action switch
+        {
+            AccountSecurityAction.ConfirmEmail => "A six-digit verification code was sent to your email. It expires in 10 minutes.",
+            AccountSecurityAction.ResetPassword => "A six-digit password reset code was sent to your email. It expires in 10 minutes.",
+            _ => "A six-digit confirmation code was sent to your email. It expires in 10 minutes."
+        });
     }
 
     public async Task<SecurityCodeVerificationResult> VerifyAsync(string userId, AccountSecurityAction action, string? code,

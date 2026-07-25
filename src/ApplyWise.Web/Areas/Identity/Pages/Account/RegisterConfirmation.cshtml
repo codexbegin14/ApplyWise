@@ -1,27 +1,91 @@
 @page
 @model ApplyWise.Web.Areas.Identity.Pages.Account.RegisterConfirmationModel
 @{
-    ViewData["Title"] = "Check your email";
+    ViewData["Title"] = Model.Succeeded ? "Email confirmed" : "Verify your email";
+    ViewData["MetaDescription"] = "Enter your ApplyWise verification code to confirm your account.";
 }
 
-<div class="aw-auth-status-shell aw-fade-in d-block">
-    <section class="aw-auth-status-card aw-slide-up col-lg-8 mx-auto" aria-labelledby="registration-confirmation-title">
-        <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-mail" /></svg>One quick step</span>
-        <span class="aw-auth-status-icon aw-auth-status-icon-pending" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z" /><path d="m3 7 9 6 9-6" /></svg>
-        </span>
-        <h1 id="registration-confirmation-title">Check your inbox</h1>
-        <p>We sent a confirmation link to <strong>@Model.Email</strong>.</p>
+<div class="aw-auth-shell aw-auth-shell-code aw-fade-in"
+     @if (Model.Succeeded) { <text>data-confirm-redirect="@Model.LoginUrl" data-confirm-redirect-seconds="5"</text> }>
+    <section class="aw-login-card aw-code-card aw-slide-up" aria-labelledby="registration-confirmation-title">
+        @if (Model.Succeeded)
+        {
+            <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-mail" /></svg>Email verified</span>
+            <span class="aw-auth-status-icon aw-auth-status-icon-success" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+            </span>
+            <h1 id="registration-confirmation-title">Your account is ready</h1>
+            <p>@Model.DeliveryMessage</p>
+            <div class="aw-auth-status-callout aw-auth-status-callout-success" role="status">
+                Taking you to login in <strong data-confirm-redirect-countdown>5</strong> seconds.
+            </div>
+            <a class="btn btn-primary btn-lg aw-login-submit" href="@Model.LoginUrl">Continue to login now</a>
+        }
+        else
+        {
+            <header class="aw-login-heading">
+                <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-mail" /></svg>Secure your account</span>
+                <h1 id="registration-confirmation-title">Enter your verification code</h1>
+                <p>We sent a six-digit code to <strong>@Model.Input.Email</strong>. It expires in 10 minutes.</p>
+            </header>
 
-        <div class="aw-auth-status-callout">
-            Open the ApplyWise email and choose <strong>Confirm email</strong>. You can then return and log in securely.
-        </div>
+            @if (!string.IsNullOrWhiteSpace(Model.DeliveryMessage))
+            {
+                <div class="aw-auth-status-callout" role="status">@Model.DeliveryMessage</div>
+            }
 
-        <div class="aw-auth-status-actions">
-            <a class="btn btn-primary" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Go to login</a>
-            <a class="btn btn-secondary-soft" asp-page="./ResendEmailConfirmation">Resend confirmation</a>
-        </div>
-        <p class="aw-auth-status-hint">No message yet? Check your spam folder and make sure the email address is correct.</p>
+            <form method="post" class="aw-login-form">
+                <input asp-for="Input.Email" type="hidden" />
+                <input asp-for="Input.ReturnUrl" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="validation-summary aw-login-alert" role="alert"></div>
+
+                <label class="aw-login-field" asp-for="Input.Code">
+                    <span>Six-digit code</span>
+                    <span class="aw-login-input aw-security-code-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 9h.01M12 9h.01M16 9h.01M8 14h8" /></svg>
+                        <input asp-for="Input.Code"
+                               class="aw-security-code-input"
+                               inputmode="numeric"
+                               pattern="[0-9]{6}"
+                               maxlength="6"
+                               autocomplete="one-time-code"
+                               placeholder="000000"
+                               data-security-code
+                               autofocus />
+                    </span>
+                    <span asp-validation-for="Input.Code" class="field-validation-error"></span>
+                </label>
+
+                <button type="submit" class="btn btn-primary btn-lg aw-login-submit">
+                    Verify account <svg class="ui-icon"><use href="#i-arrow" /></svg>
+                </button>
+            </form>
+
+            <form method="post" asp-page-handler="Resend" class="aw-auth-secondary-form">
+                <input type="hidden" name="email" value="@Model.Input.Email" />
+                <input type="hidden" name="returnUrl" value="@Model.Input.ReturnUrl" />
+                <button type="submit" class="btn btn-link">Send a new code</button>
+                <span aria-hidden="true">·</span>
+                <a asp-page="./Login" asp-route-returnUrl="@Model.Input.ReturnUrl">Back to login</a>
+            </form>
+
+            <p class="aw-auth-status-hint">No email yet? Check spam, then wait one minute before requesting another code.</p>
+        }
     </section>
 
+    <aside class="aw-auth-visual" aria-label="Wiso helping you secure your ApplyWise account">
+        <div class="aw-auth-quote">
+            <span class="aw-auth-kicker">A secure beginning</span>
+            <blockquote>Every strong application starts with a trusted account.</blockquote>
+            <p>One quick verification keeps your private resumes and job-search activity connected to you.</p>
+        </div>
+        <div class="aw-auth-avatar-wrap">
+            <span>@(Model.Succeeded ? "You're verified!" : "Check your inbox!")</span>
+            <img src="~/images/wiso.png" alt="Wiso helping with email verification" />
+        </div>
+    </aside>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

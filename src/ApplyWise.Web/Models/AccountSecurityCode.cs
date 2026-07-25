@@ -19,5 +19,7 @@ public sealed class AccountSecurityCode
 public enum AccountSecurityAction
 {
     ChangePassword,
-    DeleteAccount
+    DeleteAccount,
+    ConfirmEmail,
+    ResetPassword
 }

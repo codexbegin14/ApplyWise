@@ -1325,6 +1325,53 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .aw-auth-status-callout { color: var(--aw-text-2); border-color: var(--aw-border); background: var(--aw-surface-2); }
 .aw-auth-status-callout-success { color: var(--aw-success-text); border-color: rgba(39, 117, 93, .3); background: var(--aw-success-soft); }
 .aw-auth-status-callout-error { color: var(--aw-danger-text); border-color: rgba(230, 57, 70, .34); background: var(--aw-danger-soft); }
+.identity-body .aw-auth-shell-code,
+.identity-body .aw-auth-shell-reset,
+.identity-body .aw-auth-shell-status { width: min(100%, 1060px); }
+.identity-body .aw-code-card,
+.identity-body .aw-reset-card { align-self: stretch; }
+.identity-body .aw-security-code-wrap {
+    min-height: 58px;
+    border-color: var(--aw-border-strong);
+    background: var(--aw-surface-2);
+}
+.identity-body .aw-security-code-input {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: .42em;
+    text-align: center;
+}
+.identity-body .aw-security-code-input::placeholder {
+    color: var(--aw-muted);
+    opacity: .58;
+}
+.aw-auth-secondary-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+    color: var(--aw-muted);
+    font-size: .8125rem;
+    text-align: center;
+}
+.aw-auth-secondary-form .btn-link {
+    min-height: 44px;
+    padding: 8px 4px;
+    font-size: inherit;
+    font-weight: 750;
+}
+.aw-auth-secondary-form a { font-weight: 750; }
+.identity-body .aw-reset-card .aw-password-help {
+    display: block;
+    margin-top: 2px;
+    color: var(--aw-muted);
+    font-size: .72rem;
+}
+.identity-body .aw-auth-shell-status .aw-auth-status-card { min-width: 0; }
+.identity-body .aw-auth-shell-status .aw-auth-status-icon { flex: 0 0 auto; }
 .public-info-card,
 .empty-card {
     color: var(--aw-text);
@@ -1602,6 +1649,10 @@ html[data-theme="dark"] .account-avatar-fallback {
     .aw-auth-status-shell { width: 100%; border-radius: var(--aw-radius-card); }
     .identity-body .aw-login-card,
     .identity-body main .aw-auth-status-card { padding: 28px 20px; }
+    .identity-body .aw-security-code-input {
+        font-size: 1.2rem;
+        letter-spacing: .32em;
+    }
     .aw-register-demographics { grid-template-columns: 1fr; }
     .public-info-card { margin: 16px 12px; padding: 24px 20px; }
     .public-info-grid { grid-template-columns: 1fr; }

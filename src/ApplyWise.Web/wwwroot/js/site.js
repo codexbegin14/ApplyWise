@@ -93,6 +93,18 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     });
 });
 
+document.querySelectorAll('[data-security-code]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const normalize = () => {
+        const digits = input.value.replace(/\D/g, '').slice(0, 6);
+        if (input.value !== digits) input.value = digits;
+    };
+
+    input.addEventListener('input', normalize);
+    input.addEventListener('paste', () => window.setTimeout(normalize));
+});
+
 (() => {
     const menu = document.querySelector('[data-account-menu]');
     const trigger = menu?.querySelector('[data-account-menu-trigger]');

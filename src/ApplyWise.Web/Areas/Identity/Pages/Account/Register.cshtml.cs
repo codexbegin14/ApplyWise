@@ -1,12 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Profiles;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
@@ -14,9 +13,8 @@ namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 public class RegisterModel(
     UserManager<IdentityUser> userManager,
     SignInManager<IdentityUser> signInManager,
-    IEmailSender<IdentityUser> emailSender,
+    IAccountSecurityCodeService securityCodes,
     ApplicationDbContext dbContext,
-    IConfiguration configuration,
     ILogger<RegisterModel> logger) : PageModel
 {
     [BindProperty]
@@ -121,23 +119,23 @@ public class RegisterModel(
                 return Page();
             }
 
-            var userId = await userManager.GetUserIdAsync(user);
-            var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
-            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-            var callbackPath = Url.Page(
-                "/Account/ConfirmEmail",
-                pageHandler: null,
-                values: new { area = "Identity", userId, code, returnUrl },
-                protocol: null)!;
-            var publicOrigin = configuration["PublicOrigin"]?.TrimEnd('/');
-            var callbackUrl = !string.IsNullOrWhiteSpace(publicOrigin)
-                ? new Uri(new Uri(publicOrigin + "/"), callbackPath.TrimStart('/')).ToString()
-                : new Uri(new Uri($"{Request.Scheme}://{Request.Host}/"), callbackPath.TrimStart('/')).ToString();
-
-            await emailSender.SendConfirmationLinkAsync(user, Input.Email, callbackUrl);
-
             if (userManager.Options.SignIn.RequireConfirmedAccount)
             {
+                try
+                {
+                    await securityCodes.IssueAsync(
+                        await userManager.GetUserIdAsync(user),
+                        Input.Email,
+                        AccountSecurityAction.ConfirmEmail,
+                        HttpContext.RequestAborted);
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Could not deliver the initial email verification code.");
+                    TempData["ConfirmationDeliveryError"] =
+                        "Your account was created, but we could not send the verification code. Use 'Send a new code' to try again.";
+                }
+
                 return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl });
             }
 

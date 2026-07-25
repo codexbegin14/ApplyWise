@@ -8,5 +8,6 @@ public sealed class EmailOptions
     public string UserName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string From { get; set; } = string.Empty;
+    public string FromDisplayName { get; set; } = "ApplyWise";
     public bool UseSsl { get; set; } = true;
 }

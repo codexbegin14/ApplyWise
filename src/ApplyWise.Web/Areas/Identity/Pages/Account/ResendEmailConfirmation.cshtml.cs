@@ -9,10 +9,10 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
 [EnableRateLimiting("account-security")]
-public class ForgotPasswordModel(
+public class ResendEmailConfirmationModel(
     UserManager<IdentityUser> userManager,
     IAccountSecurityCodeService securityCodes,
-    ILogger<ForgotPasswordModel> logger) : PageModel
+    ILogger<ResendEmailConfirmationModel> logger) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -21,35 +21,52 @@ public class ForgotPasswordModel(
     {
         [Required]
         [EmailAddress]
+        [Display(Name = "Email address")]
         public string Email { get; set; } = string.Empty;
+
+        public string? ReturnUrl { get; set; }
+    }
+
+    public void OnGet(string? email = null, string? returnUrl = null)
+    {
+        Input.Email = email?.Trim() ?? string.Empty;
+        Input.ReturnUrl = GetSafeReturnUrl(returnUrl);
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         Input.Email = Input.Email.Trim();
+        Input.ReturnUrl = GetSafeReturnUrl(Input.ReturnUrl);
         if (!ModelState.IsValid)
         {
             return Page();
         }
 
         var user = await userManager.FindByEmailAsync(Input.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
+        if (user is not null && !await userManager.IsEmailConfirmedAsync(user))
         {
             try
             {
                 await securityCodes.IssueAsync(
                     user.Id,
                     Input.Email,
-                    AccountSecurityAction.ResetPassword,
+                    AccountSecurityAction.ConfirmEmail,
                     HttpContext.RequestAborted);
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Could not deliver a password reset code.");
+                logger.LogError(exception, "Could not deliver a replacement email verification code.");
             }
         }
 
         // Always continue to the same screen so this form cannot reveal registered email addresses.
-        return RedirectToPage("./ResetPassword", new { email = Input.Email });
+        return RedirectToPage(
+            "./RegisterConfirmation",
+            new { email = Input.Email, returnUrl = Input.ReturnUrl });
     }
+
+    private string GetSafeReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Content("~/");
 }

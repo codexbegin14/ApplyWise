@@ -4,9 +4,9 @@
     ViewData["Title"] = Model.Succeeded ? "Email confirmed" : "Confirmation link problem";
 }
 
-<div class="aw-auth-status-shell aw-fade-in d-block"
+<div class="aw-auth-shell aw-auth-shell-status aw-fade-in"
      @if (Model.Succeeded) { <text>data-confirm-redirect="@Model.LoginUrl" data-confirm-redirect-seconds="5"</text> }>
-    <section class="aw-auth-status-card aw-slide-up col-lg-8 mx-auto" aria-labelledby="email-confirmation-title">
+    <section class="aw-auth-status-card aw-slide-up" aria-labelledby="email-confirmation-title">
         <span class="aw-auth-kicker"><svg class="ui-icon"><use href="#i-mail" /></svg>Email confirmation</span>
         <span class="aw-auth-status-icon @(Model.Succeeded ? "aw-auth-status-icon-success" : "aw-auth-status-icon-error")" aria-hidden="true">
             @if (Model.Succeeded)
@@ -33,13 +33,24 @@
         else
         {
             <div class="aw-auth-status-callout aw-auth-status-callout-error">
-                Confirmation links can expire or become invalid after they have been used.
+                Older confirmation links can expire or become invalid after they have been used. Request a secure six-digit code instead.
             </div>
             <div class="aw-auth-status-actions">
-                <a class="btn btn-primary" asp-page="./ResendEmailConfirmation">Send a new link</a>
+                <a class="btn btn-primary" asp-page="./ResendEmailConfirmation" asp-route-returnUrl="@Model.ReturnUrl">Send a verification code</a>
                 <a class="btn btn-secondary-soft" asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Back to login</a>
             </div>
         }
     </section>
 
+    <aside class="aw-auth-visual" aria-label="Wiso helping with ApplyWise email confirmation">
+        <div class="aw-auth-quote">
+            <span class="aw-auth-kicker">A trusted beginning</span>
+            <blockquote>@(Model.Succeeded ? "Your next opportunity starts from a secure place." : "A fresh code can reopen the door.")</blockquote>
+            <p>@(Model.Succeeded ? "Your ApplyWise account is verified and ready for the job search ahead." : "Request a new code and Wiso will help you finish securing your account.")</p>
+        </div>
+        <div class="aw-auth-avatar-wrap">
+            <span>@(Model.Succeeded ? "You're verified!" : "Let's try again!")</span>
+            <img src="~/images/wiso.png" alt="Wiso, the ApplyWise guide" />
+        </div>
+    </aside>
 </div>
