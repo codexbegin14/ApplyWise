@@ -14,7 +14,7 @@
         @if (isJobMode)
         {
             <div>
-                <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-spark" /></svg>Job-specific review</span>
+                <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-match" /></svg>Job-specific review</span>
                 <h1>See how well your resume fits a role.</h1>
                 <p>Choose a saved resume and paste the real job description to find missing requirements and weak evidence.</p>
             </div>
@@ -54,7 +54,7 @@
                         <span class="aw-textarea-meta"><small>Required for Job Match</small><small>30–8,000 characters</small></span>
                         <span asp-validation-for="Pasted.JobRequirements" class="field-validation-error"></span>
                     </label>
-                    <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes)"><svg class="ui-icon"><use href="#i-spark" /></svg>Check job match <span>&rarr;</span></button>
+                    <button class="btn btn-primary btn-analyze" type="submit" disabled="@(!hasResumes)"><svg class="ui-icon"><use href="#i-match" /></svg>Check job match <span>&rarr;</span></button>
                 </form>
             </section>
 
@@ -79,7 +79,7 @@
                     </label>
                     <small id="ats-upload-help" class="aw-ats-upload-help">PDF only · maximum 5 MB · the file name becomes the saved resume name</small>
                     <span asp-validation-for="Upload.ResumeFile" class="field-validation-error"></span>
-                    <button class="btn btn-primary btn-analyze" type="submit"><svg class="ui-icon"><use href="#i-spark" /></svg>Check my resume <span>&rarr;</span></button>
+                    <button class="btn btn-primary btn-analyze" type="submit"><svg class="ui-icon"><use href="#i-match" /></svg>Check my resume <span>&rarr;</span></button>
                 </form>
             </section>
 
