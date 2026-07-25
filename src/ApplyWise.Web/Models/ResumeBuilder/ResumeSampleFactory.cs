@@ -8,6 +8,7 @@ public static class ResumeSampleFactory
 {
     public static ResumeDocument Create() => new()
     {
+        TemplateSelectionConfirmed = true,
         PersonalInformation = new PersonalInformation
         {
             FullName = "Jordan Lee",
@@ -139,25 +140,54 @@ public static class ResumeSampleFactory
             {
                 Id = "skills-languages",
                 Name = "Languages",
-                Skills = ["JavaScript", "TypeScript", "Python", "C", "C++", "SQL"]
+                Skills =
+                [
+                    new SkillItem { Id = "skill-javascript", Name = "JavaScript", Level = 5 },
+                    new SkillItem { Id = "skill-typescript", Name = "TypeScript", Level = 4 },
+                    new SkillItem { Id = "skill-python", Name = "Python", Level = 4 },
+                    new SkillItem { Id = "skill-c", Name = "C", Level = 3 },
+                    new SkillItem { Id = "skill-cpp", Name = "C++", Level = 3 },
+                    new SkillItem { Id = "skill-sql", Name = "SQL", Level = 4 }
+                ]
             },
             new SkillCategory
             {
                 Id = "skills-frameworks",
                 Name = "Frameworks & Libraries",
-                Skills = ["React", "Next.js", "Node.js", "Express", "Django REST Framework"]
+                Skills =
+                [
+                    new SkillItem { Id = "skill-react", Name = "React", Level = 5 },
+                    new SkillItem { Id = "skill-nextjs", Name = "Next.js", Level = 4 },
+                    new SkillItem { Id = "skill-nodejs", Name = "Node.js", Level = 4 },
+                    new SkillItem { Id = "skill-express", Name = "Express", Level = 4 },
+                    new SkillItem { Id = "skill-django-rest", Name = "Django REST Framework", Level = 3 }
+                ]
             },
             new SkillCategory
             {
                 Id = "skills-databases",
                 Name = "Databases",
-                Skills = ["PostgreSQL", "MongoDB", "MySQL", "Redis"]
+                Skills =
+                [
+                    new SkillItem { Id = "skill-postgresql", Name = "PostgreSQL", Level = 4 },
+                    new SkillItem { Id = "skill-mongodb", Name = "MongoDB", Level = 3 },
+                    new SkillItem { Id = "skill-mysql", Name = "MySQL", Level = 4 },
+                    new SkillItem { Id = "skill-redis", Name = "Redis", Level = 3 }
+                ]
             },
             new SkillCategory
             {
                 Id = "skills-tools",
                 Name = "Tools",
-                Skills = ["Git", "GitHub Actions", "Linux", "Docker", "Bash", "Figma"]
+                Skills =
+                [
+                    new SkillItem { Id = "skill-git", Name = "Git", Level = 5 },
+                    new SkillItem { Id = "skill-github-actions", Name = "GitHub Actions", Level = 4 },
+                    new SkillItem { Id = "skill-linux", Name = "Linux", Level = 4 },
+                    new SkillItem { Id = "skill-docker", Name = "Docker", Level = 4 },
+                    new SkillItem { Id = "skill-bash", Name = "Bash", Level = 3 },
+                    new SkillItem { Id = "skill-figma", Name = "Figma", Level = 3 }
+                ]
             },
         ],
         AchievementsAndCertifications =
@@ -192,9 +222,9 @@ public static class ResumeSampleFactory
         ],
         Languages =
         [
-            new LanguageEntry { Id = "language-english", Name = "English", Proficiency = "Professional working proficiency" },
-            new LanguageEntry { Id = "language-urdu", Name = "Urdu", Proficiency = "Native proficiency" },
-            new LanguageEntry { Id = "language-sindhi", Name = "Sindhi", Proficiency = "Native proficiency" }
+            new LanguageEntry { Id = "language-english", Name = "English", Proficiency = "Professional working proficiency", Level = 4 },
+            new LanguageEntry { Id = "language-urdu", Name = "Urdu", Proficiency = "Native proficiency", Level = 5 },
+            new LanguageEntry { Id = "language-sindhi", Name = "Sindhi", Proficiency = "Native proficiency", Level = 5 }
         ],
         VolunteerExperience =
         [

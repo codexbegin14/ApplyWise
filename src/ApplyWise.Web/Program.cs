@@ -6,7 +6,6 @@ using ApplyWise.Web.Services.Analytics;
 using ApplyWise.Web.Services.JobScamDetection;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
-using ApplyWise.Web.Services.Wiso;
 using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
 using ApplyWise.Web.Services.AccountSecurity;
@@ -19,6 +18,18 @@ using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
+
+// The default Windows Event Log provider requires elevated permissions and can
+// turn an otherwise harmless development warning into a failed HTTP request.
+// Local development should log to the terminal/debug output instead.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+}
+
 var publicOrigin = builder.Configuration["PublicOrigin"];
 var allowedHosts = builder.Configuration["AllowedHosts"];
 var resumeStorageRoot = builder.Configuration["ResumeStorage:RootPath"];
@@ -183,7 +194,6 @@ builder.Services.AddOptions<ResumeStorageOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
 builder.Services.AddScoped<IResumeIngestionService, ResumeIngestionService>();
-builder.Services.AddScoped<IWisoService, WisoService>();
 
 var app = builder.Build();
 

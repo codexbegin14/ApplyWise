@@ -19,9 +19,10 @@ public sealed class ResumeBuilderTests
     {
         var sample = ResumeSampleFactory.Create();
 
-        Assert.Equal(3, ResumeDocument.CurrentSchemaVersion);
+        Assert.Equal(4, ResumeDocument.CurrentSchemaVersion);
         Assert.Equal(ResumeDocument.CurrentSchemaVersion, sample.SchemaVersion);
         Assert.Equal(ResumeDocument.DefaultTemplateId, sample.TemplateId);
+        Assert.True(sample.TemplateSelectionConfirmed);
         Assert.Equal(string.Empty, sample.PersonalInformation.ProfilePhotoDataUrl);
         Assert.All(
             new[]
@@ -60,11 +61,21 @@ public sealed class ResumeBuilderTests
             Assert.NotEmpty(entry.BulletPoints);
         });
         Assert.NotEmpty(sample.Skills);
-        Assert.All(sample.Skills, category => Assert.NotEmpty(category.Skills));
+        Assert.All(sample.Skills, category =>
+        {
+            Assert.NotEmpty(category.Skills);
+            Assert.All(category.Skills, skill =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(skill.Id));
+                Assert.False(string.IsNullOrWhiteSpace(skill.Name));
+                Assert.InRange(skill.Level ?? 0, 1, 5);
+            });
+        });
         Assert.NotEmpty(sample.AchievementsAndCertifications);
         Assert.Equal(3, sample.AchievementsAndCertifications.Count);
         Assert.Contains("[b]", sample.ProfessionalSummary, StringComparison.Ordinal);
         Assert.NotEmpty(sample.Languages);
+        Assert.All(sample.Languages, language => Assert.InRange(language.Level ?? 0, 1, 5));
         Assert.NotEmpty(sample.VolunteerExperience);
         Assert.All(sample.VolunteerExperience, entry => Assert.NotEmpty(entry.BulletPoints));
         Assert.Equal(2, sample.References.Count);
@@ -136,6 +147,7 @@ public sealed class ResumeBuilderTests
 
         Assert.Equal(ResumeDocument.CurrentSchemaVersion, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(ResumeDocument.DefaultTemplateId, root.GetProperty("templateId").GetString());
+        Assert.True(root.GetProperty("templateSelectionConfirmed").GetBoolean());
         var personalInformation = root.GetProperty("personalInformation");
         Assert.Equal("Jordan Lee", personalInformation.GetProperty("fullName").GetString());
         Assert.Equal(string.Empty, personalInformation.GetProperty("profilePhotoDataUrl").GetString());
@@ -144,6 +156,10 @@ public sealed class ResumeBuilderTests
             root.GetProperty("sections")[0].GetProperty("key").GetString());
         Assert.Equal(JsonValueKind.Array, root.GetProperty("customSections").ValueKind);
         Assert.Equal(2, root.GetProperty("references").GetArrayLength());
+        var firstSkill = root.GetProperty("skills")[0].GetProperty("skills")[0];
+        Assert.Equal(JsonValueKind.Object, firstSkill.ValueKind);
+        Assert.False(string.IsNullOrWhiteSpace(firstSkill.GetProperty("name").GetString()));
+        Assert.InRange(firstSkill.GetProperty("level").GetInt32(), 1, 5);
     }
 
     [Theory]

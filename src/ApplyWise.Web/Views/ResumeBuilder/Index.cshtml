@@ -10,25 +10,103 @@
 <div class="aw-page aw-resume-builder aw-fade-in"
      data-resume-builder
      data-draft-key="@Model.DraftStorageKey"
-     data-initial-section="@Model.InitialSection">
+     data-initial-section="@Model.InitialSection"
+     data-gallery-photo-url="@Url.Content("~/images/wiso.png")">
     <textarea data-sample-resume hidden aria-hidden="true" tabindex="-1">@Model.SampleResumeJson</textarea>
+
+    <section id="rb-template-gallery" class="aw-rb-template-gallery" data-template-gallery aria-labelledby="rb-template-gallery-title" hidden>
+        <header class="aw-rb-template-gallery-header">
+            <div>
+                <span class="aw-kicker aw-kicker-violet">15 professional resume designs</span>
+                <h1 id="rb-template-gallery-title">Choose the resume that fits your next opportunity.</h1>
+                <p>Every card is rendered from the same PDF definition used for preview and download. You can change designs later without losing your details.</p>
+            </div>
+            <button class="btn btn-secondary-soft" type="button" data-action="exit-template-gallery" data-gallery-cancel hidden>
+                Back to editor
+            </button>
+        </header>
+
+        <div class="aw-rb-template-gallery-layout">
+            <div class="aw-rb-template-gallery-grid"
+                 data-template-gallery-grid
+                 role="listbox"
+                 aria-label="Resume templates">
+                <div class="aw-rb-template-gallery-loading" role="status">
+                    <span class="aw-rb-preview-spinner" aria-hidden="true"></span>
+                    Preparing real PDF previews…
+                </div>
+            </div>
+
+        </div>
+
+        <dialog class="aw-rb-template-preview-dialog"
+                data-template-preview-dialog
+                aria-labelledby="rb-template-preview-title"
+                aria-describedby="rb-template-preview-description">
+            <div class="aw-rb-template-preview-shell">
+                <header class="aw-rb-template-preview-header">
+                    <div class="aw-rb-template-preview-copy">
+                        <div class="aw-rb-template-preview-title-row">
+                            <h2 id="rb-template-preview-title" data-gallery-name>Editorial</h2>
+                            <span class="aw-rb-template-classification" data-gallery-classification>ATS-optimized</span>
+                        </div>
+                        <p id="rb-template-preview-description" data-gallery-description>
+                            A refined photo-free resume with formal two-column structure.
+                        </p>
+                    </div>
+
+                    <div class="aw-rb-template-preview-actions" aria-label="Template preview actions">
+                        <button type="button" data-action="previous-gallery-template">
+                            <span aria-hidden="true">&larr;</span> Previous
+                        </button>
+                        <button type="button" data-action="next-gallery-template">
+                            Next <span aria-hidden="true">&rarr;</span>
+                        </button>
+                        <button class="is-primary" type="button" data-action="choose-gallery-template">
+                            Use template
+                        </button>
+                        <button class="aw-rb-template-preview-close"
+                                type="button"
+                                data-action="close-template-preview"
+                                aria-label="Close template preview">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="aw-rb-template-preview-body">
+                    <div class="aw-rb-template-gallery-sheet" aria-live="polite">
+                        <iframe data-template-gallery-large-preview
+                                title="Selected template PDF preview"
+                                aria-describedby="rb-template-preview-description"></iframe>
+                        <div class="aw-rb-template-gallery-preview-state" data-template-gallery-preview-state>
+                            Preparing template previewâ€¦
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </dialog>
+    </section>
 
     <header class="aw-rb-hero aw-slide-up">
         <div class="aw-rb-hero-copy">
-            <span class="aw-kicker">
-                <svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>
-                Resume design studio
-            </span>
-            <h1>Add your details. ApplyWise handles the design.</h1>
-            <p>Enter your information once, choose a template, and review the finished PDF as you type.</p>
+            <h1>Resume Builder</h1>
+            <p>Add your details, choose a template, and download a polished PDF.</p>
+            <div class="aw-rb-status-line">
+                <span class="aw-rb-save-status" data-save-status role="status" aria-live="polite" aria-atomic="true">
+                    Saved in this browser
+                </span>
+                <span id="rb-pdf-status" class="aw-rb-pdf-status" data-pdf-status role="status" aria-live="polite" aria-atomic="true"></span>
+            </div>
         </div>
         <div class="aw-rb-toolbar" aria-label="Resume actions">
             <button class="btn btn-secondary-soft" type="button" data-action="load-sample">
                 <span aria-hidden="true">&#10022;</span>
-                Load Sample Data
+                Sample
             </button>
             <button class="btn aw-rb-danger-button" type="button" data-action="clear">
-                Clear Resume
+                Clear
             </button>
             <button class="btn btn-primary aw-rb-download" type="button" data-action="download" aria-describedby="rb-pdf-status" disabled>
                 <svg class="aw-rb-button-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -37,35 +115,25 @@
                 <span>Download PDF</span>
             </button>
         </div>
-        <div class="aw-rb-status-line">
-            <span class="aw-rb-save-status" data-save-status role="status" aria-live="polite" aria-atomic="true">
-                Your draft is saved in this browser as you type.
-            </span>
-            <span id="rb-pdf-status" class="aw-rb-pdf-status" data-pdf-status role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
+        <section class="aw-rb-one-page-guide" data-one-page-guide aria-labelledby="rb-one-page-title">
+            <div class="aw-rb-one-page-copy">
+                <strong id="rb-one-page-title">One-page check</strong>
+                <span class="aw-rb-one-page-hint">We&apos;ll alert you if the resume becomes too long.</span>
+            </div>
+            <div class="aw-rb-page-fit-status is-checking" data-page-fit-status role="status" aria-live="polite">Checking page fit&hellip;</div>
+            <details>
+                <summary>Content limits</summary>
+                <div class="aw-rb-one-page-metrics" aria-label="Recommended one-page content limits">
+                    <span data-guide-metric="professionalSummary">Summary <strong>0 / 3 lines</strong></span>
+                    <span data-guide-metric="education">Education <strong>0 / 2</strong></span>
+                    <span data-guide-metric="experience">Experience <strong>0 / 3</strong></span>
+                    <span data-guide-metric="projects">Projects <strong>0 / 3</strong></span>
+                    <span data-guide-metric="achievementsAndCertifications">Achievements <strong>0 / 3</strong></span>
+                </div>
+            </details>
+            <p class="aw-rb-one-page-warning" data-one-page-warning role="alert" hidden></p>
+        </section>
     </header>
-
-    <section class="aw-rb-one-page-guide" data-one-page-guide aria-labelledby="rb-one-page-title">
-        <div class="aw-rb-one-page-copy">
-            <span class="aw-rb-one-page-icon" aria-hidden="true">1</span>
-            <div>
-                <h3 id="rb-one-page-title">One-page resume target</h3>
-                <p>Keep descriptions concise. ApplyWise checks the generated A4 PDF and prevents a multi-page download.</p>
-            </div>
-        </div>
-        <div class="aw-rb-page-fit-status is-checking" data-page-fit-status role="status" aria-live="polite">Checking page fit…</div>
-        <details>
-            <summary>Recommended content limits</summary>
-            <div class="aw-rb-one-page-metrics" aria-label="Recommended one-page content limits">
-                <span data-guide-metric="professionalSummary">Summary <strong>0 / 3 lines</strong></span>
-                <span data-guide-metric="education">Education <strong>0 / 2</strong></span>
-                <span data-guide-metric="experience">Experience <strong>0 / 3</strong></span>
-                <span data-guide-metric="projects">Projects <strong>0 / 3</strong></span>
-                <span data-guide-metric="achievementsAndCertifications">Achievements <strong>0 / 3</strong></span>
-            </div>
-        </details>
-        <p class="aw-rb-one-page-warning" data-one-page-warning role="alert" hidden></p>
-    </section>
 
     <div class="aw-rb-mobile-tabs" role="tablist" aria-label="Resume builder view">
         <button id="rb-editor-tab"
@@ -95,11 +163,23 @@
                  role="tabpanel"
                  aria-labelledby="rb-editor-tab"
                  aria-hidden="false">
+            <section class="aw-rb-completion" aria-label="Resume completion">
+                <div class="aw-rb-completion-row">
+                    <span>
+                        <strong data-builder-progress>0%</strong>
+                        <span>Resume completeness</span>
+                    </span>
+                    <span data-builder-next-step>Add your contact details</span>
+                </div>
+                <div class="aw-rb-completion-track" role="progressbar" aria-label="Resume completeness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <span data-builder-progress-bar></span>
+                </div>
+            </section>
+
             <div class="aw-rb-panel-heading">
                 <div>
-                    <span class="aw-kicker">Resume details</span>
-                    <h3>Build one section at a time</h3>
-                    <p>Choose a tab, add only that information, and see the selected design update instantly.</p>
+                    <h2>Resume details</h2>
+                    <p>Complete each section. Your preview updates automatically.</p>
                 </div>
             </div>
 
@@ -136,15 +216,22 @@
                                 <span data-photo-initials>AW</span>
                             </span>
                             <div>
-                                <label class="btn btn-secondary-soft btn-sm" for="rb-profile-photo">Choose photo</label>
+                                <div class="aw-rb-photo-actions">
+                                    <label class="btn btn-secondary-soft btn-sm" for="rb-profile-photo" data-photo-picker-label>Choose photo</label>
+                                    <button class="aw-rb-photo-remove" type="button" data-action="remove-profile-photo" data-remove-profile-photo hidden>
+                                        <span aria-hidden="true">&times;</span>
+                                        Remove
+                                    </button>
+                                </div>
                                 <input id="rb-profile-photo"
                                        class="visually-hidden"
                                        type="file"
                                        data-profile-photo-input
+                                       aria-describedby="rb-profile-photo-help rb-profile-photo-error"
                                        accept="image/png,image/jpeg,image/webp" />
-                                <button class="aw-rb-text-button" type="button" data-action="remove-profile-photo" data-remove-profile-photo hidden>Remove</button>
-                                <small>PNG, JPG, or WebP. ApplyWise crops it to a resume-ready circle.</small>
+                                <small id="rb-profile-photo-help">PNG, JPG, or WebP. ApplyWise crops it to a resume-ready portrait.</small>
                                 <span class="aw-rb-photo-status" data-photo-status role="status" aria-live="polite"></span>
+                                <span id="rb-profile-photo-error" class="aw-rb-error" data-error-for="personalInformation.profilePhotoDataUrl" aria-live="polite"></span>
                             </div>
                         </div>
                     </div>
@@ -330,6 +417,14 @@
                     </div>
                 </noscript>
             </form>
+
+            <footer class="aw-rb-editor-footer">
+                <span>Changes save automatically</span>
+                <button class="btn btn-primary" type="button" data-action="next-editor-tab">
+                    <span data-next-section-label>Next: Profile</span>
+                    <span aria-hidden="true">&rarr;</span>
+                </button>
+            </footer>
         </section>
 
         <aside id="rb-preview-panel"
@@ -338,35 +433,23 @@
                role="tabpanel"
                aria-labelledby="rb-preview-tab"
                aria-hidden="true">
-            <div class="aw-rb-preview-heading">
-                <div>
-                    <span class="aw-kicker aw-kicker-green">Live PDF preview</span>
-                    <h3>Your finished resume</h3>
+            <div class="aw-rb-preview-heading" data-template-picker>
+                <div class="aw-rb-preview-title">
+                    <span class="aw-rb-live-dot" aria-hidden="true"></span>
+                    <h2>Resume preview</h2>
+                    <span data-selected-template-name>Editorial</span>
+                    <small class="visually-hidden" data-selected-template-description>A refined photo-free resume with formal two-column structure.</small>
+                    <span class="visually-hidden" data-template-status role="status" aria-live="polite">Editorial selected.</span>
                 </div>
                 <div class="aw-rb-preview-actions">
+                    <button class="aw-rb-preview-size-button" type="button" data-action="open-template-picker" aria-controls="rb-template-gallery">
+                        Change template
+                    </button>
                     <button class="aw-rb-preview-size-button" type="button" data-action="toggle-preview-size" aria-expanded="false" aria-controls="rb-preview-panel">
-                        <span data-preview-size-label>Expand preview</span>
+                        <span data-preview-size-label>Full screen</span>
                     </button>
                 </div>
             </div>
-
-            <section class="aw-rb-template-picker" data-template-picker aria-labelledby="rb-template-picker-title">
-                <header>
-                    <span class="aw-kicker aw-kicker-violet">Resume templates</span>
-                    <h3 id="rb-template-picker-title">Current design</h3>
-                </header>
-                <div class="aw-rb-selected-template">
-                    <span class="aw-rb-template-mini aw-rb-template-mini-classic" data-selected-template-mini aria-hidden="true"><i></i><i></i><i></i></span>
-                    <span class="aw-rb-selected-template-copy">
-                        <strong data-selected-template-name>Editorial</strong>
-                        <small data-selected-template-description>A refined photo-free resume with formal two-column structure.</small>
-                        <span class="aw-rb-template-status visually-hidden" data-template-status role="status" aria-live="polite">Editorial selected.</span>
-                    </span>
-                    <button class="btn btn-secondary-soft aw-rb-choose-template" type="button" data-action="open-template-picker" aria-haspopup="dialog" aria-controls="rb-template-dialog">
-                        Select template
-                    </button>
-                </div>
-            </section>
 
             <div class="aw-rb-preview-shell" data-preview-shell>
                 <iframe class="aw-rb-preview-frame"
@@ -383,60 +466,12 @@
             </div>
 
             <p id="rb-preview-help" class="aw-rb-preview-help">
-                The preview and download use the same PDF. Download stays disabled until the content fits on one A4 page.
+                This is the exact PDF you will download.
             </p>
         </aside>
     </div>
 
     <button class="aw-rb-preview-backdrop" type="button" data-preview-backdrop data-action="toggle-preview-size" aria-label="Close expanded preview" hidden></button>
-
-    <dialog id="rb-template-dialog"
-            class="aw-rb-template-dialog"
-            data-template-dialog
-            aria-labelledby="rb-template-dialog-title"
-            aria-describedby="rb-template-dialog-description">
-        <div class="aw-rb-template-dialog-card">
-            <header class="aw-rb-template-dialog-header">
-                <div>
-                    <span class="aw-kicker aw-kicker-violet">Resume templates</span>
-                    <h2 id="rb-template-dialog-title">Select a template</h2>
-                    <p id="rb-template-dialog-description">Preview one design at a time. Your resume data changes only after you choose a template.</p>
-                </div>
-                <button class="aw-rb-dialog-close" type="button" data-action="close-template-picker" aria-label="Close template picker">&times;</button>
-            </header>
-
-            <div class="aw-rb-template-dialog-body">
-                <div class="aw-rb-template-showcase aw-rb-template-showcase-classic" data-template-dialog-preview aria-hidden="true">
-                    <div class="aw-rb-template-showcase-sheet">
-                        <i class="aw-rb-template-showcase-photo"></i>
-                        <i class="aw-rb-template-showcase-header"></i>
-                        <i class="aw-rb-template-showcase-sidebar"></i>
-                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-one"></i>
-                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-two"></i>
-                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-three"></i>
-                        <i class="aw-rb-template-showcase-line aw-rb-template-showcase-line-four"></i>
-                    </div>
-                </div>
-
-                <div class="aw-rb-template-dialog-copy">
-                    <span class="aw-rb-template-position" data-template-dialog-position aria-live="polite">Template 1 of 9</span>
-                    <h3 data-template-dialog-name>Editorial</h3>
-                    <p data-template-dialog-description>A refined photo-free resume with formal two-column structure.</p>
-                    <div class="aw-rb-template-tags" aria-label="Template details">
-                        <span data-template-dialog-photo>No photo</span>
-                        <span data-template-dialog-font>Roboto font</span>
-                    </div>
-                    <p class="aw-rb-template-dialog-note">All sections remain editable after selection, and saved details stay in place when you switch designs.</p>
-                </div>
-            </div>
-
-            <footer class="aw-rb-template-dialog-actions">
-                <button class="btn btn-secondary-soft" type="button" data-action="previous-template">Previous</button>
-                <button class="btn btn-primary" type="button" data-action="confirm-template">Use template &amp; add data</button>
-                <button class="btn btn-secondary-soft" type="button" data-action="next-template">Next</button>
-            </footer>
-        </div>
-    </dialog>
 
     <dialog class="aw-rb-clear-dialog" data-clear-dialog aria-labelledby="rb-clear-title" aria-describedby="rb-clear-description">
         <form method="dialog" class="aw-rb-dialog-card">
@@ -458,5 +493,7 @@
     <script src="~/lib/pdfmake/pdfmake.min.js" asp-append-version="true"></script>
     <script src="~/lib/pdfmake/vfs_fonts.js" asp-append-version="true"></script>
     <script src="~/lib/pdfmake/poppins_vfs.js" asp-append-version="true"></script>
+    <script src="~/lib/pdfmake/libre_baskerville_vfs.js" asp-append-version="true"></script>
+    <script src="~/js/resume-template-renderers.js" asp-append-version="true"></script>
     <script src="~/js/resume-builder.js" asp-append-version="true"></script>
 }

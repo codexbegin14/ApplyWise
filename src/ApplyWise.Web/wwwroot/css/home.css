@@ -138,61 +138,88 @@
     line-height: 1.5;
 }
 
-.aw-home-wiso-visual {
+.aw-home-product-visual {
     min-width: 0;
     margin: 0;
 }
 
-.aw-home-wiso-orbit {
-    position: relative;
-    display: grid;
+.aw-home-product-board {
+    display: flex;
     min-height: 420px;
-    place-items: center;
-    overflow: hidden;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px;
     border: 1px solid var(--aw-border, #dbe4f0);
     border-radius: 20px;
     background: var(--aw-surface, #ffffff);
 }
 
-.aw-home-wiso-orbit::before {
-    content: "";
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    border-radius: 50%;
+.aw-home-product-heading {
+    display: grid;
+    gap: 5px;
+}
+
+.aw-home-product-heading span,
+.aw-home-product-next > span {
+    color: var(--aw-primary, #2563eb);
+    font-size: .6875rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.aw-home-product-heading strong {
+    color: var(--aw-text, #0f172a);
+    font-size: 1.25rem;
+    line-height: 1.25;
+}
+
+.aw-home-product-workflow {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.aw-home-product-workflow li {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid var(--aw-border, #dbe4f0);
+    border-radius: 12px;
+    background: var(--aw-page, #f8fafc);
+}
+
+.aw-home-product-workflow li > b {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: var(--aw-primary, #2563eb);
+    border-radius: 10px;
+    background: var(--aw-primary-soft, #eff6ff);
+    font-size: .75rem;
+}
+
+.aw-home-product-workflow li > span { display: grid; gap: 2px; }
+.aw-home-product-workflow strong { color: var(--aw-text, #0f172a); font-size: .8125rem; }
+.aw-home-product-workflow small { color: var(--aw-muted, #64748b); font-size: .6875rem; line-height: 1.45; }
+
+.aw-home-product-next {
+    display: grid;
+    gap: 3px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--aw-primary, #2563eb);
+    border-radius: 0 10px 10px 0;
     background: var(--aw-primary-soft, #eff6ff);
 }
 
-.aw-home-wiso-orbit img {
-    position: relative;
-    z-index: 1;
-    width: min(310px, 82%);
-    height: 310px;
-    object-fit: contain;
-    object-position: center bottom;
-    mix-blend-mode: multiply;
-}
-
-.aw-home-wiso-intro,
-.aw-home-wiso-card {
-    position: absolute;
-    z-index: 2;
-    display: grid;
-    gap: 3px;
-    padding: 10px 12px;
-    border: 1px solid var(--aw-border, #dbe4f0);
-    border-radius: 12px;
-    background: var(--aw-surface, #ffffff);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
-}
-
-.aw-home-wiso-intro { top: 20px; left: 20px; }
-.aw-home-wiso-intro b { color: var(--aw-primary, #2563eb); font-size: .8125rem; }
-.aw-home-wiso-intro small,
-.aw-home-wiso-card small { color: var(--aw-muted, #64748b); font-size: .6875rem; }
-.aw-home-wiso-card b { color: var(--aw-text, #0f172a); font-size: .75rem; }
-.aw-home-wiso-card-tracking { top: 112px; right: 14px; }
-.aw-home-wiso-card-reminder { right: 20px; bottom: 22px; }
+.aw-home-product-next strong { color: var(--aw-text, #0f172a); font-size: .8125rem; }
+.aw-home-product-next small { color: var(--aw-muted, #64748b); font-size: .6875rem; }
 
 .aw-home-kicker {
     display: inline-flex;
@@ -412,7 +439,7 @@
     .aw-home-hero { padding: 72px 0 64px; }
     .aw-home-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
     .aw-home-hero aside,
-    .aw-home-wiso-visual { width: 100%; max-width: 680px; }
+    .aw-home-product-visual { width: 100%; max-width: 680px; }
     .aw-home-service-grid { grid-template-columns: 1fr; }
     .aw-home-service-card { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0 20px; }
     .aw-home-service-icon { grid-row: 1 / 5; }
@@ -460,14 +487,9 @@
     .aw-home-lead { margin-top: 16px; font-size: 1rem; }
     .aw-home-hero-copy .btn { width: 100%; }
     .aw-home-hero aside { padding: 20px; }
-    .aw-home-wiso-orbit { min-height: 330px; border-radius: 16px; }
-    .aw-home-wiso-orbit::before { width: 230px; height: 230px; }
-    .aw-home-wiso-orbit img { width: 230px; height: 230px; }
-    .aw-home-wiso-intro { top: 14px; left: 14px; }
-    .aw-home-wiso-card { padding: 8px 10px; }
-    .aw-home-wiso-card-tracking { top: 92px; right: 8px; }
-    .aw-home-wiso-card-reminder { right: 12px; bottom: 14px; }
-    .aw-home-wiso-card small { display: none; }
+    .aw-home-product-board { min-height: 0; gap: 18px; padding: 20px; border-radius: 16px; }
+    .aw-home-product-workflow li { grid-template-columns: 38px minmax(0, 1fr); padding: 11px 12px; }
+    .aw-home-product-workflow li > b { width: 34px; height: 34px; }
     .aw-home-section { padding: 48px 0; }
     .aw-home-section-heading { margin-bottom: 24px; }
     .aw-home-section-heading h2 { font-size: 1.875rem; }
