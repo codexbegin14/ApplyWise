@@ -25,7 +25,7 @@ public class ApplyWiseEmailTemplateTests
         Assert.Contains("482731", email.HtmlBody);
         Assert.Contains("expires in 10 minutes", email.HtmlBody, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Never share this code", email.HtmlBody);
-        Assert.Contains("https://applywise.runasp.net/images/wiso.png", email.HtmlBody);
+        Assert.Contains("https://applywise.runasp.net/images/wiso.jpg", email.HtmlBody);
         Assert.Contains("Wiso, the ApplyWise guide", email.HtmlBody);
         Assert.Contains("482731", email.TextBody);
         Assert.Contains("used only once", email.TextBody);

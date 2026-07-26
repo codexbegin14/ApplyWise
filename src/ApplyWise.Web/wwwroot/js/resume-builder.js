@@ -1643,12 +1643,14 @@
         let templateDialogOpener = null;
         let galleryOpen = false;
         let galleryGeneration = 0;
+        let galleryPreviewObserver = null;
         let galleryPhotoDataUrl = '';
         let galleryPhotoPromise = null;
         let templatePreviewOpener = null;
         const galleryBlobs = new Map();
         const galleryUrls = new Map();
         const galleryPromises = new Map();
+        const fontScriptPromises = new Map();
         const tabList = root.querySelector('.aw-rb-mobile-tabs');
 
         function isCompactLayout() {
@@ -1816,7 +1818,9 @@
                 ? loadGalleryPhotoDataUrl()
                 : Promise.resolve('');
             const promise = photoPromise.then(function (photoDataUrl) {
-                return createPdfBlob(buildDocumentDefinition(gallerySampleState(templateId, photoDataUrl)));
+                return createPdfBlob(
+                    buildDocumentDefinition(gallerySampleState(templateId, photoDataUrl)),
+                    templateId);
             }).then(function (blob) {
                 if (destroyed || !windowObject || !windowObject.URL) return '';
                 galleryBlobs.set(templateId, blob);
@@ -1886,6 +1890,9 @@
                 if (selected && focusCard && typeof card.focus === 'function') card.focus();
             });
             updateGalleryDetail(candidate);
+            const cardFrame = templateGalleryGrid.querySelector(
+                '[data-gallery-preview-id="' + candidate.id + '"]');
+            if (cardFrame) loadGalleryCardPreview(candidate, cardFrame);
             if (!isTemplatePreviewOpen()) return;
             if (templateGalleryPreviewState) {
                 templateGalleryPreviewState.hidden = false;
@@ -1919,6 +1926,7 @@
                 frame.dataset.galleryPreviewId = candidate.id;
                 frame.title = candidate.name + ' generated PDF thumbnail';
                 frame.tabIndex = -1;
+                frame.loading = 'lazy';
                 frame.setAttribute('aria-hidden', 'true');
                 preview.appendChild(frame);
                 const copy = domElement(documentObject, 'div', 'aw-rb-template-card-copy');
@@ -1930,22 +1938,51 @@
             templateGalleryGrid.dataset.rendered = 'true';
         }
 
-        async function prepareGalleryPdfPreviews() {
+        function loadGalleryCardPreview(candidate, frame) {
+            if (!candidate || !frame || frame.dataset.previewState === 'loading'
+                || frame.dataset.previewState === 'ready') return;
+            frame.dataset.previewState = 'loading';
+            galleryPdfUrl(candidate.id).then(function (url) {
+                if (destroyed || !galleryOpen || !frame.isConnected || !url) return;
+                frame.src = url + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
+                frame.dataset.previewState = 'ready';
+            }).catch(function () {
+                frame.dataset.previewState = 'error';
+                const card = templateGalleryGrid && templateGalleryGrid.querySelector(
+                    '[data-template-choice="' + candidate.id + '"]');
+                if (card) card.classList.add('has-preview-error');
+            });
+        }
+
+        function observeGalleryPdfPreviews() {
             if (!templateGalleryGrid) return;
-            const request = ++galleryGeneration;
-            for (let index = 0; index < TEMPLATE_CATALOG.length; index += 1) {
-                if (destroyed || request !== galleryGeneration) return;
-                const candidate = TEMPLATE_CATALOG[index];
-                try {
-                    const url = await galleryPdfUrl(candidate.id);
-                    if (destroyed || request !== galleryGeneration || !url) return;
-                    const frame = templateGalleryGrid.querySelector('[data-gallery-preview-id="' + candidate.id + '"]');
-                    if (frame) frame.src = url + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
-                } catch (_error) {
-                    const card = templateGalleryGrid.querySelector('[data-template-choice="' + candidate.id + '"]');
-                    if (card) card.classList.add('has-preview-error');
-                }
+            galleryGeneration += 1;
+            if (galleryPreviewObserver) galleryPreviewObserver.disconnect();
+            const frames = Array.from(templateGalleryGrid.querySelectorAll('[data-gallery-preview-id]'))
+                .filter(function (frame) { return frame.dataset.previewState !== 'ready'; });
+            if (!frames.length) return;
+
+            if (windowObject && typeof windowObject.IntersectionObserver === 'function') {
+                galleryPreviewObserver = new windowObject.IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (!entry.isIntersecting) return;
+                        galleryPreviewObserver.unobserve(entry.target);
+                        loadGalleryCardPreview(
+                            templateMetadata(entry.target.dataset.galleryPreviewId),
+                            entry.target);
+                    });
+                }, { root: null, rootMargin: '320px 0px', threshold: 0.01 });
+                frames.forEach(function (frame) { galleryPreviewObserver.observe(frame); });
+                return;
             }
+
+            // Older browsers render only the first visible row instead of
+            // eagerly generating every PDF template.
+            frames.slice(0, 4).forEach(function (frame) {
+                loadGalleryCardPreview(
+                    templateMetadata(frame.dataset.galleryPreviewId),
+                    frame);
+            });
         }
 
         function openTemplateGallery() {
@@ -1956,9 +1993,9 @@
             const cancel = templateGallery.querySelector('[data-gallery-cancel]');
             if (cancel) cancel.hidden = !state.templateSelectionConfirmed;
             renderTemplateGallery();
+            observeGalleryPdfPreviews();
             templateCursor = Math.max(0, TEMPLATE_CATALOG.findIndex(function (template) { return template.id === state.templateId; }));
             selectGalleryTemplate(templateCursor, false);
-            prepareGalleryPdfPreviews();
             const selected = templateGalleryGrid && templateGalleryGrid.querySelector('[data-template-choice][aria-selected="true"]');
             if (selected && typeof selected.focus === 'function') {
                 if (windowObject && typeof windowObject.setTimeout === 'function') {
@@ -1972,6 +2009,10 @@
             closeTemplatePreview(false);
             galleryOpen = false;
             galleryGeneration += 1;
+            if (galleryPreviewObserver) {
+                galleryPreviewObserver.disconnect();
+                galleryPreviewObserver = null;
+            }
             templateGallery.hidden = true;
             root.classList.remove('is-choosing-template');
             const changeButton = root.querySelector('[data-action="open-template-picker"]');
@@ -2769,16 +2810,53 @@
             return configuration.pdfMake || (windowObject && windowObject.pdfMake);
         }
 
-        function createPdfBlob(definition) {
-            const pdfMake = pdfMakeInstance();
-            if (!pdfMake || typeof pdfMake.createPdf !== 'function') return Promise.reject(new Error('PDF generator is unavailable.'));
-            try {
-                const result = pdfMake.createPdf(definition);
-                if (!result || typeof result.getBlob !== 'function') return Promise.reject(new Error('PDF generator did not return a document.'));
-                return Promise.resolve(result.getBlob());
-            } catch (error) {
-                return Promise.reject(error);
+        function loadFontScript(key, url) {
+            if (!url || !documentObject || !documentObject.head) return Promise.resolve();
+            if (fontScriptPromises.has(key)) return fontScriptPromises.get(key);
+            const promise = new Promise(function (resolve, reject) {
+                const script = documentObject.createElement('script');
+                script.src = url;
+                script.async = true;
+                script.dataset.resumeFont = key;
+                script.addEventListener('load', resolve, { once: true });
+                script.addEventListener('error', function () {
+                    reject(new Error(key + ' resume font could not be loaded.'));
+                }, { once: true });
+                documentObject.head.appendChild(script);
+            });
+            fontScriptPromises.set(key, promise);
+            return promise;
+        }
+
+        function ensureTemplateFonts(templateId) {
+            const font = String(templateMetadata(templateId).font || 'Roboto').toLocaleLowerCase();
+            const loads = [];
+            if (font.includes('roboto')) {
+                loads.push(loadFontScript('roboto', root.dataset.robotoFontUrl));
             }
+            if (font.includes('poppins')) {
+                loads.push(loadFontScript('poppins', root.dataset.poppinsFontUrl));
+            }
+            if (font.includes('libre')) {
+                loads.push(loadFontScript(
+                    'libre-baskerville',
+                    root.dataset.libreBaskervilleFontUrl));
+            }
+            return Promise.all(loads);
+        }
+
+        function createPdfBlob(definition, templateId) {
+            return ensureTemplateFonts(templateId).then(function () {
+                const pdfMake = pdfMakeInstance();
+                if (!pdfMake || typeof pdfMake.createPdf !== 'function') {
+                    throw new Error('PDF generator is unavailable.');
+                }
+                const result = pdfMake.createPdf(definition);
+                if (!result || typeof result.getBlob !== 'function') {
+                    throw new Error('PDF generator did not return a document.');
+                }
+                return result.getBlob();
+            });
         }
 
         function revokePreviewUrl() {
@@ -2834,7 +2912,7 @@
             const requestedRevision = revision;
             const definition = buildDocumentDefinition(state);
             setPreviewMessage('Updating resume preview…', 'loading');
-            previewPromise = createPdfBlob(definition).then(async function (blob) {
+            previewPromise = createPdfBlob(definition, state.templateId).then(async function (blob) {
                 if (destroyed || request !== previewRequest || requestedRevision !== revision) return null;
                 if (!blob || typeof blob.size !== 'number') throw new Error('The generated PDF was empty.');
                 const pageCount = await countPdfPages(blob);
@@ -2995,7 +3073,7 @@
                 }
 
                 const definition = buildDocumentDefinition(state);
-                const generatedBlob = await createPdfBlob(definition);
+                const generatedBlob = await createPdfBlob(definition, state.templateId);
                 const generatedPageCount = await countPdfPages(generatedBlob);
                 if (requestedRevision !== revision) continue;
 
@@ -3393,6 +3471,7 @@
                 windowObject.clearTimeout(initialFocusTimer); windowObject.clearTimeout(targetHighlightTimer);
                 revokePreviewUrl();
                 galleryGeneration += 1;
+                if (galleryPreviewObserver) galleryPreviewObserver.disconnect();
                 revokeGalleryUrls();
                 root.removeEventListener('input', onInput); root.removeEventListener('change', onInput);
                 root.removeEventListener('focusout', onBlur); root.removeEventListener('click', onClick); root.removeEventListener('keydown', onKeyDown);

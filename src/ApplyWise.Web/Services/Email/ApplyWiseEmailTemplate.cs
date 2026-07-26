@@ -193,7 +193,7 @@ public static class ApplyWiseEmailTemplate
             return string.Empty;
         }
 
-        var wisoUrl = WebUtility.HtmlEncode(new Uri(origin, "/images/wiso.png").ToString());
+        var wisoUrl = WebUtility.HtmlEncode(new Uri(origin, "/images/wiso.jpg").ToString());
         return $"""
             <div style="float:right;margin:-12px 0 14px 18px;width:92px;text-align:center;">
               <img src="{wisoUrl}" width="92" height="92" alt="Wiso, the ApplyWise guide" style="display:block;width:92px;height:92px;object-fit:contain;border:0;" />

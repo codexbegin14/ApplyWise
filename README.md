@@ -106,8 +106,19 @@ Production values should come from environment variables or the host's secret st
 | `ResumeStorage:RootPath` | `ResumeStorage__RootPath` | Absolute private resume storage path; required in Production |
 | `DataProtection:*` | `DataProtection__KeysPath`, `DataProtection__CertificatePath`, `DataProtection__CertificatePassword` | Persistent key path plus PFX or encrypted PEM certificate; required in Production |
 | `ASPNETCORE_ENVIRONMENT` | `ASPNETCORE_ENVIRONMENT` | Use `Production` on a deployed host |
+| `Performance:SlowRequestThresholdMs` | `Performance__SlowRequestThresholdMs` | Warning-log threshold for slow requests; defaults to 500 ms |
 
 The default private upload path is `App_Data/Uploads/Resumes`. It is configurable, canonicalized, and never mapped as a static web directory. Production rejects relative or placeholder storage/key paths, wildcard hosts, and a non-HTTPS public origin to prevent an accidental insecure launch.
+
+## Performance
+
+- The dashboard is assembled from five narrow, tenant-scoped, no-tracking database projections rather than one query per card.
+- Read-heavy dashboard filters have supporting composite SQL indexes; apply the latest migration after deployment.
+- Dynamic responses use Brotli or gzip, and publish output includes precompressed gzip static assets.
+- Resume-builder fonts and template PDF thumbnails load on demand. Large artwork is rendered-size and format optimized.
+- Responses include a `Server-Timing` header. Requests slower than `Performance:SlowRequestThresholdMs` are logged without request bodies or private resume data.
+
+For reliable cloud performance, keep the web app and SQL database in the same region, enable the platform's always-on setting, and use `/health` for the health probe. Measure an authenticated dashboard request after deployment instead of judging only the public home page.
 
 ## Security notes
 

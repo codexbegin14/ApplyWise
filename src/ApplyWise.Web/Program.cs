@@ -9,9 +9,13 @@ using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
 using ApplyWise.Web.Services.AccountSecurity;
+using ApplyWise.Web.Services.Dashboard;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.Diagnostics;
+using System.IO.Compression;
 using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -39,6 +43,10 @@ var dataProtectionCertificatePassword = builder.Configuration["DataProtection:Ce
 var smtpHost = builder.Configuration["Email:Host"];
 var smtpFrom = builder.Configuration["Email:From"];
 var connectionStringSetting = builder.Configuration.GetConnectionString("DefaultConnection");
+var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
+    builder.Configuration.GetValue("Performance:SlowRequestThresholdMs", 500),
+    100,
+    60_000));
 
 static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
 static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -102,8 +110,12 @@ if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
 
 // Add services to the container.
 var connectionString = connectionStringSetting ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString, sqlServer =>
+        sqlServer.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
@@ -129,6 +141,23 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 builder.Services.AddControllersWithViews();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+    [
+        "application/javascript",
+        "application/json",
+        "image/svg+xml",
+        "text/javascript"
+    ]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -185,6 +214,7 @@ builder.Services.AddScoped<IResumeAnalysisStore, ResumeAnalysisStore>();
 builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IDashboardReadService, DashboardReadService>();
 builder.Services.AddOptions<ResumeStorageOptions>()
     .Bind(builder.Configuration.GetSection(ResumeStorageOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
@@ -223,6 +253,34 @@ else
 
 app.UseForwardedHeaders();
 app.UseHttpsRedirection();
+app.UseResponseCompression();
+var performanceLogger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("RequestPerformance");
+app.Use(async (context, next) =>
+{
+    var startedAt = Stopwatch.GetTimestamp();
+    context.Response.OnStarting(() =>
+    {
+        var firstByteDuration = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+        context.Response.Headers.TryAdd(
+            "Server-Timing",
+            $"app;dur={firstByteDuration:F1}");
+        return Task.CompletedTask;
+    });
+
+    await next();
+
+    var duration = Stopwatch.GetElapsedTime(startedAt);
+    if (duration >= slowRequestThreshold)
+    {
+        performanceLogger.LogWarning(
+            "Slow request {Method} {Path} returned {StatusCode} in {ElapsedMilliseconds:F1} ms.",
+            context.Request.Method,
+            context.Request.Path,
+            context.Response.StatusCode,
+            duration.TotalMilliseconds);
+    }
+});
 app.Use(async (context, next) =>
 {
     context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");

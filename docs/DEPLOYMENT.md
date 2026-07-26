@@ -6,6 +6,8 @@ ApplyWise is prepared for Azure App Service with Azure SQL Database. The applica
 
 Create an Azure SQL logical server/database and a Windows or Linux Azure App Service that supports the project's .NET runtime. Give the application database credentials only the permissions it needs. Restrict SQL networking to the App Service integration path or approved addresses.
 
+Place App Service and Azure SQL in the same region. Use an App Service tier that supports **Always On**, enable it, and avoid an auto-paused database when predictable first-request latency is required.
+
 ## 2. Configure App Service
 
 Add these application settings in the Azure portal:

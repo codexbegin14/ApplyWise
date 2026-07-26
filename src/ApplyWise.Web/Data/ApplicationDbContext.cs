@@ -51,6 +51,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(application => application.CustomFieldsJson).HasColumnType("nvarchar(max)");
 
             entity.HasIndex(application => new { application.UserId, application.CreatedAt });
+            entity.HasIndex(application => new { application.UserId, application.UpdatedAt });
+            entity.HasIndex(application => new { application.UserId, application.Deadline });
             entity.HasIndex(application => new { application.UserId, application.Status });
             entity.HasIndex(application => new { application.UserId, application.Source });
 
@@ -83,6 +85,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(analysis => analysis.JobDescriptionSnapshot).HasColumnType("nvarchar(max)");
 
             entity.HasIndex(analysis => new { analysis.UserId, analysis.CreatedAt });
+            entity.HasIndex(analysis => new { analysis.UserId, analysis.ScoreVersion, analysis.CreatedAt });
             entity.HasIndex(analysis => new { analysis.UserId, analysis.ResumeId });
             entity.HasIndex(analysis => new { analysis.UserId, analysis.JobApplicationId });
             entity.HasIndex(analysis => new
@@ -143,6 +146,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             entity.HasIndex(reminder => new { reminder.UserId, reminder.DueAt });
             entity.HasIndex(reminder => new { reminder.UserId, reminder.IsCompleted });
+            entity.HasIndex(reminder => new { reminder.UserId, reminder.IsCompleted, reminder.DueAt });
 
             entity.HasOne(reminder => reminder.User)
                 .WithMany()
