@@ -4,7 +4,9 @@ namespace ApplyWise.Web.Services.Security;
 
 public static class ProductionSqlConnectionSecurity
 {
-    public static string Harden(string configuredConnectionString)
+    public static string Harden(
+        string configuredConnectionString,
+        bool allowUntrustedServerCertificate = false)
     {
         SqlConnectionStringBuilder settings;
         try
@@ -25,7 +27,7 @@ public static class ProductionSqlConnectionSecurity
         }
 
         settings.Encrypt = SqlConnectionEncryptOption.Mandatory;
-        settings.TrustServerCertificate = false;
+        settings.TrustServerCertificate = allowUntrustedServerCertificate;
         return settings.ConnectionString;
     }
 }

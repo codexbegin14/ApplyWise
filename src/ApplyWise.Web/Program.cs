@@ -49,6 +49,8 @@ var dataProtectionCertificatePassword = builder.Configuration["DataProtection:Ce
 var smtpHost = builder.Configuration["Email:Host"];
 var smtpFrom = builder.Configuration["Email:From"];
 var connectionStringSetting = builder.Configuration.GetConnectionString("DefaultConnection");
+var allowUntrustedSqlServerCertificate =
+    builder.Configuration.GetValue<bool>("Database:AllowUntrustedServerCertificate");
 var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
     builder.Configuration.GetValue("Performance:SlowRequestThresholdMs", 500),
     100,
@@ -119,7 +121,9 @@ var connectionString = connectionStringSetting
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 if (isProduction)
 {
-    connectionString = ProductionSqlConnectionSecurity.Harden(connectionString);
+    connectionString = ProductionSqlConnectionSecurity.Harden(
+        connectionString,
+        allowUntrustedSqlServerCertificate);
 }
 
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>

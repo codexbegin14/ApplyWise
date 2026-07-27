@@ -112,6 +112,22 @@ public sealed class SecurityRegressionTests
     }
 
     [Fact]
+    public void Production_sql_transport_allows_an_explicit_private_ca_exception()
+    {
+        const string configured =
+            "Server=sql.example.test;Database=ApplyWise;User ID=applywise_app;Password=test-only;" +
+            "Encrypt=False;TrustServerCertificate=False";
+
+        var hardened = new SqlConnectionStringBuilder(
+            ProductionSqlConnectionSecurity.Harden(
+                configured,
+                allowUntrustedServerCertificate: true));
+
+        Assert.Equal(SqlConnectionEncryptOption.Mandatory, hardened.Encrypt);
+        Assert.True(hardened.TrustServerCertificate);
+    }
+
+    [Fact]
     public void Production_sql_transport_rejects_the_sa_login()
     {
         const string configured =
