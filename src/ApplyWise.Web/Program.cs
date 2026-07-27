@@ -10,6 +10,7 @@ using ApplyWise.Web.Services.Email;
 using ApplyWise.Web.Services.Health;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Dashboard;
+using ApplyWise.Web.Services.Security;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
@@ -19,7 +20,6 @@ using System.IO.Compression;
 using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Microsoft.Data.SqlClient;
 
 if (PdfInspectionWorker.TryRun(args))
 {
@@ -57,29 +57,9 @@ var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
 static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
 static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
     && uri.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment);
-static bool IsHardenedProductionSqlConnection(string? value)
-{
-    if (string.IsNullOrWhiteSpace(value))
-    {
-        return false;
-    }
-
-    try
-    {
-        var settings = new SqlConnectionStringBuilder(value);
-        return !string.Equals(settings.UserID, "sa", StringComparison.OrdinalIgnoreCase)
-            && !settings.TrustServerCertificate
-            && settings.Encrypt != SqlConnectionEncryptOption.Optional;
-    }
-    catch (ArgumentException)
-    {
-        return false;
-    }
-}
 
 if (isProduction &&
     (IsUnset(connectionStringSetting)
-     || !IsHardenedProductionSqlConnection(connectionStringSetting)
      || !IsHttpsOrigin(publicOrigin)
      || IsUnset(allowedHosts)
      || (allowedHosts?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(host => host == "*") ?? true)
@@ -94,7 +74,7 @@ if (isProduction &&
      || IsUnset(dataProtectionCertificatePassword)))
 {
     throw new InvalidOperationException(
-        "Production requires a TLS-validated, non-sa SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
+        "Production requires a non-sa SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
 }
 
 var resolvedDataProtectionKeysPath = Path.GetFullPath(
@@ -135,7 +115,13 @@ if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
 }
 
 // Add services to the container.
-var connectionString = connectionStringSetting ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = connectionStringSetting
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+if (isProduction)
+{
+    connectionString = ProductionSqlConnectionSecurity.Harden(connectionString);
+}
+
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString, sqlServer =>
         sqlServer.EnableRetryOnFailure(

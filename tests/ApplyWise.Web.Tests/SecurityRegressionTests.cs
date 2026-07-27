@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using ApplyWise.Web.Areas.Identity.Pages.Account;
 using ApplyWise.Web.Services.AccountSecurity;
+using ApplyWise.Web.Services.Security;
 using ApplyWise.Web.ViewModels.Settings;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace ApplyWise.Web.Tests;
@@ -92,6 +94,33 @@ public sealed class SecurityRegressionTests
         Assert.Contains(
             typeof(IAccountSecurityRequestQueue),
             ConstructorParameterTypes(typeof(ResendEmailConfirmationModel)));
+    }
+
+    [Fact]
+    public void Production_sql_transport_is_hardened_even_when_the_host_profile_is_not()
+    {
+        const string configured =
+            "Server=sql.example.test;Database=ApplyWise;User ID=applywise_app;Password=test-only;" +
+            "Encrypt=False;TrustServerCertificate=True";
+
+        var hardened = new SqlConnectionStringBuilder(
+            ProductionSqlConnectionSecurity.Harden(configured));
+
+        Assert.Equal(SqlConnectionEncryptOption.Mandatory, hardened.Encrypt);
+        Assert.False(hardened.TrustServerCertificate);
+        Assert.Equal("applywise_app", hardened.UserID);
+    }
+
+    [Fact]
+    public void Production_sql_transport_rejects_the_sa_login()
+    {
+        const string configured =
+            "Server=sql.example.test;Database=ApplyWise;User ID=sa;Password=test-only";
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ProductionSqlConnectionSecurity.Harden(configured));
+
+        Assert.Contains("must not use the sa login", exception.Message, StringComparison.Ordinal);
     }
 
     private static void AssertRateLimit<TPage>(string policyName)
