@@ -3,8 +3,10 @@ using ApplyWise.Web.Areas.Identity.Pages.Account;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Security;
 using ApplyWise.Web.ViewModels.Settings;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
+using System.Threading.RateLimiting;
 using Xunit;
 
 namespace ApplyWise.Web.Tests;
@@ -139,6 +141,70 @@ public sealed class SecurityRegressionTests
         Assert.Contains("must not use the sa login", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Account_security_page_reads_are_not_counted_as_security_attempts()
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            RequestRateLimitPartitions.CreateAccountSecurity);
+        var context = CreateHttpContext(HttpMethods.Get, "/Identity/Account/Login");
+
+        for (var request = 0; request < 100; request++)
+        {
+            using var lease = limiter.AttemptAcquire(context);
+            Assert.True(lease.IsAcquired);
+        }
+    }
+
+    [Fact]
+    public void Account_security_submissions_remain_rate_limited()
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            RequestRateLimitPartitions.CreateAccountSecurity);
+        var context = CreateHttpContext(HttpMethods.Post, "/Identity/Account/Login");
+
+        for (var request = 0; request < 8; request++)
+        {
+            using var lease = limiter.AttemptAcquire(context);
+            Assert.True(lease.IsAcquired);
+        }
+
+        using var rejectedLease = limiter.AttemptAcquire(context);
+        Assert.False(rejectedLease.IsAcquired);
+    }
+
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/css/site.css")]
+    [InlineData("/js/site.js")]
+    public void Infrastructure_reads_do_not_consume_the_global_request_budget(string path)
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RequestRateLimitPartitions.CreateGlobal(context, permitLimit: 1));
+        var context = CreateHttpContext(HttpMethods.Get, path);
+
+        for (var request = 0; request < 100; request++)
+        {
+            using var lease = limiter.AttemptAcquire(context);
+            Assert.True(lease.IsAcquired);
+        }
+    }
+
+    [Fact]
+    public void Dynamic_pages_remain_globally_rate_limited()
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RequestRateLimitPartitions.CreateGlobal(context, permitLimit: 2));
+        var context = CreateHttpContext(HttpMethods.Get, "/Dashboard");
+
+        using var firstLease = limiter.AttemptAcquire(context);
+        using var secondLease = limiter.AttemptAcquire(context);
+        using var rejectedLease = limiter.AttemptAcquire(context);
+
+        Assert.True(firstLease.IsAcquired);
+        Assert.True(secondLease.IsAcquired);
+        Assert.False(rejectedLease.IsAcquired);
+    }
+
     private static void AssertRateLimit<TPage>(string policyName)
     {
         var attribute = Assert.IsType<EnableRateLimitingAttribute>(
@@ -148,6 +214,15 @@ public sealed class SecurityRegressionTests
 
     private static Type[] ConstructorParameterTypes(Type type) =>
         type.GetConstructors().Single().GetParameters().Select(parameter => parameter.ParameterType).ToArray();
+
+    private static DefaultHttpContext CreateHttpContext(string method, string path)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = method;
+        context.Request.Path = path;
+        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("203.0.113.10");
+        return context;
+    }
 
     private static void AssertInvalid(object model) =>
         Assert.NotEmpty(Validate(model));
