@@ -443,7 +443,7 @@ test('builder view offers a gallery-first picker, eight editor tabs, and conditi
     assert.match(view, /data-template-gallery-grid[^>]*role="listbox"/);
     assert.match(view, /data-template-preview-dialog/);
     assert.match(view, /data-template-gallery-large-preview/);
-    assert.match(view, /data-gallery-photo-url="@Url\.Content\("~\/images\/wiso\.png"\)"/);
+    assert.match(view, /data-gallery-photo-url="@Url\.Content\("~\/images\/wiso\.jpg"\)"/);
     assert.match(view, /Preparing real PDF previews/);
     assert.doesNotMatch(view, /data-action="select-template"/);
     const openTemplatePicker = actionButton('open-template-picker');
@@ -459,7 +459,7 @@ test('builder view offers a gallery-first picker, eight editor tabs, and conditi
         assert.match(view, new RegExp(`data-gallery-${hook}(?:\\s|=|>)`), `template gallery exposes ${hook} content`);
     });
     assert.doesNotMatch(view, /aw-rb-template-gallery-detail/);
-    assert.match(script, /function prepareGalleryPdfPreviews/);
+    assert.match(script, /function observeGalleryPdfPreviews/);
     assert.match(script, /function loadGalleryPhotoDataUrl/);
     assert.match(script, /canvas\.toDataURL\('image\/jpeg'/);
     assert.match(script, /function openTemplatePreview/);

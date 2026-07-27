@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text.Json;
 using ApplyWise.Web.Services.ResumeStorage;
 using Microsoft.Extensions.Options;
 
@@ -7,8 +9,9 @@ public sealed class ResumeTextExtractorService(
     IOptions<ResumeStorageOptions> options,
     ILogger<ResumeTextExtractorService> logger) : IResumeTextExtractorService
 {
-    // The production host does not permit child processes. Keep PDF inspection in-process and
-    // serialize it so concurrent uploads cannot multiply parser memory usage.
+    // PdfPig is synchronous and can remain inside native/parser work after cancellation.
+    // A separate worker process makes the timeout enforceable: the host can terminate the
+    // parser and immediately reclaim this global admission slot.
     private static readonly SemaphoreSlim ExtractionSlots = new(initialCount: 1, maxCount: 1);
 
     public async Task<string?> ExtractTextAsync(
@@ -27,29 +30,16 @@ public sealed class ResumeTextExtractorService(
         }
 
         await ExtractionSlots.WaitAsync(cancellationToken);
-        var releaseSlotWhenInspectionCompletes = false;
         try
         {
-            using var parserCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using var parserCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var timeout = TimeSpan.FromSeconds(options.Value.ExtractionTimeoutSeconds);
             parserCancellation.CancelAfter(timeout);
 
-            var inspectionTask = Task.Run(
-                () => PdfTextInspector.Inspect(file.FullName, parserCancellation.Token),
-                CancellationToken.None);
-
             try
             {
-                // PdfPig is synchronous. WaitAsync keeps the request bounded even if a malformed
-                // page does not observe cancellation until its current parse operation completes.
-                return await inspectionTask.WaitAsync(timeout + TimeSpan.FromSeconds(1), cancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                logger.LogWarning("PDF extraction exceeded the configured timeout.");
-                releaseSlotWhenInspectionCompletes = true;
-                _ = ReleaseSlotWhenCompleteAsync(inspectionTask);
-                return new PdfTextExtractionResult(PdfTextExtractionStatus.TimedOut);
+                return await InspectInWorkerProcessAsync(file.FullName, parserCancellation.Token);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -58,12 +48,6 @@ public sealed class ResumeTextExtractorService(
             }
             catch (OperationCanceledException)
             {
-                if (!inspectionTask.IsCompleted)
-                {
-                    releaseSlotWhenInspectionCompletes = true;
-                    _ = ReleaseSlotWhenCompleteAsync(inspectionTask);
-                }
-
                 throw;
             }
             catch (Exception exception)
@@ -74,25 +58,60 @@ public sealed class ResumeTextExtractorService(
         }
         finally
         {
-            if (!releaseSlotWhenInspectionCompletes)
-            {
-                ExtractionSlots.Release();
-            }
+            ExtractionSlots.Release();
         }
     }
 
-    private static async Task ReleaseSlotWhenCompleteAsync(Task inspectionTask)
+    private static async Task<PdfTextExtractionResult> InspectInWorkerProcessAsync(
+        string filePath,
+        CancellationToken cancellationToken)
     {
+        var hostPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+        if (string.IsNullOrWhiteSpace(hostPath))
+        {
+            hostPath = "dotnet";
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = hostPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add(typeof(Program).Assembly.Location);
+        startInfo.ArgumentList.Add(PdfInspectionWorker.Command);
+        startInfo.ArgumentList.Add(filePath);
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("The PDF inspection worker could not be started.");
+        var outputTask = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var errorTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
         try
         {
-            await inspectionTask.ConfigureAwait(false);
+            await process.WaitForExitAsync(cancellationToken);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+
+            await process.WaitForExitAsync(CancellationToken.None);
+            throw;
         }
-        finally
+
+        var output = await outputTask;
+        var error = await errorTask;
+        if (process.ExitCode != 0)
         {
-            ExtractionSlots.Release();
+            throw new InvalidOperationException(
+                $"The PDF inspection worker exited with code {process.ExitCode}: {error}");
         }
+
+        return JsonSerializer.Deserialize<PdfTextExtractionResult>(output)
+            ?? throw new InvalidOperationException("The PDF inspection worker returned no result.");
     }
 }

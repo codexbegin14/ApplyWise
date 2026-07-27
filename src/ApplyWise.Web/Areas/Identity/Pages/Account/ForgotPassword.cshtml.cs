@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.AccountSecurity;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,9 +9,7 @@ namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
 [EnableRateLimiting("account-security")]
 public class ForgotPasswordModel(
-    UserManager<IdentityUser> userManager,
-    IAccountSecurityCodeService securityCodes,
-    ILogger<ForgotPasswordModel> logger) : PageModel
+    IAccountSecurityRequestQueue securityRequests) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
@@ -24,7 +21,7 @@ public class ForgotPasswordModel(
         public string Email { get; set; } = string.Empty;
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public IActionResult OnPost()
     {
         Input.Email = Input.Email.Trim();
         if (!ModelState.IsValid)
@@ -32,22 +29,7 @@ public class ForgotPasswordModel(
             return Page();
         }
 
-        var user = await userManager.FindByEmailAsync(Input.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
-        {
-            try
-            {
-                await securityCodes.IssueAsync(
-                    user.Id,
-                    Input.Email,
-                    AccountSecurityAction.ResetPassword,
-                    HttpContext.RequestAborted);
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Could not deliver a password reset code.");
-            }
-        }
+        securityRequests.TryQueue(Input.Email, AccountSecurityAction.ResetPassword);
 
         // Always continue to the same screen so this form cannot reveal registered email addresses.
         return RedirectToPage("./ResetPassword", new { email = Input.Email });

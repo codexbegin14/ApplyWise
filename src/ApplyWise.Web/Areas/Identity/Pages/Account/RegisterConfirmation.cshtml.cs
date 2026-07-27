@@ -12,6 +12,7 @@ namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 public class RegisterConfirmationModel(
     UserManager<IdentityUser> userManager,
     IAccountSecurityCodeService securityCodes,
+    IAccountSecurityRequestQueue securityRequests,
     ILogger<RegisterConfirmationModel> logger) : PageModel
 {
     [BindProperty]
@@ -38,7 +39,7 @@ public class RegisterConfirmationModel(
         public string? ReturnUrl { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(string? email, string? returnUrl = null)
+    public IActionResult OnGet(string? email, string? returnUrl = null)
     {
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -49,12 +50,6 @@ public class RegisterConfirmationModel(
         Input.ReturnUrl = GetSafeReturnUrl(returnUrl);
         PrepareLinks();
         DeliveryMessage = ConfirmationDeliveryError;
-
-        var user = await userManager.FindByEmailAsync(Input.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
-        {
-            MarkSucceeded();
-        }
 
         return Page();
     }
@@ -79,7 +74,7 @@ public class RegisterConfirmationModel(
 
         if (await userManager.IsEmailConfirmedAsync(user))
         {
-            MarkSucceeded();
+            AddInvalidCodeError();
             return Page();
         }
 
@@ -111,7 +106,7 @@ public class RegisterConfirmationModel(
         return Page();
     }
 
-    public async Task<IActionResult> OnPostResendAsync(string? email, string? returnUrl = null)
+    public IActionResult OnPostResend(string? email, string? returnUrl = null)
     {
         ModelState.Clear();
         Input = new InputModel
@@ -127,31 +122,7 @@ public class RegisterConfirmationModel(
             return Page();
         }
 
-        var user = await userManager.FindByEmailAsync(Input.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
-        {
-            MarkSucceeded();
-            return Page();
-        }
-
-        if (user is not null)
-        {
-            try
-            {
-                var issued = await securityCodes.IssueAsync(
-                    user.Id,
-                    Input.Email,
-                    AccountSecurityAction.ConfirmEmail,
-                    HttpContext.RequestAborted);
-                DeliveryMessage = issued.Message;
-                return Page();
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Could not resend an email verification code.");
-            }
-        }
-
+        securityRequests.TryQueue(Input.Email, AccountSecurityAction.ConfirmEmail);
         DeliveryMessage = "If an account is waiting for verification, a new six-digit code will arrive shortly.";
         return Page();
     }

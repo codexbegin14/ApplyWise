@@ -19,6 +19,12 @@ using System.IO.Compression;
 using System.Threading.RateLimiting;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Data.SqlClient;
+
+if (PdfInspectionWorker.TryRun(args))
+{
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
@@ -51,9 +57,29 @@ var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
 static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
 static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
     && uri.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment);
+static bool IsHardenedProductionSqlConnection(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return false;
+    }
+
+    try
+    {
+        var settings = new SqlConnectionStringBuilder(value);
+        return !string.Equals(settings.UserID, "sa", StringComparison.OrdinalIgnoreCase)
+            && !settings.TrustServerCertificate
+            && settings.Encrypt != SqlConnectionEncryptOption.Optional;
+    }
+    catch (ArgumentException)
+    {
+        return false;
+    }
+}
 
 if (isProduction &&
     (IsUnset(connectionStringSetting)
+     || !IsHardenedProductionSqlConnection(connectionStringSetting)
      || !IsHttpsOrigin(publicOrigin)
      || IsUnset(allowedHosts)
      || (allowedHosts?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(host => host == "*") ?? true)
@@ -68,7 +94,7 @@ if (isProduction &&
      || IsUnset(dataProtectionCertificatePassword)))
 {
     throw new InvalidOperationException(
-        "Production requires a SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
+        "Production requires a TLS-validated, non-sa SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
 }
 
 var resolvedDataProtectionKeysPath = Path.GetFullPath(
@@ -122,11 +148,11 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = builder.Configuration.GetValue("Identity:RequireConfirmedAccount", isProduction);
         options.User.RequireUniqueEmail = true;
-        options.Password.RequiredLength = 6;
-        options.Password.RequiredUniqueChars = 1;
+        options.Password.RequiredLength = PasswordRequirements.MinimumLength;
+        options.Password.RequiredUniqueChars = PasswordRequirements.RequiredUniqueCharacters;
         options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = false;
-        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
         options.Password.RequireNonAlphanumeric = false;
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -183,6 +209,10 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
+    options.AddPolicy("resume-comparison", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 4, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
 builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -200,6 +230,11 @@ builder.Services.AddOptions<EmailOptions>()
 builder.Services.AddTransient<IEmailSender<IdentityUser>, SmtpEmailSender>();
 builder.Services.AddTransient<IApplicationEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAccountSecurityCodeService, AccountSecurityCodeService>();
+builder.Services.AddSingleton<AccountSecurityRequestQueue>();
+builder.Services.AddSingleton<IAccountSecurityRequestQueue>(
+    services => services.GetRequiredService<AccountSecurityRequestQueue>());
+builder.Services.AddHostedService(
+    services => services.GetRequiredService<AccountSecurityRequestQueue>());
 builder.Services.AddScoped<IResumeTextExtractorService, ResumeTextExtractorService>();
 builder.Services.AddOptions<SkillTaxonomyOptions>()
     .Bind(builder.Configuration.GetSection("SkillTaxonomy"));
@@ -223,6 +258,11 @@ builder.Services.AddOptions<ResumeStorageOptions>()
         "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
+builder.Services.AddSingleton<ResumeFileCleanupService>();
+builder.Services.AddSingleton<IResumeFileCleanupScheduler>(
+    services => services.GetRequiredService<ResumeFileCleanupService>());
+builder.Services.AddHostedService(
+    services => services.GetRequiredService<ResumeFileCleanupService>());
 builder.Services.AddScoped<IResumeIngestionService, ResumeIngestionService>();
 
 var app = builder.Build();

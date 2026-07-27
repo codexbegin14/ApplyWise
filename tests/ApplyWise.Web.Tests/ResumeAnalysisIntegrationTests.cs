@@ -138,7 +138,11 @@ public sealed class ResumeAnalysisIntegrationTests
             Assert.NotNull(method.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), true).SingleOrDefault());
             var rateLimit = Assert.IsType<EnableRateLimitingAttribute>(
                 method.GetCustomAttributes(typeof(EnableRateLimitingAttribute), true).Single());
-            Assert.Equal("resume-analysis", rateLimit.PolicyName);
+            Assert.Equal(
+                method.DeclaringType == typeof(BestResumePickerController)
+                    ? "resume-comparison"
+                    : "resume-analysis",
+                rateLimit.PolicyName);
         });
     }
 

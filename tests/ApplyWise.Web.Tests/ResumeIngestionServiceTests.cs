@@ -5,6 +5,7 @@ using ApplyWise.Web.Services.ResumeStorage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -105,6 +106,66 @@ public sealed class ResumeIngestionServiceTests
         Assert.Empty(files.GetStoredFiles());
     }
 
+    [Fact]
+    public async Task Durable_cleanup_queue_retries_private_file_removal()
+    {
+        var services = new ServiceCollection();
+        var databaseName = "resume-cleanup-" + Guid.NewGuid().ToString("N");
+        services.AddLogging();
+        services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseInMemoryDatabase(databaseName));
+        await using var provider = services.BuildServiceProvider();
+        using var files = new TemporaryStorage();
+        var relativePath = files.CreateRelativePath("user-1", "orphan.pdf");
+        var absolutePath = files.ResolvePath(relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
+        await File.WriteAllTextAsync(absolutePath, "private test file");
+
+        var cleanup = new ResumeFileCleanupService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            files,
+            NullLogger<ResumeFileCleanupService>.Instance);
+        await cleanup.ScheduleAsync(relativePath);
+        await cleanup.ScheduleAsync(relativePath);
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            Assert.Equal(
+                1,
+                await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                    .ResumeFileCleanups.CountAsync());
+        }
+
+        await cleanup.StartAsync(CancellationToken.None);
+        try
+        {
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                await using var pollingScope = provider.CreateAsyncScope();
+                var pendingCount = await pollingScope.ServiceProvider
+                    .GetRequiredService<ApplicationDbContext>()
+                    .ResumeFileCleanups.CountAsync();
+                if (!File.Exists(absolutePath) && pendingCount == 0)
+                {
+                    break;
+                }
+
+                await Task.Delay(25);
+            }
+        }
+        finally
+        {
+            await cleanup.StopAsync(CancellationToken.None);
+        }
+
+        Assert.False(File.Exists(absolutePath));
+        await using var verificationScope = provider.CreateAsyncScope();
+        Assert.Empty(
+            await verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                .ResumeFileCleanups.ToListAsync());
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -122,6 +183,7 @@ public sealed class ResumeIngestionServiceTests
             context,
             storage,
             extractor,
+            new RecordingCleanupScheduler(),
             Options.Create(new ResumeStorageOptions
             {
                 MaxFileSizeBytes = ResumeIngestionLimits.MaxFileSizeBytes,
@@ -130,6 +192,17 @@ public sealed class ResumeIngestionServiceTests
                 ExtractionTimeoutSeconds = 15
             }),
             NullLogger<ResumeIngestionService>.Instance);
+
+    private sealed class RecordingCleanupScheduler : IResumeFileCleanupScheduler
+    {
+        public List<string> ScheduledPaths { get; } = [];
+
+        public Task ScheduleAsync(string relativePath, CancellationToken cancellationToken = default)
+        {
+            ScheduledPaths.Add(relativePath);
+            return Task.CompletedTask;
+        }
+    }
 
     private static IFormFile PdfFile(string fileName) =>
         FormFile(Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj\n%%EOF"), fileName);

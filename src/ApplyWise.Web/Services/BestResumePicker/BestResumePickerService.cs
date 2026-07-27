@@ -14,7 +14,9 @@ public sealed class BestResumePickerService(
     IResumeAnalysisStore analysisStore,
     ILogger<BestResumePickerService> logger) : IBestResumePickerService
 {
-    private const int MaxResumesPerComparison = 25;
+    public const int MaxResumesPerComparison = 8;
+    private static readonly SemaphoreSlim ComparisonSlots = new(initialCount: 2, maxCount: 2);
+    private static readonly TimeSpan AdmissionTimeout = TimeSpan.FromSeconds(2);
     private sealed record CompletedComparison(Resume Resume, ResumeAnalysisResult Result);
 
     public async Task<BestResumePickerResult> CompareResumesForJobAsync(
@@ -68,21 +70,46 @@ public sealed class BestResumePickerService(
         ResumeAnalysisType analysisType,
         CancellationToken cancellationToken)
     {
+        if (!await ComparisonSlots.WaitAsync(AdmissionTimeout, cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "Resume comparison is busy right now. Wait a moment and try again.");
+        }
+
+        try
+        {
+            return await CompareWithinAdmissionAsync(
+                userId,
+                jobRequirements,
+                jobApplicationId,
+                contextTitle,
+                analysisType,
+                cancellationToken);
+        }
+        finally
+        {
+            ComparisonSlots.Release();
+        }
+    }
+
+    private async Task<BestResumePickerResult> CompareWithinAdmissionAsync(
+        string userId,
+        string jobRequirements,
+        int? jobApplicationId,
+        string contextTitle,
+        ResumeAnalysisType analysisType,
+        CancellationToken cancellationToken)
+    {
         var resumes = await dbContext.Resumes
             .Where(resume => resume.UserId == userId)
             .OrderByDescending(resume => resume.IsDefault)
             .ThenByDescending(resume => resume.UploadedAt)
+            .Take(MaxResumesPerComparison)
             .ToListAsync(cancellationToken);
 
         if (resumes.Count == 0)
         {
             throw new InvalidOperationException("No resumes are available to compare.");
-        }
-
-        if (resumes.Count > MaxResumesPerComparison)
-        {
-            throw new InvalidOperationException(
-                $"Compare up to {MaxResumesPerComparison} resumes at a time. Remove older versions before trying again.");
         }
 
         var completed = new List<CompletedComparison>();

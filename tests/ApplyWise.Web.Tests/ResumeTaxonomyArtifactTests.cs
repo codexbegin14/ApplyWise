@@ -141,7 +141,7 @@ public sealed class ResumeTaxonomyArtifactTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public async Task Twenty_five_cached_text_resumes_report_analysis_and_cache_hit_timings()
+    public async Task Comparison_work_is_capped_and_cache_hit_timings_are_reported()
     {
         await using var db = CreateDbContext();
         var resumes = Enumerable.Range(1, 25)
@@ -180,16 +180,15 @@ public sealed class ResumeTaxonomyArtifactTests(ITestOutputHelper output)
         cachedWatch.Stop();
 
         output.WriteLine(
-            "25 cached-text resumes: analyze+persist={0:F3} ms ({1:F3} ms/resume); repeat cache-hit rank={2:F3} ms ({3:F3} ms/resume)",
+            "{0} capped cached-text resumes: analyze+persist={1:F3} ms; repeat cache-hit rank={2:F3} ms",
+            BestResumePickerService.MaxResumesPerComparison,
             firstWatch.Elapsed.TotalMilliseconds,
-            firstWatch.Elapsed.TotalMilliseconds / 25d,
-            cachedWatch.Elapsed.TotalMilliseconds,
-            cachedWatch.Elapsed.TotalMilliseconds / 25d);
+            cachedWatch.Elapsed.TotalMilliseconds);
 
-        Assert.Equal(25, first.ComparedResumeCount);
-        Assert.Equal(25, first.ReadableResumeCount);
-        Assert.Equal(25, first.ComparedResumes.Count);
-        Assert.Equal(25, rowsAfterFirstPass);
+        Assert.Equal(BestResumePickerService.MaxResumesPerComparison, first.ComparedResumeCount);
+        Assert.Equal(BestResumePickerService.MaxResumesPerComparison, first.ReadableResumeCount);
+        Assert.Equal(BestResumePickerService.MaxResumesPerComparison, first.ComparedResumes.Count);
+        Assert.Equal(BestResumePickerService.MaxResumesPerComparison, rowsAfterFirstPass);
         Assert.Equal(rowsAfterFirstPass, await db.ResumeAnalyses.CountAsync());
         Assert.Equal(first.RecommendedResumeId, cached.RecommendedResumeId);
         Assert.All(first.ComparedResumes, item => Assert.Null(item.AnalysisError));

@@ -11,6 +11,7 @@ public sealed class ResumeIngestionService(
     ApplicationDbContext dbContext,
     IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor,
+    IResumeFileCleanupScheduler cleanupScheduler,
     IOptions<ResumeStorageOptions> storageOptions,
     ILogger<ResumeIngestionService> logger) : IResumeIngestionService
 {
@@ -56,15 +57,16 @@ public sealed class ResumeIngestionService(
 
             inspection = await textExtractor.InspectAsync(absolutePath, cancellationToken);
         }
-        catch
+        catch (Exception exception)
         {
-            TryDelete(absolutePath);
+            await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
             throw;
         }
 
         if (!inspection.IsValidDocument)
         {
-            TryDelete(absolutePath);
+            await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
             return ResumeIngestionResult.Failed([GetInspectionError(inspection.Status)], inspection);
         }
 
@@ -72,7 +74,7 @@ public sealed class ResumeIngestionService(
             && (inspection.Status != PdfTextExtractionStatus.Success
                 || string.IsNullOrWhiteSpace(inspection.Text)))
         {
-            TryDelete(absolutePath);
+            await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
             return ResumeIngestionResult.Failed(
                 ["No selectable text was found. Upload a text-based PDF exported directly from your editor."],
                 inspection);
@@ -104,7 +106,7 @@ public sealed class ResumeIngestionService(
             if (ExceedsStorageLimit(currentUsage.Count, currentUsage.Bytes, resume.FileSize, limits))
             {
                 await transaction.RollbackAsync(cancellationToken);
-                TryDelete(absolutePath);
+                await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
                 return ResumeIngestionResult.Failed(
                     ["Your resume library reached its storage limit while this upload was being prepared."],
                     inspection);
@@ -123,10 +125,11 @@ public sealed class ResumeIngestionService(
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
-        catch
+        catch (Exception exception)
         {
             await transaction.RollbackAsync(CancellationToken.None);
-            TryDelete(absolutePath);
+            await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
             throw;
         }
 
@@ -235,7 +238,10 @@ public sealed class ResumeIngestionService(
         return safeName.Length <= 255 ? safeName : safeName[..251] + ".pdf";
     }
 
-    private void TryDelete(string absolutePath)
+    private async Task DeleteOrScheduleAsync(
+        string relativePath,
+        string absolutePath,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -246,7 +252,10 @@ public sealed class ResumeIngestionService(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Could not remove an uncommitted resume upload.");
+            logger.LogWarning(
+                exception,
+                "Could not immediately remove an uncommitted resume upload; scheduling durable cleanup.");
+            await cleanupScheduler.ScheduleAsync(relativePath, cancellationToken);
         }
     }
 }

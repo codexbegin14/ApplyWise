@@ -31,7 +31,7 @@ public class BestResumePickerController(
 
     [HttpPost("compare")]
     [ValidateAntiForgeryToken]
-    [EnableRateLimiting("resume-analysis")]
+    [EnableRateLimiting("resume-comparison")]
     public async Task<IActionResult> Compare(
         [Bind(nameof(BestResumePickerIndexViewModel.JobApplicationId))]
         BestResumePickerIndexViewModel model)
@@ -91,7 +91,7 @@ public class BestResumePickerController(
 
     [HttpPost("compare-pasted-requirements")]
     [ValidateAntiForgeryToken]
-    [EnableRateLimiting("resume-analysis")]
+    [EnableRateLimiting("resume-comparison")]
     public async Task<IActionResult> CompareResumesWithPastedRequirements(
         [Bind(nameof(BestResumePickerIndexViewModel.JobRequirements))]
         BestResumePickerIndexViewModel model)

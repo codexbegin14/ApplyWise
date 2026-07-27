@@ -1,6 +1,5 @@
 x-application-environment: &application-environment
   ASPNETCORE_ENVIRONMENT: Production
-  ConnectionStrings__DefaultConnection: "Server=db,1433;Database=ApplyWise;User Id=sa;Password=${SA_PASSWORD:?set SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
   Email__Host: "${SMTP_HOST:?set SMTP_HOST}"
   Email__Port: "${SMTP_PORT:-587}"
   Email__UserName: "${SMTP_USERNAME:-}"
@@ -18,7 +17,9 @@ services:
     build: .
     ports:
       - "127.0.0.1:8080:8080"
-    environment: *application-environment
+    environment:
+      <<: *application-environment
+      ConnectionStrings__DefaultConnection: "${APP_DB_CONNECTION_STRING:?set APP_DB_CONNECTION_STRING}"
     depends_on:
       db:
         condition: service_healthy
@@ -35,7 +36,9 @@ services:
       context: .
       target: build
     working_dir: /src
-    environment: *application-environment
+    environment:
+      <<: *application-environment
+      ConnectionStrings__DefaultConnection: "${MIGRATION_DB_CONNECTION_STRING:?set MIGRATION_DB_CONNECTION_STRING}"
     command: ["dotnet", "ef", "database", "update", "--project", "src/ApplyWise.Web/ApplyWise.Web.csproj", "--startup-project", "src/ApplyWise.Web/ApplyWise.Web.csproj", "--configuration", "Release", "--no-build"]
     depends_on:
       db:

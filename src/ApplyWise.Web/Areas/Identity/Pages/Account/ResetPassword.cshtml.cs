@@ -14,6 +14,7 @@ namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 public class ResetPasswordModel(
     UserManager<IdentityUser> userManager,
     IAccountSecurityCodeService securityCodes,
+    IAccountSecurityRequestQueue securityRequests,
     ILogger<ResetPasswordModel> logger) : PageModel
 {
     [BindProperty]
@@ -33,8 +34,8 @@ public class ResetPasswordModel(
         public string Code { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100, ErrorMessage = "The password must be at least {2} characters long.", MinimumLength = 6)]
-        [RegularExpression(@".*\d.*", ErrorMessage = "The password must contain at least one number.")]
+        [StringLength(100, MinimumLength = PasswordRequirements.MinimumLength)]
+        [StrongPassword]
         [DataType(DataType.Password)]
         [Display(Name = "New password")]
         public string Password { get; set; } = string.Empty;
@@ -112,7 +113,7 @@ public class ResetPasswordModel(
         return RedirectToPage("./ResetPasswordConfirmation");
     }
 
-    public async Task<IActionResult> OnPostResendAsync(string? email)
+    public IActionResult OnPostResend(string? email)
     {
         ModelState.Clear();
         Input = new InputModel { Email = (email ?? string.Empty).Trim() };
@@ -123,25 +124,7 @@ public class ResetPasswordModel(
             return Page();
         }
 
-        var user = await userManager.FindByEmailAsync(Input.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
-        {
-            try
-            {
-                var issued = await securityCodes.IssueAsync(
-                    user.Id,
-                    Input.Email,
-                    AccountSecurityAction.ResetPassword,
-                    HttpContext.RequestAborted);
-                DeliveryMessage = issued.Message;
-                return Page();
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Could not resend a password reset code.");
-            }
-        }
-
+        securityRequests.TryQueue(Input.Email, AccountSecurityAction.ResetPassword);
         DeliveryMessage = "If an account exists for this address, a new six-digit reset code will arrive shortly.";
         return Page();
     }

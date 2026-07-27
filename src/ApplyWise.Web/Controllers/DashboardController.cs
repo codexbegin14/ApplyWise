@@ -18,9 +18,7 @@ public class DashboardController(
     UserManager<IdentityUser> userManager,
     IDashboardReadService dashboardReadService,
     IAccountSecurityCodeService securityCodes,
-    IResumeStorageService resumeStorage,
-    SignInManager<IdentityUser> signInManager,
-    ILogger<DashboardController> logger) : Controller
+    SignInManager<IdentityUser> signInManager) : Controller
 {
     public async Task<IActionResult> Index(ApplicationStatus? tab)
     {
@@ -108,30 +106,43 @@ public class DashboardController(
             return await SettingsWithErrorsAsync("delete");
         }
 
-        var resumePaths = await dbContext.Resumes.AsNoTracking().Where(resume => resume.UserId == user.Id)
+        var resumePaths = await dbContext.Resumes.AsNoTracking()
+            .Where(resume => resume.UserId == user.Id)
             .Select(resume => resume.FilePath).ToListAsync(HttpContext.RequestAborted);
-        var result = await userManager.DeleteAsync(user);
-        if (!result.Succeeded)
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(HttpContext.RequestAborted);
+        try
         {
-            foreach (var error in result.Errors) ModelState.AddModelError(string.Empty, error.Description);
-            return await SettingsWithErrorsAsync("delete");
-        }
+            var now = DateTimeOffset.UtcNow;
+            dbContext.ResumeFileCleanups.AddRange(resumePaths.Select(path => new ResumeFileCleanup
+            {
+                FilePath = path,
+                CreatedAt = now,
+                NextAttemptAt = now
+            }));
+            await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
 
-        foreach (var path in resumePaths)
+            var result = await userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                await transaction.RollbackAsync(HttpContext.RequestAborted);
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                return await SettingsWithErrorsAsync("delete");
+            }
+
+            await transaction.CommitAsync(HttpContext.RequestAborted);
+        }
+        catch
         {
-            try
-            {
-                var filePath = resumeStorage.ResolvePath(path);
-                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-            }
-            catch (Exception exception)
-            {
-                logger.LogWarning(exception, "Could not remove a private resume file while deleting account {UserId}.", user.Id);
-            }
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
         }
 
         await signInManager.SignOutAsync();
-        TempData["StatusMessage"] = "Your ApplyWise account and private data were deleted.";
+        TempData["StatusMessage"] =
+            "Your ApplyWise account data was deleted. Private resume files are queued for secure removal.";
         return RedirectToPage("/Account/Login", new { area = "Identity" });
     }
 

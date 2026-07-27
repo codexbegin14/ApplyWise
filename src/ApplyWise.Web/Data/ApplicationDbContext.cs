@@ -14,6 +14,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<JobScamCheck> JobScamChecks => Set<JobScamCheck>();
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
     public DbSet<AccountSecurityCode> AccountSecurityCodes => Set<AccountSecurityCode>();
+    public DbSet<ResumeFileCleanup> ResumeFileCleanups => Set<ResumeFileCleanup>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -213,6 +214,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(code => code.CodeHash).HasMaxLength(32);
             entity.HasOne(code => code.User).WithMany().HasForeignKey(code => code.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ResumeFileCleanup>(entity =>
+        {
+            entity.Property(cleanup => cleanup.FilePath).HasMaxLength(500);
+            entity.Property(cleanup => cleanup.LastErrorType).HasMaxLength(200);
+            entity.HasIndex(cleanup => cleanup.FilePath).IsUnique();
+            entity.HasIndex(cleanup => cleanup.NextAttemptAt);
         });
     }
 }

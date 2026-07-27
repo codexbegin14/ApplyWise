@@ -7,9 +7,11 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Profiles;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
+[EnableRateLimiting("account-security")]
 public class RegisterModel(
     UserManager<IdentityUser> userManager,
     SignInManager<IdentityUser> signInManager,
@@ -43,8 +45,8 @@ public class RegisterModel(
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100, ErrorMessage = "The password must be at least {2} characters long.", MinimumLength = 6)]
-        [RegularExpression(@".*\d.*", ErrorMessage = "The password must contain at least one number.")]
+        [StringLength(100, MinimumLength = PasswordRequirements.MinimumLength)]
+        [StrongPassword]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
 

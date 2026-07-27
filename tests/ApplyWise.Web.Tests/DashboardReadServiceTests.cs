@@ -131,4 +131,31 @@ public sealed class DashboardReadServiceTests
         Assert.Single(result.UpcomingDeadlines);
         Assert.Single(result.RecentAnalyses);
     }
+
+    [Fact]
+    public async Task GetAsync_bounds_materialized_tenant_rows_but_keeps_the_exact_total()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"dashboard-bounds-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var now = DateTimeOffset.UtcNow;
+        db.JobApplications.AddRange(Enumerable.Range(1, DashboardReadService.MaxApplicationRows + 10)
+            .Select(index => new JobApplication
+            {
+                UserId = "user-a",
+                CompanyName = $"Company {index}",
+                JobTitle = "Engineer",
+                Status = ApplicationStatus.Applied,
+                CreatedAt = now.AddMinutes(-index),
+                UpdatedAt = now.AddMinutes(-index)
+            }));
+        await db.SaveChangesAsync();
+
+        var result = await new DashboardReadService(db).GetAsync("user-a", "Candidate");
+
+        Assert.Equal(DashboardReadService.MaxApplicationRows + 10, result.TotalApplications);
+        Assert.Equal(DashboardReadService.MaxApplicationRows, result.PipelineApplications.Count);
+        Assert.Equal(DashboardReadService.MaxApplicationRows + 10, result.Funnel.Applied);
+    }
 }

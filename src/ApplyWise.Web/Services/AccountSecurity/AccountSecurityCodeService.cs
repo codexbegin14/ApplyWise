@@ -78,18 +78,27 @@ public sealed class AccountSecurityCodeService(
             return new SecurityCodeVerificationResult(false, null, "That code has expired. Request a new code and try again.");
         }
 
-        if (record.FailedAttemptCount >= MaximumAttempts)
+        var reserved = await ReserveAttemptAsync(record, cancellationToken);
+        if (!reserved)
         {
             return new SecurityCodeVerificationResult(false, null, "Too many incorrect attempts. Request a new code and try again.");
         }
 
-        if (normalizedCode.Length != 6 || !CryptographicOperations.FixedTimeEquals(Hash(record.Salt, normalizedCode), record.CodeHash))
+        if (normalizedCode.Length != 6
+            || !CryptographicOperations.FixedTimeEquals(Hash(record.Salt, normalizedCode), record.CodeHash))
         {
-            record.FailedAttemptCount++;
-            await db.SaveChangesAsync(cancellationToken);
-            var remaining = MaximumAttempts - record.FailedAttemptCount;
-            return new SecurityCodeVerificationResult(false, null,
-                remaining > 0 ? $"That code is not correct. {remaining} attempt(s) remaining." : "Too many incorrect attempts. Request a new code and try again.");
+            return new SecurityCodeVerificationResult(
+                false,
+                null,
+                "That code is not correct. Request a new code if you reach the attempt limit.");
+        }
+
+        if (!await ConsumeVerifiedCodeAsync(record, cancellationToken))
+        {
+            return new SecurityCodeVerificationResult(
+                false,
+                null,
+                "That code has already been used. Request a new code and try again.");
         }
 
         return new SecurityCodeVerificationResult(true, record.Id, string.Empty);
@@ -101,6 +110,62 @@ public sealed class AccountSecurityCodeService(
         if (record is null) return;
         record.ConsumedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<bool> ReserveAttemptAsync(
+        AccountSecurityCode record,
+        CancellationToken cancellationToken)
+    {
+        if (!db.Database.IsRelational())
+        {
+            if (record.FailedAttemptCount >= MaximumAttempts)
+            {
+                return false;
+            }
+
+            record.FailedAttemptCount++;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var updatedRows = await db.AccountSecurityCodes
+            .Where(code =>
+                code.Id == record.Id
+                && code.ConsumedAt == null
+                && code.ExpiresAt > now
+                && code.FailedAttemptCount < MaximumAttempts)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    code => code.FailedAttemptCount,
+                    code => code.FailedAttemptCount + 1),
+                cancellationToken);
+        return updatedRows == 1;
+    }
+
+    private async Task<bool> ConsumeVerifiedCodeAsync(
+        AccountSecurityCode record,
+        CancellationToken cancellationToken)
+    {
+        var consumedAt = DateTimeOffset.UtcNow;
+        if (!db.Database.IsRelational())
+        {
+            if (record.ConsumedAt is not null)
+            {
+                return false;
+            }
+
+            record.ConsumedAt = consumedAt;
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var updatedRows = await db.AccountSecurityCodes
+            .Where(code => code.Id == record.Id && code.ConsumedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(code => code.ConsumedAt, consumedAt),
+                cancellationToken);
+        return updatedRows == 1;
     }
 
     private static byte[] Hash(byte[] salt, string value) => SHA256.HashData(Encoding.UTF8.GetBytes(Convert.ToHexString(salt) + value));

@@ -39,13 +39,13 @@ public class AccountSecurityCodeServiceTests
 
         Assert.True(verification.Succeeded);
         Assert.NotNull(verification.CodeId);
-        await service.ConsumeAsync(verification.CodeId!.Value);
 
         var reused = await service.VerifyAsync(
             "user-1",
             AccountSecurityAction.ConfirmEmail,
             delivery.Code);
         Assert.False(reused.Succeeded);
+        await service.ConsumeAsync(verification.CodeId!.Value);
     }
 
     [Fact]

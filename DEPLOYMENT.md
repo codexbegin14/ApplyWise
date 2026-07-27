@@ -4,7 +4,7 @@ ApplyWise is one ASP.NET Core MVC application backed by SQL Server. The containe
 
 Before a production rollout:
 
-1. Set `ConnectionStrings__DefaultConnection` to a least-privilege SQL login, `PublicOrigin` to the canonical HTTPS origin, and `AllowedHosts` to the exact host names served by the reverse proxy. Production startup deliberately rejects missing placeholders, wildcard hosts, and a non-HTTPS public origin.
+1. Set `ConnectionStrings__DefaultConnection` to a least-privilege SQL login, `PublicOrigin` to the canonical HTTPS origin, and `AllowedHosts` to the exact host names served by the reverse proxy. Production startup deliberately rejects `sa`, disabled encryption, `TrustServerCertificate=True`, missing placeholders, wildcard hosts, and a non-HTTPS public origin.
 2. Configure SMTP (`Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From`). Production requires confirmed email; the app intentionally fails an email send rather than silently claiming an account was verified.
 3. Set absolute, private paths for `ResumeStorage__RootPath` and `DataProtection__KeysPath`. Supply a PFX or encrypted PEM through `DataProtection__CertificatePath` and its password through `DataProtection__CertificatePassword`; ApplyWise encrypts the persisted key ring with that certificate. Persist the key directory between releases and instances so authentication cookies and reset tokens remain valid. Configure TLS/HSTS at the proxy and supply only trusted proxy IPs in `ForwardedHeaders__KnownProxies`.
 4. Mount private resume storage with restricted permissions. Keep it outside static web roots, back it up, set retention, and add malware scanning/CDR before accepting public uploads.
@@ -22,7 +22,26 @@ docker compose --profile migration run --rm migrate
 docker compose up -d --build web db
 ```
 
-The `migration` profile is an explicit, one-shot schema update; `web` never applies migrations at startup. The compose setup persists SQL data, private resumes, and encrypted Data Protection keys in separate volumes. It mounts the PFX as a runtime secret rather than adding it to an image. For a cloud deployment, replace named volumes with backed-up, access-restricted managed storage and inject secrets from the host secret store.
+The `migration` profile is an explicit, one-shot schema update; `web` never applies migrations at startup. `APP_DB_CONNECTION_STRING` and `MIGRATION_DB_CONNECTION_STRING` must use different SQL logins, both with `Encrypt=True;TrustServerCertificate=False`. Provision a server certificate trusted by the containers before treating this Compose file as Production. The web login needs only normal application data read/write permissions; the migrator receives schema-change permissions only for the one-shot migration and is never exposed to `web`.
+
+One possible initial provisioning script, run by an administrator over a protected connection and with passwords supplied securely, is:
+
+```sql
+USE [master];
+CREATE LOGIN [applywise_app] WITH PASSWORD = '<app-password>';
+CREATE LOGIN [applywise_migrator] WITH PASSWORD = '<different-migration-password>';
+GO
+USE [ApplyWise];
+CREATE USER [applywise_app] FOR LOGIN [applywise_app];
+ALTER ROLE [db_datareader] ADD MEMBER [applywise_app];
+ALTER ROLE [db_datawriter] ADD MEMBER [applywise_app];
+CREATE USER [applywise_migrator] FOR LOGIN [applywise_migrator];
+ALTER ROLE [db_datareader] ADD MEMBER [applywise_migrator];
+ALTER ROLE [db_datawriter] ADD MEMBER [applywise_migrator];
+ALTER ROLE [db_ddladmin] ADD MEMBER [applywise_migrator];
+```
+
+The compose setup persists SQL data, private resumes, and encrypted Data Protection keys in separate volumes. It mounts the PFX as a runtime secret rather than adding it to an image. For a cloud deployment, replace named volumes with backed-up, access-restricted managed storage and inject secrets from the host secret store.
 
 ## Validation commands
 

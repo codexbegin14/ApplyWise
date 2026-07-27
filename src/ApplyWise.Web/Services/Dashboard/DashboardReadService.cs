@@ -23,6 +23,11 @@ public interface IDashboardReadService
 /// </summary>
 public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDashboardReadService
 {
+    public const int MaxApplicationRows = 500;
+    public const int MaxInterviewRows = 250;
+    public const int MaxReminderRows = 250;
+    public const int MaxAnalysisRows = 200;
+    public const int MaxResumeRows = 100;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<DashboardViewModel> GetAsync(
@@ -50,10 +55,22 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 application.Deadline,
                 application.CreatedAt,
                 application.UpdatedAt))
+            .Take(MaxApplicationRows + 1)
             .ToListAsync(cancellationToken);
+        var applicationsOverflowed = applications.Count > MaxApplicationRows;
+        if (applicationsOverflowed)
+        {
+            applications.RemoveAt(MaxApplicationRows);
+        }
+        var totalApplications = applicationsOverflowed
+            ? await dbContext.JobApplications.CountAsync(
+                application => application.UserId == userId,
+                cancellationToken)
+            : applications.Count;
 
         var interviews = await dbContext.Interviews.AsNoTracking()
             .Where(interview => interview.UserId == userId)
+            .OrderByDescending(interview => interview.ScheduledAt)
             .Select(interview => new InterviewRow(
                 interview.Id,
                 interview.JobApplicationId,
@@ -62,20 +79,44 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 interview.InterviewType,
                 interview.Status,
                 interview.ScheduledAt))
+            .Take(MaxInterviewRows + 1)
             .ToListAsync(cancellationToken);
+        var interviewsOverflowed = interviews.Count > MaxInterviewRows;
+        if (interviewsOverflowed)
+        {
+            interviews.RemoveAt(MaxInterviewRows);
+        }
+        var totalInterviewCount = interviewsOverflowed
+            ? await dbContext.Interviews.CountAsync(
+                interview => interview.UserId == userId,
+                cancellationToken)
+            : interviews.Count;
 
         var pendingReminders = await dbContext.Reminders.AsNoTracking()
             .Where(reminder => reminder.UserId == userId && !reminder.IsCompleted)
+            .OrderBy(reminder => reminder.DueAt)
             .Select(reminder => new ReminderRow(
                 reminder.Id,
                 reminder.Title,
                 reminder.JobApplication != null ? reminder.JobApplication.CompanyName : null,
                 reminder.JobApplication != null ? reminder.JobApplication.JobTitle : null,
                 reminder.DueAt))
+            .Take(MaxReminderRows + 1)
             .ToListAsync(cancellationToken);
+        var remindersOverflowed = pendingReminders.Count > MaxReminderRows;
+        if (remindersOverflowed)
+        {
+            pendingReminders.RemoveAt(MaxReminderRows);
+        }
+        var pendingReminderCount = remindersOverflowed
+            ? await dbContext.Reminders.CountAsync(
+                reminder => reminder.UserId == userId && !reminder.IsCompleted,
+                cancellationToken)
+            : pendingReminders.Count;
 
         var analyses = await dbContext.ResumeAnalyses.AsNoTracking()
             .Where(analysis => analysis.UserId == userId)
+            .OrderByDescending(analysis => analysis.CreatedAt)
             .Select(analysis => new AnalysisRow(
                 analysis.Id,
                 analysis.ResumeId,
@@ -91,11 +132,19 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 analysis.MissingKeywordsJson,
                 analysis.ReviewJson,
                 analysis.CreatedAt))
+            .Take(MaxAnalysisRows + 1)
             .ToListAsync(cancellationToken);
+        var analysesOverflowed = analyses.Count > MaxAnalysisRows;
+        if (analysesOverflowed)
+        {
+            analyses.RemoveAt(MaxAnalysisRows);
+        }
 
         var resumes = await dbContext.Resumes.AsNoTracking()
             .Where(resume => resume.UserId == userId)
+            .OrderByDescending(resume => resume.UpdatedAt)
             .Select(resume => new ResumeRow(resume.Id, resume.VersionName))
+            .Take(MaxResumeRows)
             .ToListAsync(cancellationToken);
 
         var currentAnalyses = analyses
@@ -104,10 +153,24 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
         var fitAnalyses = currentAnalyses
             .Where(analysis => analysis.JobMatchScore.HasValue)
             .ToArray();
+        var averageMatchScore = analysesOverflowed
+            ? await dbContext.ResumeAnalyses
+                .Where(analysis =>
+                    analysis.UserId == userId
+                    && analysis.ScoreVersion == ResumeAnalysisResult.CurrentScoreVersion
+                    && analysis.JobMatchScore.HasValue)
+                .Select(analysis => (double?)analysis.MatchScore)
+                .AverageAsync(cancellationToken) ?? 0
+            : fitAnalyses.Length == 0
+                ? 0
+                : Math.Round(fitAnalyses.Average(analysis => analysis.MatchScore), 1);
         var interviewedApplicationIds = interviews
             .Select(interview => interview.JobApplicationId)
             .ToHashSet();
         var bestResume = FindBestResume(resumes, currentAnalyses, applications, interviewedApplicationIds);
+        var funnel = applicationsOverflowed
+            ? await BuildExactFunnelAsync(userId, cancellationToken)
+            : BuildFunnel(applications, interviewedApplicationIds);
 
         var upcomingInterviews = interviews
             .Where(interview => interview.ScheduledAt >= now
@@ -117,6 +180,21 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
         var orderedPendingReminders = pendingReminders
             .OrderBy(reminder => reminder.DueAt)
             .ToArray();
+        var upcomingInterviewCount = interviewsOverflowed
+            ? await dbContext.Interviews.CountAsync(
+                interview => interview.UserId == userId
+                    && interview.ScheduledAt >= now
+                    && (interview.Status == InterviewStatus.Scheduled
+                        || interview.Status == InterviewStatus.Rescheduled),
+                cancellationToken)
+            : upcomingInterviews.Length;
+        var overdueReminderCount = remindersOverflowed
+            ? await dbContext.Reminders.CountAsync(
+                reminder => reminder.UserId == userId
+                    && !reminder.IsCompleted
+                    && reminder.DueAt < now,
+                cancellationToken)
+            : pendingReminders.Count(reminder => reminder.DueAt < now);
 
         var todayInterviews = interviews
             .Where(interview => interview.ScheduledAt >= todayStart
@@ -161,15 +239,13 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
         {
             DisplayName = displayName,
             CurrentTime = localNow,
-            TotalApplications = applications.Count,
-            TotalInterviewCount = interviews.Count,
-            AverageMatchScore = fitAnalyses.Length == 0
-                ? 0
-                : Math.Round(fitAnalyses.Average(analysis => analysis.MatchScore), 1),
-            UpcomingInterviewCount = upcomingInterviews.Length,
-            PendingReminderCount = pendingReminders.Count,
-            OverdueReminderCount = pendingReminders.Count(reminder => reminder.DueAt < now),
-            Funnel = BuildFunnel(applications, interviewedApplicationIds),
+            TotalApplications = totalApplications,
+            TotalInterviewCount = totalInterviewCount,
+            AverageMatchScore = Math.Round(averageMatchScore, 1),
+            UpcomingInterviewCount = upcomingInterviewCount,
+            PendingReminderCount = pendingReminderCount,
+            OverdueReminderCount = overdueReminderCount,
+            Funnel = funnel,
             BestResumeVersionName = bestResume?.VersionName,
             BestResumeScore = bestResume?.AverageMatchScore ?? 0,
             RecentApplications = applications
@@ -252,6 +328,34 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
             applications.Count(application => application.Status == ApplicationStatus.Rejected),
             applications.Count(application => application.Status == ApplicationStatus.UserRejected),
             applications.Count(application => application.Status == ApplicationStatus.Ignored));
+
+    private async Task<ApplicationFunnelResult> BuildExactFunnelAsync(
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var statusCounts = await dbContext.JobApplications.AsNoTracking()
+            .Where(application => application.UserId == userId)
+            .GroupBy(application => application.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.Status, item => item.Count, cancellationToken);
+        var interviewCount = await dbContext.JobApplications.AsNoTracking()
+            .CountAsync(
+                application => application.UserId == userId
+                    && (application.Status == ApplicationStatus.Interview
+                        || application.Interviews.Any(interview => interview.UserId == userId)),
+                cancellationToken);
+
+        int Count(ApplicationStatus status) => statusCounts.GetValueOrDefault(status);
+        return new ApplicationFunnelResult(
+            Count(ApplicationStatus.Applied),
+            Count(ApplicationStatus.Pending),
+            interviewCount,
+            Count(ApplicationStatus.Offered),
+            Count(ApplicationStatus.Accepted),
+            Count(ApplicationStatus.Rejected),
+            Count(ApplicationStatus.UserRejected),
+            Count(ApplicationStatus.Ignored));
+    }
 
     private static ResumeMetric? FindBestResume(
         IReadOnlyCollection<ResumeRow> resumes,
