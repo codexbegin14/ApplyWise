@@ -1,0 +1,85 @@
+@using ApplyWise.Web.Models
+@model ApplyWise.Web.ViewModels.ApplicationImports.ApplicationImportReviewViewModel
+@{
+    ViewData["Title"] = "Review application import";
+}
+
+<div class="page-heading aw-import-heading">
+    <div>
+        <h1>Review Gmail suggestion</h1>
+        <p>Correct anything the confirmation email did not make clear.</p>
+    </div>
+    <a class="btn btn-secondary-soft" asp-action="Index">Back to imports</a>
+</div>
+
+<div class="aw-import-review-grid">
+    <aside class="panel aw-import-evidence">
+        <span class="aw-auth-kicker">Why this was detected</span>
+        <h2>Email evidence</h2>
+        <dl>
+            <div><dt>Subject</dt><dd>@Model.EmailSubject</dd></div>
+            <div><dt>Direction</dt><dd>@Model.Direction</dd></div>
+            <div><dt>Confidence</dt><dd>@Model.Confidence%</dd></div>
+            @if (!string.IsNullOrWhiteSpace(Model.SenderDomain))
+            {
+                <div><dt>Sender domain</dt><dd>@Model.SenderDomain</dd></div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.ResumeFileName))
+            {
+                <div><dt>Resume attachment</dt><dd>@Model.ResumeFileName</dd></div>
+            }
+        </dl>
+        <p>ApplyWise does not retain the email body or attachment contents.</p>
+    </aside>
+
+    <section class="panel application-form aw-import-review-form">
+        <form asp-action="Review" asp-route-id="@Model.Id" method="post">
+            <input asp-for="Id" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="alert aw-import-error" role="alert"></div>
+
+            <div class="form-grid">
+                <div>
+                    <label asp-for="CompanyName" class="form-label"></label>
+                    <input asp-for="CompanyName" class="form-control" />
+                    <span asp-validation-for="CompanyName"></span>
+                </div>
+                <div>
+                    <label asp-for="JobTitle" class="form-label"></label>
+                    <input asp-for="JobTitle" class="form-control" />
+                    <span asp-validation-for="JobTitle"></span>
+                </div>
+                <div>
+                    <label asp-for="JobLocation" class="form-label"></label>
+                    <input asp-for="JobLocation" class="form-control" />
+                    <span asp-validation-for="JobLocation"></span>
+                </div>
+                <div>
+                    <label asp-for="Source" class="form-label"></label>
+                    <select asp-for="Source"
+                            asp-items="Html.GetEnumSelectList<JobSource>()"
+                            class="form-select"></select>
+                    <span asp-validation-for="Source"></span>
+                </div>
+                <div>
+                    <label asp-for="AppliedDate" class="form-label"></label>
+                    <input asp-for="AppliedDate" class="form-control" type="date" />
+                    <span asp-validation-for="AppliedDate"></span>
+                </div>
+                <div class="form-grid-wide">
+                    <label asp-for="JobUrl" class="form-label"></label>
+                    <input asp-for="JobUrl" class="form-control" placeholder="https://…" />
+                    <span asp-validation-for="JobUrl"></span>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Add to applications</button>
+                <a class="btn btn-secondary-soft" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

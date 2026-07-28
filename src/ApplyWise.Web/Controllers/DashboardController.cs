@@ -2,13 +2,16 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Dashboard;
+using ApplyWise.Web.Services.Gmail;
 using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.ViewModels.Settings;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -18,7 +21,8 @@ public class DashboardController(
     UserManager<IdentityUser> userManager,
     IDashboardReadService dashboardReadService,
     IAccountSecurityCodeService securityCodes,
-    SignInManager<IdentityUser> signInManager) : Controller
+    SignInManager<IdentityUser> signInManager,
+    IOptions<GoogleIntegrationOptions> googleOptions) : Controller
 {
     public async Task<IActionResult> Index(ApplicationStatus? tab)
     {
@@ -67,9 +71,16 @@ public class DashboardController(
     [EnableRateLimiting("account-security")]
     public async Task<IActionResult> ChangePassword([Bind(Prefix = "ChangePassword")] ChangePasswordInput input)
     {
-        if (!ModelState.IsValid) return await SettingsWithErrorsAsync("password");
         var user = await userManager.GetUserAsync(User);
         if (user is null) return Challenge();
+        var hasPassword = await userManager.HasPasswordAsync(user);
+        if (hasPassword && string.IsNullOrWhiteSpace(input.CurrentPassword))
+        {
+            ModelState.AddModelError(
+                "ChangePassword.CurrentPassword",
+                "Enter your current password.");
+        }
+        if (!ModelState.IsValid) return await SettingsWithErrorsAsync("password");
 
         var verified = await securityCodes.VerifyAsync(user.Id, AccountSecurityAction.ChangePassword, input.Code, HttpContext.RequestAborted);
         if (!verified.Succeeded)
@@ -78,7 +89,12 @@ public class DashboardController(
             return await SettingsWithErrorsAsync("password");
         }
 
-        var result = await userManager.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
+        var result = hasPassword
+            ? await userManager.ChangePasswordAsync(
+                user,
+                input.CurrentPassword,
+                input.NewPassword)
+            : await userManager.AddPasswordAsync(user, input.NewPassword);
         if (!result.Succeeded)
         {
             foreach (var error in result.Errors) ModelState.AddModelError("ChangePassword.CurrentPassword", error.Description);
@@ -87,7 +103,9 @@ public class DashboardController(
 
         await securityCodes.ConsumeAsync(verified.CodeId!.Value, HttpContext.RequestAborted);
         await signInManager.RefreshSignInAsync(user);
-        TempData["SettingsSuccess"] = "Your password was changed successfully.";
+        TempData["SettingsSuccess"] = hasPassword
+            ? "Your password was changed successfully."
+            : "A password was added to your account.";
         return RedirectToAction(nameof(Settings));
     }
 
@@ -155,7 +173,14 @@ public class DashboardController(
         }
         return new SettingsViewModel
         {
-            Email = user.Email ?? user.UserName ?? string.Empty
+            Email = user.Email ?? user.UserName ?? string.Empty,
+            HasPassword = await userManager.HasPasswordAsync(user),
+            GoogleSignInConfigured = googleOptions.Value.IsConfigured,
+            GoogleSignInLinked = (await userManager.GetLoginsAsync(user)).Any(login =>
+                string.Equals(
+                    login.LoginProvider,
+                    GoogleDefaults.AuthenticationScheme,
+                    StringComparison.Ordinal))
         };
     }
 

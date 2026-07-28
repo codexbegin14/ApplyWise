@@ -15,6 +15,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
     public DbSet<AccountSecurityCode> AccountSecurityCodes => Set<AccountSecurityCode>();
     public DbSet<ResumeFileCleanup> ResumeFileCleanups => Set<ResumeFileCleanup>();
+    public DbSet<GmailConnection> GmailConnections => Set<GmailConnection>();
+    public DbSet<ApplicationImport> ApplicationImports => Set<ApplicationImport>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -222,6 +224,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(cleanup => cleanup.LastErrorType).HasMaxLength(200);
             entity.HasIndex(cleanup => cleanup.FilePath).IsUnique();
             entity.HasIndex(cleanup => cleanup.NextAttemptAt);
+        });
+
+        builder.Entity<GmailConnection>(entity =>
+        {
+            entity.Property(connection => connection.EmailAddress).HasMaxLength(320);
+            entity.Property(connection => connection.ProtectedRefreshToken).HasColumnType("nvarchar(max)");
+            entity.Property(connection => connection.LastErrorCode).HasMaxLength(100);
+            entity.HasIndex(connection => connection.UserId).IsUnique();
+            entity.HasIndex(connection => connection.NextSyncAt);
+            entity.HasOne(connection => connection.User)
+                .WithMany()
+                .HasForeignKey(connection => connection.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ApplicationImport>(entity =>
+        {
+            entity.Property(import => import.ExternalMessageId).HasMaxLength(200);
+            entity.Property(import => import.ExternalThreadId).HasMaxLength(200);
+            entity.Property(import => import.EmailSubject).HasMaxLength(500);
+            entity.Property(import => import.SenderDomain).HasMaxLength(255);
+            entity.Property(import => import.CompanyName).HasMaxLength(150);
+            entity.Property(import => import.JobTitle).HasMaxLength(150);
+            entity.Property(import => import.JobLocation).HasMaxLength(150);
+            entity.Property(import => import.JobUrl).HasMaxLength(2048);
+            entity.Property(import => import.ResumeFileName).HasMaxLength(255);
+            entity.HasIndex(import => new { import.GmailConnectionId, import.ExternalMessageId })
+                .IsUnique();
+            entity.HasIndex(import => new { import.UserId, import.Status, import.DetectedAt });
+            entity.HasOne(import => import.User)
+                .WithMany()
+                .HasForeignKey(import => import.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(import => import.GmailConnection)
+                .WithMany(connection => connection.Imports)
+                .HasForeignKey(import => import.GmailConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

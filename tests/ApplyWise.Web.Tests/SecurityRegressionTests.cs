@@ -172,6 +172,36 @@ public sealed class SecurityRegressionTests
         Assert.False(rejectedLease.IsAcquired);
     }
 
+    [Fact]
+    public void External_login_starts_use_a_separate_bounded_rate_limit()
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            RequestRateLimitPartitions.CreateAccountSecurity);
+        var passwordContext = CreateHttpContext(HttpMethods.Post, "/Identity/Account/Login");
+        var externalLoginContext = CreateHttpContext(HttpMethods.Post, "/Identity/Account/Login");
+        externalLoginContext.Request.QueryString = new QueryString("?handler=ExternalLogin");
+
+        for (var request = 0; request < 8; request++)
+        {
+            using var lease = limiter.AttemptAcquire(passwordContext);
+            Assert.True(lease.IsAcquired);
+        }
+
+        using (var rejectedPasswordLease = limiter.AttemptAcquire(passwordContext))
+        {
+            Assert.False(rejectedPasswordLease.IsAcquired);
+        }
+
+        for (var request = 0; request < 20; request++)
+        {
+            using var lease = limiter.AttemptAcquire(externalLoginContext);
+            Assert.True(lease.IsAcquired);
+        }
+
+        using var rejectedExternalLoginLease = limiter.AttemptAcquire(externalLoginContext);
+        Assert.False(rejectedExternalLoginLease.IsAcquired);
+    }
+
     [Theory]
     [InlineData("/health")]
     [InlineData("/css/site.css")]

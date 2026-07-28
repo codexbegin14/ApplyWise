@@ -6,6 +6,7 @@ namespace ApplyWise.Web.Services.Security;
 public static class RequestRateLimitPartitions
 {
     private const int AccountSecurityPermitLimit = 8;
+    private const int ExternalLoginPermitLimit = 20;
 
     public static RateLimitPartition<string> CreateGlobal(
         HttpContext context,
@@ -38,6 +39,19 @@ public static class RequestRateLimitPartitions
             return RateLimitPartition.GetNoLimiter($"account-read:{clientKey}");
         }
 
+        if (IsExternalLoginStart(context.Request))
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"account-external-login:{clientKey}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = ExternalLoginPermitLimit,
+                    Window = TimeSpan.FromMinutes(10),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                });
+        }
+
         return RateLimitPartition.GetFixedWindowLimiter(
             $"account-write:{clientKey}",
             _ => new FixedWindowRateLimiterOptions
@@ -58,4 +72,13 @@ public static class RequestRateLimitPartitions
         HttpMethods.IsGet(method) ||
         HttpMethods.IsHead(method) ||
         HttpMethods.IsOptions(method);
+
+    private static bool IsExternalLoginStart(HttpRequest request) =>
+        request.Path.StartsWithSegments(
+            "/Identity/Account/Login",
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(
+            request.Query["handler"].ToString(),
+            "ExternalLogin",
+            StringComparison.OrdinalIgnoreCase);
 }

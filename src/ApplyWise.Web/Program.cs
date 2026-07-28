@@ -11,13 +11,17 @@ using ApplyWise.Web.Services.Health;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Dashboard;
 using ApplyWise.Web.Services.Security;
+using ApplyWise.Web.Services.Gmail;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Threading.RateLimiting;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -55,6 +59,9 @@ var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
     builder.Configuration.GetValue("Performance:SlowRequestThresholdMs", 500),
     100,
     60_000));
+var googleIntegration = builder.Configuration
+    .GetSection(GoogleIntegrationOptions.SectionName)
+    .Get<GoogleIntegrationOptions>() ?? new GoogleIntegrationOptions();
 
 static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
 static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -148,6 +155,67 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
     .AddEntityFrameworkStores<ApplicationDbContext>();
+if (googleIntegration.IsConfigured)
+{
+    builder.Services.AddAuthentication()
+        .AddGoogle(
+            GoogleDefaults.AuthenticationScheme,
+            "Google",
+            options =>
+            {
+                options.ClientId = googleIntegration.ClientId;
+                options.ClientSecret = googleIntegration.ClientSecret;
+                options.CallbackPath = "/signin-google";
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.HandleResponse();
+                    context.Response.Redirect(
+                        "/Identity/Account/Login?handler=ExternalLoginCallback&remoteError=oauth");
+                    return Task.CompletedTask;
+                };
+            })
+        .AddGoogle(
+            GmailAuthenticationDefaults.Scheme,
+            GmailAuthenticationDefaults.DisplayName,
+            options =>
+            {
+                options.ClientId = googleIntegration.ClientId;
+                options.ClientSecret = googleIntegration.ClientSecret;
+                options.CallbackPath = "/signin-google-gmail";
+                options.AccessType = "offline";
+                options.SaveTokens = true;
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Scope.Add("https://www.googleapis.com/auth/gmail.readonly");
+                options.Events.OnRedirectToAuthorizationEndpoint = context =>
+                {
+                    var authorizationUri = QueryHelpers.AddQueryString(
+                        context.RedirectUri,
+                        new Dictionary<string, string?>
+                        {
+                            ["prompt"] = "consent",
+                            ["include_granted_scopes"] = "true"
+                        });
+                    context.Response.Redirect(authorizationUri);
+                    return Task.CompletedTask;
+                };
+                options.Events.OnCreatingTicket = context =>
+                {
+                    context.Identity?.AddClaim(new Claim(
+                        GmailAuthenticationDefaults.FlowClaimType,
+                        GmailAuthenticationDefaults.FlowClaimValue));
+                    return Task.CompletedTask;
+                };
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.HandleResponse();
+                    context.Response.Redirect("/connections/gmail/failure");
+                    return Task.CompletedTask;
+                };
+            });
+}
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
@@ -210,6 +278,10 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 4, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("gmail-sync", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 6, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
 });
 builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -247,6 +319,21 @@ builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IDashboardReadService, DashboardReadService>();
+builder.Services.AddOptions<GoogleIntegrationOptions>()
+    .Bind(builder.Configuration.GetSection(GoogleIntegrationOptions.SectionName))
+    .Validate(
+        options => options.GmailSyncIntervalMinutes is >= 5 and <= 1440
+            && options.GmailInitialLookbackDays is >= 1 and <= 90
+            && options.GmailMaxMessagesPerSync is >= 25 and <= 500,
+        "Google Gmail sync limits are outside safe bounds.");
+builder.Services.AddHttpClient("GoogleOAuth", client =>
+    client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddHttpClient("Gmail", client =>
+    client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<IGmailCredentialProtector, GmailCredentialProtector>();
+builder.Services.AddSingleton<IApplicationEmailParser, ApplicationEmailParser>();
+builder.Services.AddScoped<IGmailImportService, GmailImportService>();
+builder.Services.AddHostedService<GmailImportWorker>();
 builder.Services.AddOptions<ResumeStorageOptions>()
     .Bind(builder.Configuration.GetSection(ResumeStorageOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
@@ -320,13 +407,17 @@ app.Use(async (context, next) =>
 });
 app.Use(async (context, next) =>
 {
+    var formActionPolicy = googleIntegration.IsConfigured
+        ? "form-action 'self' https://accounts.google.com"
+        : "form-action 'self'";
+
     context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
     context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
     context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
     context.Response.Headers.TryAdd(
         "Content-Security-Policy",
-        "base-uri 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'");
+        $"base-uri 'self'; frame-ancestors 'none'; object-src 'none'; {formActionPolicy}");
     await next();
 });
 app.UseRouting();

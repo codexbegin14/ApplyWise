@@ -11,6 +11,8 @@ Job searches quickly become fragmented across job boards, company websites, emai
 ## Features
 
 - ASP.NET Core Identity registration, login, logout, and account management
+- Optional Google sign-in with explicit account linking for existing users
+- Optional read-only Gmail connection that detects likely application confirmations and sent resumes for user review
 - Private PDF resume library with version names, notes, and a default resume
 - Browser-local one-page resume builder with live A4 fit checks, section reordering, safe bold/italic/underline formatting, autosave, and selectable-text PDF download
 - Job application CRUD with status, source, deadline, job link, notes, and submitted-resume memory
@@ -103,12 +105,45 @@ Production values should come from environment variables or the host's secret st
 | `PublicOrigin` | `PublicOrigin` | Canonical HTTPS public URL; required in Production |
 | `AllowedHosts` | `AllowedHosts` | Exact public host names; wildcard values are rejected in Production |
 | `Email:*` | `Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From` | SMTP for confirmation and account recovery |
+| `Google:ClientId`, `Google:ClientSecret` | `Google__ClientId`, `Google__ClientSecret` | Enables Google sign-in and the separate Gmail application-import connection |
+| `Google:Gmail*` | `Google__GmailAutoSyncEnabled`, `Google__GmailSyncIntervalMinutes`, `Google__GmailInitialLookbackDays`, `Google__GmailMaxMessagesPerSync` | Gmail import scheduling and bounded sync limits |
 | `ResumeStorage:RootPath` | `ResumeStorage__RootPath` | Absolute private resume storage path; required in Production |
 | `DataProtection:*` | `DataProtection__KeysPath`, `DataProtection__CertificatePath`, `DataProtection__CertificatePassword` | Persistent key path plus PFX or encrypted PEM certificate; required in Production |
 | `ASPNETCORE_ENVIRONMENT` | `ASPNETCORE_ENVIRONMENT` | Use `Production` on a deployed host |
 | `Performance:SlowRequestThresholdMs` | `Performance__SlowRequestThresholdMs` | Warning-log threshold for slow requests; defaults to 500 ms |
 
 The default private upload path is `App_Data/Uploads/Resumes`. It is configurable, canonicalized, and never mapped as a static web directory. Production rejects relative or placeholder storage/key paths, wildcard hosts, and a non-HTTPS public origin to prevent an accidental insecure launch.
+
+### Google sign-in and Gmail imports
+
+Create a Web application OAuth client in Google Cloud and configure these authorized redirect URIs for each deployed origin:
+
+```text
+https://your-host/signin-google
+https://your-host/signin-google-gmail
+```
+
+For the local HTTPS launch profile, use:
+
+```text
+https://localhost:7075/signin-google
+https://localhost:7075/signin-google-gmail
+```
+
+Keep the client secret outside tracked configuration:
+
+```powershell
+dotnet user-secrets set "Google:ClientId" "<client-id>" --project src/ApplyWise.Web
+dotnet user-secrets set "Google:ClientSecret" "<client-secret>" --project src/ApplyWise.Web
+```
+
+Use the OAuth **Web application** client ID, which ends in
+`.apps.googleusercontent.com`; do not use the project ID, API key, or the
+placeholder text from this example.
+
+Basic Google sign-in requests identity information only. Gmail is connected later from the Imports page and requests `gmail.readonly` separately. Refresh tokens are protected with ASP.NET Core Data Protection. Sync reads matching messages transiently, stores extracted application suggestions and minimal email evidence, and does not retain email bodies or attachment contents.
+
+`gmail.readonly` is a Google restricted scope. Before offering Gmail imports publicly, configure the OAuth consent screen, privacy policy, authorized domains, Google verification, and any required independent security assessment. Disabling `Google:GmailAutoSyncEnabled` stops background sync without disabling Google sign-in or manual sync.
 
 ## Performance
 
