@@ -6,8 +6,10 @@ namespace ApplyWise.Web.ViewModels.ApplicationImports;
 public sealed class ApplicationImportIndexViewModel
 {
     public bool GoogleIntegrationConfigured { get; init; }
+    public bool AutoAddHighConfidenceApplications { get; init; }
     public GmailConnectionSummaryViewModel? GmailConnection { get; init; }
     public IReadOnlyList<ApplicationImportListItemViewModel> PendingImports { get; init; } = [];
+    public IReadOnlyList<RecentlyAutoAddedApplicationViewModel> RecentlyAutoAddedApplications { get; init; } = [];
 }
 
 public sealed record GmailConnectionSummaryViewModel(
@@ -15,7 +17,8 @@ public sealed record GmailConnectionSummaryViewModel(
     DateTimeOffset ConnectedAt,
     DateTimeOffset? LastSuccessfulSyncAt,
     DateTimeOffset? LastSyncStartedAt,
-    string? LastErrorCode);
+    string? LastErrorCode,
+    bool AutoAddHighConfidenceApplications);
 
 public sealed record ApplicationImportListItemViewModel(
     int Id,
@@ -28,6 +31,13 @@ public sealed record ApplicationImportListItemViewModel(
     DateOnly? AppliedDate,
     string? ResumeFileName,
     DateTimeOffset DetectedAt);
+
+public sealed record RecentlyAutoAddedApplicationViewModel(
+    int ApplicationId,
+    string CompanyName,
+    string JobTitle,
+    DateOnly? AppliedDate,
+    DateTimeOffset AutoAddedAt);
 
 public sealed class ApplicationImportReviewViewModel
 {

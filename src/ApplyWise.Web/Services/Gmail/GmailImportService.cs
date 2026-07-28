@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -12,8 +13,14 @@ namespace ApplyWise.Web.Services.Gmail;
 
 public sealed record GmailSyncResult(
     bool Succeeded,
-    int ImportedCount,
-    string Message);
+    int AutomaticallyAddedCount,
+    int ReviewCount,
+    int LinkedExistingCount,
+    string Message)
+{
+    public int ImportedCount =>
+        AutomaticallyAddedCount + ReviewCount + LinkedExistingCount;
+}
 
 public interface IGmailImportService
 {
@@ -26,6 +33,7 @@ public sealed class GmailImportService(
     IHttpClientFactory httpClientFactory,
     IGmailCredentialProtector credentialProtector,
     IApplicationEmailParser emailParser,
+    IApplicationImportProcessor importProcessor,
     IOptions<GoogleIntegrationOptions> options,
     ILogger<GmailImportService> logger) : IGmailImportService
 {
@@ -42,7 +50,12 @@ public sealed class GmailImportService(
             .SingleOrDefaultAsync(cancellationToken);
         if (!connectionId.HasValue)
         {
-            return new GmailSyncResult(false, 0, "Connect Gmail before syncing applications.");
+            return new GmailSyncResult(
+                false,
+                0,
+                0,
+                0,
+                "Connect Gmail before syncing applications.");
         }
 
         return await SyncConnectionAsync(connectionId.Value, userId, cancellationToken);
@@ -77,7 +90,12 @@ public sealed class GmailImportService(
         var connectionLock = ConnectionLocks.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
         if (!await connectionLock.WaitAsync(0, cancellationToken))
         {
-            return new GmailSyncResult(true, 0, "A Gmail sync is already running.");
+            return new GmailSyncResult(
+                true,
+                0,
+                0,
+                0,
+                "A Gmail sync is already running.");
         }
 
         try
@@ -89,7 +107,12 @@ public sealed class GmailImportService(
                     cancellationToken);
             if (connection is null)
             {
-                return new GmailSyncResult(false, 0, "The Gmail connection was not found.");
+                return new GmailSyncResult(
+                    false,
+                    0,
+                    0,
+                    0,
+                    "The Gmail connection was not found.");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -103,33 +126,50 @@ public sealed class GmailImportService(
             {
                 var refreshToken = credentialProtector.Unprotect(connection.ProtectedRefreshToken);
                 var accessToken = await RefreshAccessTokenAsync(refreshToken, cancellationToken);
-                var importedCount = await ImportMessagesAsync(
+                var importResult = await ImportMessagesAsync(
                     connection,
                     accessToken,
                     cancellationToken);
 
+                dbContext.ChangeTracker.Clear();
+                connection = await LoadConnectionAsync(
+                    connectionId,
+                    expectedUserId,
+                    cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "The Gmail connection was removed during synchronization.");
                 connection.LastSuccessfulSyncAt = DateTimeOffset.UtcNow;
                 connection.UpdatedAt = DateTimeOffset.UtcNow;
                 connection.LastErrorCode = null;
                 await dbContext.SaveChangesAsync(cancellationToken);
                 return new GmailSyncResult(
                     true,
-                    importedCount,
-                    importedCount == 0
-                        ? "Gmail is up to date. No new application emails were found."
-                        : $"{importedCount} application {(importedCount == 1 ? "email was" : "emails were")} added for review.");
+                    importResult.AutomaticallyAddedCount,
+                    importResult.ReviewCount,
+                    importResult.LinkedExistingCount,
+                    BuildSyncMessage(importResult));
             }
             catch (GmailAuthorizationException exception)
             {
-                connection.LastErrorCode = "authorization_expired";
-                connection.NextSyncAt = DateTimeOffset.UtcNow.AddHours(6);
-                await dbContext.SaveChangesAsync(cancellationToken);
+                dbContext.ChangeTracker.Clear();
+                var failedConnection = await LoadConnectionAsync(
+                    connectionId,
+                    expectedUserId,
+                    cancellationToken);
+                if (failedConnection is not null)
+                {
+                    failedConnection.LastErrorCode = "authorization_expired";
+                    failedConnection.NextSyncAt = DateTimeOffset.UtcNow.AddHours(6);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
                 logger.LogWarning(
                     "Gmail authorization needs attention for connection {ConnectionId}: {Reason}.",
-                    connection.Id,
+                    connectionId,
                     exception.Reason);
                 return new GmailSyncResult(
                     false,
+                    0,
+                    0,
                     0,
                     "Gmail authorization expired. Disconnect and reconnect Gmail to continue.");
             }
@@ -139,15 +179,25 @@ public sealed class GmailImportService(
             }
             catch (Exception exception)
             {
-                connection.LastErrorCode = "sync_failed";
-                connection.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(30);
-                await dbContext.SaveChangesAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                var failedConnection = await LoadConnectionAsync(
+                    connectionId,
+                    expectedUserId,
+                    CancellationToken.None);
+                if (failedConnection is not null)
+                {
+                    failedConnection.LastErrorCode = "sync_failed";
+                    failedConnection.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(30);
+                    await dbContext.SaveChangesAsync(CancellationToken.None);
+                }
                 logger.LogError(
                     exception,
                     "Gmail sync failed for connection {ConnectionId}.",
-                    connection.Id);
+                    connectionId);
                 return new GmailSyncResult(
                     false,
+                    0,
+                    0,
                     0,
                     "Gmail could not be synced right now. ApplyWise will try again.");
             }
@@ -195,7 +245,7 @@ public sealed class GmailImportService(
         return accessToken.GetString()!;
     }
 
-    private async Task<int> ImportMessagesAsync(
+    private async Task<GmailImportBatchResult> ImportMessagesAsync(
         GmailConnection connection,
         string accessToken,
         CancellationToken cancellationToken)
@@ -204,9 +254,37 @@ public sealed class GmailImportService(
         var lookbackDays = Math.Clamp(_options.GmailInitialLookbackDays, 1, 90);
         var query =
             $"newer_than:{lookbackDays}d (\"thank you for applying\" OR \"thanks for applying\" OR \"application received\" OR \"application submitted\" OR \"application was sent\" OR (in:sent has:attachment (filename:pdf OR filename:doc OR filename:docx)))";
-        var importedCount = 0;
+        var result = new GmailImportBatchResult();
         var inspectedCount = 0;
         string? pageToken = null;
+
+        if (connection.AutoAddHighConfidenceApplications)
+        {
+            var existingEligibleIds = await dbContext.ApplicationImports
+                .AsNoTracking()
+                .Where(import =>
+                    import.GmailConnectionId == connection.Id
+                    && import.UserId == connection.UserId
+                    && import.Status == ApplicationImportStatus.PendingReview
+                    && import.Direction == ApplicationImportDirection.Incoming
+                    && import.Confidence >= ApplicationImportPolicy.HighConfidenceThreshold
+                    && import.CompanyName != string.Empty
+                    && import.JobTitle != string.Empty
+                    && import.AppliedDate.HasValue)
+                .OrderBy(import => import.DetectedAt)
+                .Select(import => import.Id)
+                .Take(500)
+                .ToListAsync(cancellationToken);
+            foreach (var importId in existingEligibleIds)
+            {
+                await ApplyAutomaticOutcomeAsync(
+                    importId,
+                    connection.UserId,
+                    result,
+                    countAsReviewWhenNotEligible: false,
+                    cancellationToken);
+            }
+        }
 
         do
         {
@@ -232,10 +310,27 @@ public sealed class GmailImportService(
             {
                 if (known.Contains(messageId)) continue;
                 var message = await GetMessageAsync(accessToken, messageId, cancellationToken);
-                var suggestion = emailParser.Parse(message);
+                ApplicationImportSuggestion? suggestion;
+                try
+                {
+                    suggestion = emailParser.Parse(message);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogWarning(
+                        "Gmail message {MessageId} for connection {ConnectionId} could not be parsed. Failure category: {FailureCategory}.",
+                        messageId,
+                        connection.Id,
+                        exception.GetType().Name);
+                    continue;
+                }
                 if (suggestion is null) continue;
 
-                dbContext.ApplicationImports.Add(new ApplicationImport
+                var applicationImport = new ApplicationImport
                 {
                     UserId = connection.UserId,
                     GmailConnectionId = connection.Id,
@@ -245,24 +340,98 @@ public sealed class GmailImportService(
                     Status = ApplicationImportStatus.PendingReview,
                     Confidence = suggestion.Confidence,
                     EmailSubject = Truncate(message.Subject, 500),
-                    SenderDomain = suggestion.SenderDomain,
-                    CompanyName = suggestion.CompanyName,
-                    JobTitle = suggestion.JobTitle,
-                    JobLocation = suggestion.JobLocation,
+                    SenderDomain = TruncateNullable(suggestion.SenderDomain, 255),
+                    CompanyName = Truncate(
+                        suggestion.CompanyName ?? string.Empty,
+                        150),
+                    JobTitle = Truncate(
+                        suggestion.JobTitle ?? string.Empty,
+                        150),
+                    JobLocation = TruncateNullable(suggestion.JobLocation, 150),
                     Source = suggestion.Source,
-                    JobUrl = suggestion.JobUrl,
+                    JobUrl = TruncateNullable(suggestion.JobUrl, 2048),
                     AppliedDate = suggestion.AppliedDate,
-                    ResumeFileName = suggestion.ResumeFileName,
+                    ResumeFileName = TruncateNullable(suggestion.ResumeFileName, 255),
                     DetectedAt = DateTimeOffset.UtcNow
-                });
-                importedCount++;
+                };
+                dbContext.ApplicationImports.Add(applicationImport);
+                try
+                {
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException exception)
+                    when (IsDuplicateMessageViolation(exception))
+                {
+                    dbContext.Entry(applicationImport).State = EntityState.Detached;
+                    logger.LogInformation(
+                        "Gmail message {MessageId} for connection {ConnectionId} was already imported by another sync.",
+                        messageId,
+                        connection.Id);
+                    continue;
+                }
+
+                known.Add(messageId);
+                await ApplyAutomaticOutcomeAsync(
+                    applicationImport.Id,
+                    connection.UserId,
+                    result,
+                    countAsReviewWhenNotEligible: true,
+                    cancellationToken);
             }
 
-            await dbContext.SaveChangesAsync(cancellationToken);
             pageToken = inspectedCount >= maxMessages ? null : page.NextPageToken;
         } while (!string.IsNullOrWhiteSpace(pageToken));
 
-        return importedCount;
+        return result;
+    }
+
+    private async Task ApplyAutomaticOutcomeAsync(
+        int importId,
+        string userId,
+        GmailImportBatchResult result,
+        bool countAsReviewWhenNotEligible,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var processingResult = await importProcessor.TryAutoAcceptAsync(
+                importId,
+                userId,
+                cancellationToken);
+            switch (processingResult.Outcome)
+            {
+                case ApplicationImportProcessOutcome.Created:
+                    result.AutomaticallyAddedCount++;
+                    break;
+                case ApplicationImportProcessOutcome.LinkedExisting:
+                case ApplicationImportProcessOutcome.AlreadyProcessed:
+                    result.LinkedExistingCount++;
+                    break;
+                default:
+                    if (countAsReviewWhenNotEligible)
+                    {
+                        result.ReviewCount++;
+                    }
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            logger.LogError(
+                "Application import {ImportId} for user {UserId} could not be processed automatically. Failure category: {FailureCategory}.",
+                importId,
+                userId,
+                exception.GetType().Name);
+            if (countAsReviewWhenNotEligible)
+            {
+                result.ReviewCount++;
+            }
+        }
     }
 
     private async Task<GmailMessagePage> ListMessageIdsAsync(
@@ -449,6 +618,76 @@ public sealed class GmailImportService(
         string.IsNullOrWhiteSpace(value)
             ? null
             : value.Length <= maxLength ? value : value[..maxLength];
+
+    private Task<GmailConnection?> LoadConnectionAsync(
+        int connectionId,
+        string? expectedUserId,
+        CancellationToken cancellationToken) =>
+        dbContext.GmailConnections.SingleOrDefaultAsync(
+            connection =>
+                connection.Id == connectionId
+                && (expectedUserId == null
+                    || connection.UserId == expectedUserId),
+            cancellationToken);
+
+    private static bool IsDuplicateMessageViolation(DbUpdateException exception)
+    {
+        for (var current = exception.InnerException;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is SqlException sqlException
+                && sqlException.Errors.Cast<SqlError>().Any(
+                    error => error.Number is 2601 or 2627))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string BuildSyncMessage(GmailImportBatchResult result)
+    {
+        if (result.AutomaticallyAddedCount == 0
+            && result.ReviewCount == 0
+            && result.LinkedExistingCount == 0)
+        {
+            return "Gmail is up to date. No new application emails were found.";
+        }
+
+        var messages = new List<string>();
+        if (result.AutomaticallyAddedCount > 0)
+        {
+            messages.Add(
+                result.AutomaticallyAddedCount == 1
+                    ? "1 application was automatically added."
+                    : $"{result.AutomaticallyAddedCount} applications were automatically added.");
+        }
+        if (result.ReviewCount > 0)
+        {
+            messages.Add(
+                result.ReviewCount == 1
+                    ? "1 suggestion was sent to review."
+                    : $"{result.ReviewCount} suggestions were sent to review.");
+        }
+        if (result.LinkedExistingCount > 0)
+        {
+            messages.Add(
+                result.LinkedExistingCount == 1
+                    ? "1 email was linked to an existing application."
+                    : $"{result.LinkedExistingCount} emails were linked to existing applications.");
+        }
+
+        return string.Join(' ', messages);
+    }
+
+    private sealed class GmailImportBatchResult
+    {
+        public int AutomaticallyAddedCount { get; set; }
+        public int ReviewCount { get; set; }
+        public int LinkedExistingCount { get; set; }
+    }
 
     private sealed record GmailMessagePage(
         IReadOnlyList<string> MessageIds,

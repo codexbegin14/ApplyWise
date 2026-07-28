@@ -58,6 +58,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(application => new { application.UserId, application.Deadline });
             entity.HasIndex(application => new { application.UserId, application.Status });
             entity.HasIndex(application => new { application.UserId, application.Source });
+            entity.HasIndex(application => new { application.UserId, application.AppliedDate });
 
             entity.HasOne(application => application.User)
                 .WithMany()
@@ -231,6 +232,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(connection => connection.EmailAddress).HasMaxLength(320);
             entity.Property(connection => connection.ProtectedRefreshToken).HasColumnType("nvarchar(max)");
             entity.Property(connection => connection.LastErrorCode).HasMaxLength(100);
+            entity.Property(connection => connection.AutoAddHighConfidenceApplications)
+                .HasDefaultValue(false);
             entity.HasIndex(connection => connection.UserId).IsUnique();
             entity.HasIndex(connection => connection.NextSyncAt);
             entity.HasOne(connection => connection.User)
@@ -250,9 +253,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(import => import.JobLocation).HasMaxLength(150);
             entity.Property(import => import.JobUrl).HasMaxLength(2048);
             entity.Property(import => import.ResumeFileName).HasMaxLength(255);
+            entity.Property(import => import.RowVersion).IsRowVersion();
             entity.HasIndex(import => new { import.GmailConnectionId, import.ExternalMessageId })
                 .IsUnique();
             entity.HasIndex(import => new { import.UserId, import.Status, import.DetectedAt });
+            entity.HasIndex(import => new { import.UserId, import.Status, import.ReviewedAt });
+            entity.HasIndex(import => new { import.UserId, import.CreatedApplicationId });
             entity.HasOne(import => import.User)
                 .WithMany()
                 .HasForeignKey(import => import.UserId)

@@ -332,6 +332,7 @@ builder.Services.AddHttpClient("Gmail", client =>
     client.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddSingleton<IGmailCredentialProtector, GmailCredentialProtector>();
 builder.Services.AddSingleton<IApplicationEmailParser, ApplicationEmailParser>();
+builder.Services.AddScoped<IApplicationImportProcessor, ApplicationImportProcessor>();
 builder.Services.AddScoped<IGmailImportService, GmailImportService>();
 builder.Services.AddHostedService<GmailImportWorker>();
 builder.Services.AddOptions<ResumeStorageOptions>()

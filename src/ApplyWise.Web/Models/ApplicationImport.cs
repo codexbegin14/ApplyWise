@@ -24,6 +24,7 @@ public sealed class ApplicationImport
     public int? CreatedApplicationId { get; set; }
     public DateTimeOffset DetectedAt { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
 
     public IdentityUser? User { get; set; }
     public GmailConnection? GmailConnection { get; set; }
@@ -39,5 +40,6 @@ public enum ApplicationImportStatus
 {
     PendingReview = 1,
     Accepted = 2,
-    Dismissed = 3
+    Dismissed = 3,
+    AutoAccepted = 4
 }

@@ -14,6 +14,7 @@ public sealed class GmailConnection
     public DateTimeOffset? LastSuccessfulSyncAt { get; set; }
     public DateTimeOffset NextSyncAt { get; set; }
     public string? LastErrorCode { get; set; }
+    public bool AutoAddHighConfidenceApplications { get; set; }
 
     public IdentityUser? User { get; set; }
     public ICollection<ApplicationImport> Imports { get; set; } = [];

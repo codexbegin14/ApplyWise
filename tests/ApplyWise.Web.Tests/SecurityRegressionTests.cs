@@ -235,6 +235,29 @@ public sealed class SecurityRegressionTests
         Assert.False(rejectedLease.IsAcquired);
     }
 
+    [Fact]
+    public void Gmail_auto_add_preference_is_authenticated_post_with_antiforgery()
+    {
+        var controllerType =
+            typeof(ApplyWise.Web.Controllers.ApplicationImportsController);
+        var action = controllerType.GetMethod(
+            nameof(ApplyWise.Web.Controllers.ApplicationImportsController.UpdateAutoAddPreference));
+
+        Assert.NotNull(action);
+        Assert.NotEmpty(controllerType.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute),
+            inherit: true));
+        Assert.NotEmpty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.HttpPostAttribute),
+            inherit: true));
+        Assert.NotEmpty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute),
+            inherit: true));
+        Assert.Empty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute),
+            inherit: true));
+    }
+
     private static void AssertRateLimit<TPage>(string policyName)
     {
         var attribute = Assert.IsType<EnableRateLimitingAttribute>(

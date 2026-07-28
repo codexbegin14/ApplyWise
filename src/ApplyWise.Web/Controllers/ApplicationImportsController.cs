@@ -17,6 +17,7 @@ public sealed class ApplicationImportsController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
     IGmailImportService gmailImportService,
+    IApplicationImportProcessor importProcessor,
     IOptions<GoogleIntegrationOptions> googleOptions) : Controller
 {
     [HttpGet("")]
@@ -31,7 +32,8 @@ public sealed class ApplicationImportsController(
                 item.ConnectedAt,
                 item.LastSuccessfulSyncAt,
                 item.LastSyncStartedAt,
-                item.LastErrorCode))
+                item.LastErrorCode,
+                item.AutoAddHighConfidenceApplications))
             .SingleOrDefaultAsync(HttpContext.RequestAborted);
         var pendingImports = await dbContext.ApplicationImports
             .AsNoTracking()
@@ -52,13 +54,59 @@ public sealed class ApplicationImportsController(
                 item.ResumeFileName,
                 item.DetectedAt))
             .ToListAsync(HttpContext.RequestAborted);
+        var recentRows = await (
+                from import in dbContext.ApplicationImports.AsNoTracking()
+                join application in dbContext.JobApplications.AsNoTracking()
+                    on import.CreatedApplicationId equals application.Id
+                where import.UserId == userId
+                    && application.UserId == userId
+                    && import.Status == ApplicationImportStatus.AutoAccepted
+                    && import.CreatedApplicationId.HasValue
+                orderby import.ReviewedAt descending, import.DetectedAt descending
+                select new RecentlyAutoAddedApplicationViewModel(
+                    application.Id,
+                    application.CompanyName,
+                    application.JobTitle,
+                    application.AppliedDate,
+                    import.ReviewedAt ?? import.DetectedAt))
+            .Take(50)
+            .ToListAsync(HttpContext.RequestAborted);
+        var recentlyAutoAdded = recentRows
+            .DistinctBy(item => item.ApplicationId)
+            .Take(10)
+            .ToList();
 
         return View(new ApplicationImportIndexViewModel
         {
             GoogleIntegrationConfigured = googleOptions.Value.IsConfigured,
+            AutoAddHighConfidenceApplications =
+                connection?.AutoAddHighConfidenceApplications ?? false,
             GmailConnection = connection,
-            PendingImports = pendingImports
+            PendingImports = pendingImports,
+            RecentlyAutoAddedApplications = recentlyAutoAdded
         });
+    }
+
+    [HttpPost("auto-add-preference")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAutoAddPreference(
+        bool autoAddHighConfidenceApplications)
+    {
+        var userId = GetUserId();
+        var connection = await dbContext.GmailConnections
+            .SingleOrDefaultAsync(
+                item => item.UserId == userId,
+                HttpContext.RequestAborted);
+        if (connection is null) return NotFound();
+
+        connection.AutoAddHighConfidenceApplications =
+            autoAddHighConfidenceApplications;
+        connection.UpdatedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+        TempData["ImportSuccess"] = autoAddHighConfidenceApplications
+            ? "Automatic tracking is enabled. Eligible confirmations will be added during Gmail sync."
+            : "Automatic tracking is disabled. New Gmail suggestions will wait for review.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost("sync")]
@@ -96,56 +144,38 @@ public sealed class ApplicationImportsController(
             return View(model);
         }
 
-        var userId = GetUserId();
-        var companyName = model.CompanyName.Trim();
-        var jobTitle = model.JobTitle.Trim();
-        var jobUrl = model.JobUrl?.Trim();
-        var existingApplication = await dbContext.JobApplications
-            .FirstOrDefaultAsync(
-                application =>
-                    application.UserId == userId
-                    && application.CompanyName == companyName
-                    && application.JobTitle == jobTitle
-                    && application.AppliedDate == model.AppliedDate,
-                HttpContext.RequestAborted);
-
-        if (existingApplication is null)
+        var processingResult = await importProcessor.AcceptManuallyAsync(
+            id,
+            GetUserId(),
+            new ManualApplicationImportData(
+                model.CompanyName,
+                model.JobTitle,
+                model.JobLocation,
+                model.Source,
+                model.JobUrl,
+                model.AppliedDate),
+            HttpContext.RequestAborted);
+        if (processingResult.Outcome
+            is ApplicationImportProcessOutcome.NotFound
+            or ApplicationImportProcessOutcome.OwnershipConflict)
         {
-            var resumeId = await FindResumeIdAsync(
-                userId,
-                item.ResumeFileName,
-                HttpContext.RequestAborted);
-            var now = DateTimeOffset.UtcNow;
-            existingApplication = new JobApplication
-            {
-                UserId = userId,
-                ResumeId = resumeId,
-                CompanyName = companyName,
-                JobTitle = jobTitle,
-                JobLocation = NullIfWhiteSpace(model.JobLocation),
-                Source = model.Source,
-                JobUrl = NullIfWhiteSpace(jobUrl),
-                Status = ApplicationStatus.Applied,
-                AppliedDate = model.AppliedDate,
-                Notes =
-                    "Imported from a connected Gmail account. Verify any details that were not present in the original confirmation.",
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            dbContext.JobApplications.Add(existingApplication);
-            await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+            return NotFound();
+        }
+        if (!processingResult.ApplicationId.HasValue)
+        {
+            ModelState.AddModelError(
+                string.Empty,
+                "This Gmail suggestion could not be added. Refresh the page and try again.");
+            CopyEvidence(item, model);
+            return View(model);
         }
 
-        item.Status = ApplicationImportStatus.Accepted;
-        item.CreatedApplicationId = existingApplication.Id;
-        item.ReviewedAt = DateTimeOffset.UtcNow;
-        await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
         TempData["SuccessMessage"] =
-            $"{existingApplication.JobTitle} at {existingApplication.CompanyName} was added from Gmail.";
+            $"{processingResult.JobTitle} at {processingResult.CompanyName} was added from Gmail.";
         return RedirectToAction(
             "Details",
             "JobApplications",
-            new { id = existingApplication.Id });
+            new { id = processingResult.ApplicationId.Value });
     }
 
     [HttpPost("{id:int}/dismiss")]
@@ -201,34 +231,8 @@ public sealed class ApplicationImportsController(
         model.ResumeFileName = item.ResumeFileName;
     }
 
-    private async Task<int?> FindResumeIdAsync(
-        string userId,
-        string? resumeFileName,
-        CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(resumeFileName))
-        {
-            var matchedResume = await dbContext.Resumes
-                .Where(resume =>
-                    resume.UserId == userId
-                    && resume.OriginalFileName == resumeFileName)
-                .OrderByDescending(resume => resume.UploadedAt)
-                .Select(resume => (int?)resume.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (matchedResume.HasValue) return matchedResume;
-        }
-
-        return await dbContext.Resumes
-            .Where(resume => resume.UserId == userId && resume.IsDefault)
-            .Select(resume => (int?)resume.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
     private string GetUserId() =>
         userManager.GetUserId(User)
         ?? throw new InvalidOperationException(
             "The current user does not have an identifier.");
-
-    private static string? NullIfWhiteSpace(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
