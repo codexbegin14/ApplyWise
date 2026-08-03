@@ -100,7 +100,8 @@ public sealed class GmailConnectionsController(
                     ProtectedRefreshToken = credentialProtector.Protect(refreshToken!),
                     ConnectedAt = now,
                     UpdatedAt = now,
-                    NextSyncAt = now
+                    NextSyncAt = now,
+                    AutoAddHighConfidenceApplications = true
                 };
                 dbContext.GmailConnections.Add(connection);
             }

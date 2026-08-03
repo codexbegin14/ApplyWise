@@ -226,6 +226,47 @@ public sealed class GmailImportServiceTests
     }
 
     [Fact]
+    public async Task StartupSync_RetriesErroredConnectionBeforeItsDelayedNextSync()
+    {
+        await using var db = CreateContext();
+        await SeedConnectionAsync(db, autoAdd: true);
+        var connection = await db.GmailConnections.SingleAsync();
+        connection.LastErrorCode = "authorization_expired";
+        connection.NextSyncAt = DateTimeOffset.UtcNow.AddHours(6);
+        await db.SaveChangesAsync();
+
+        var handler = new GmailApiHandler(
+            new Dictionary<string, string>
+            {
+                ["indeed-startup-recovery"] = CreateMessageJson(
+                    "indeed-startup-recovery",
+                    "Indeed Application: Job Title: IT Intern – Internship",
+                    "Indeed Apply <indeedapply@indeed.com>",
+                    "Application submitted. Job Title: IT Intern – Internship. "
+                    + "NKC SMC PVT LTD - Karachi. "
+                    + "The following items were sent to NKC SMC PVT LTD. Good luck!")
+            });
+        var service = CreateService(
+            db,
+            handler,
+            new ApplicationEmailParser());
+
+        await service.SyncDueConnectionsAsync(CancellationToken.None);
+        Assert.Equal(0, handler.MessageDetailRequestCount);
+        Assert.Empty(await db.JobApplications.ToListAsync());
+
+        await service.SyncStartupConnectionsAsync(CancellationToken.None);
+
+        Assert.Equal(1, handler.MessageDetailRequestCount);
+        var application = await db.JobApplications.SingleAsync();
+        Assert.Equal("NKC SMC PVT LTD", application.CompanyName);
+        Assert.Equal("IT Intern – Internship", application.JobTitle);
+        connection = await db.GmailConnections.SingleAsync();
+        Assert.Null(connection.LastErrorCode);
+        Assert.NotNull(connection.LastSuccessfulSyncAt);
+    }
+
+    [Fact]
     public async Task SyncUser_ParserFailureForOneMessage_DoesNotBlockLaterMessage()
     {
         await using var db = CreateContext();

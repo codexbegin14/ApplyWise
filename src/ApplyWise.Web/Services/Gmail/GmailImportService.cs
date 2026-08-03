@@ -25,6 +25,7 @@ public sealed record GmailSyncResult(
 public interface IGmailImportService
 {
     Task<GmailSyncResult> SyncUserAsync(string userId, CancellationToken cancellationToken);
+    Task SyncStartupConnectionsAsync(CancellationToken cancellationToken);
     Task SyncDueConnectionsAsync(CancellationToken cancellationToken);
 }
 
@@ -61,18 +62,31 @@ public sealed class GmailImportService(
         return await SyncConnectionAsync(connectionId.Value, userId, cancellationToken);
     }
 
-    public async Task SyncDueConnectionsAsync(CancellationToken cancellationToken)
+    public Task SyncStartupConnectionsAsync(CancellationToken cancellationToken) =>
+        SyncConnectionsAsync(includeAllConnections: true, cancellationToken);
+
+    public Task SyncDueConnectionsAsync(CancellationToken cancellationToken) =>
+        SyncConnectionsAsync(includeAllConnections: false, cancellationToken);
+
+    private async Task SyncConnectionsAsync(
+        bool includeAllConnections,
+        CancellationToken cancellationToken)
     {
         if (!_options.IsConfigured || !_options.GmailAutoSyncEnabled) return;
 
         var now = DateTimeOffset.UtcNow;
         var connectionIds = await dbContext.GmailConnections
             .AsNoTracking()
-            .Where(connection => connection.NextSyncAt <= now)
+            .Where(connection =>
+                includeAllConnections || connection.NextSyncAt <= now)
             .OrderBy(connection => connection.NextSyncAt)
             .Select(connection => connection.Id)
             .Take(20)
             .ToListAsync(cancellationToken);
+        logger.LogInformation(
+            "Automatic Gmail {CycleType} sync found {ConnectionCount} eligible connections.",
+            includeAllConnections ? "startup" : "scheduled",
+            connectionIds.Count);
 
         foreach (var connectionId in connectionIds)
         {
@@ -116,6 +130,11 @@ public sealed class GmailImportService(
             }
 
             var now = DateTimeOffset.UtcNow;
+            logger.LogInformation(
+                "Gmail sync started for connection {ConnectionId}. Auto-add enabled: {AutoAddEnabled}. Previous next sync: {PreviousNextSyncAt}.",
+                connection.Id,
+                connection.AutoAddHighConfidenceApplications,
+                connection.NextSyncAt);
             connection.LastSyncStartedAt = now;
             connection.NextSyncAt = now.AddMinutes(
                 Math.Clamp(_options.GmailSyncIntervalMinutes, 5, 24 * 60));
@@ -142,6 +161,12 @@ public sealed class GmailImportService(
                 connection.UpdatedAt = DateTimeOffset.UtcNow;
                 connection.LastErrorCode = null;
                 await dbContext.SaveChangesAsync(cancellationToken);
+                logger.LogInformation(
+                    "Gmail sync completed for connection {ConnectionId}. Automatically added: {AutomaticallyAddedCount}; review: {ReviewCount}; linked: {LinkedExistingCount}.",
+                    connectionId,
+                    importResult.AutomaticallyAddedCount,
+                    importResult.ReviewCount,
+                    importResult.LinkedExistingCount);
                 return new GmailSyncResult(
                     true,
                     importResult.AutomaticallyAddedCount,
@@ -294,6 +319,10 @@ public sealed class GmailImportService(
                 Math.Min(100, maxMessages - inspectedCount),
                 pageToken,
                 cancellationToken);
+            logger.LogInformation(
+                "Gmail search returned {MessageCount} messages for connection {ConnectionId}.",
+                page.MessageIds.Count,
+                connection.Id);
             if (page.MessageIds.Count == 0) break;
             inspectedCount += page.MessageIds.Count;
 
@@ -324,6 +353,11 @@ public sealed class GmailImportService(
                     import => import.ExternalMessageId,
                     import => import.Id,
                     StringComparer.Ordinal);
+            logger.LogInformation(
+                "Gmail page for connection {ConnectionId} contained {KnownCount} known messages and {RefreshableCount} refreshable incomplete imports.",
+                connection.Id,
+                known.Count,
+                refreshableImportIds.Count);
 
             foreach (var messageId in page.MessageIds)
             {
@@ -350,7 +384,23 @@ public sealed class GmailImportService(
                         exception.GetType().Name);
                     continue;
                 }
-                if (suggestion is null) continue;
+                if (suggestion is null)
+                {
+                    logger.LogInformation(
+                        "Gmail message {MessageId} for connection {ConnectionId} was not recognized as an application confirmation.",
+                        messageId,
+                        connection.Id);
+                    continue;
+                }
+                logger.LogInformation(
+                    "Gmail message {MessageId} for connection {ConnectionId} parsed with source {Source}, confidence {Confidence}, company present {HasCompany}, title present {HasJobTitle}, refresh {IsRefresh}.",
+                    messageId,
+                    connection.Id,
+                    suggestion.Source,
+                    suggestion.Confidence,
+                    !string.IsNullOrWhiteSpace(suggestion.CompanyName),
+                    !string.IsNullOrWhiteSpace(suggestion.JobTitle),
+                    isRefresh);
 
                 ApplicationImport applicationImport;
                 if (isRefresh)
@@ -447,6 +497,10 @@ public sealed class GmailImportService(
                 importId,
                 userId,
                 cancellationToken);
+            logger.LogInformation(
+                "Application import {ImportId} automatic processing completed with outcome {Outcome}.",
+                importId,
+                processingResult.Outcome);
             switch (processingResult.Outcome)
             {
                 case ApplicationImportProcessOutcome.Created:

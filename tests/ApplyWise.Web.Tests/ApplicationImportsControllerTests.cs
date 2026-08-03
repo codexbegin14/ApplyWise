@@ -236,6 +236,10 @@ public sealed class ApplicationImportsControllerTests
         public Task SyncDueConnectionsAsync(
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task SyncStartupConnectionsAsync(
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class InMemoryTempDataProvider : ITempDataProvider

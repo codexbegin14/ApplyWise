@@ -15,8 +15,23 @@ public sealed class GmailImportWorker(
             return;
         }
 
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var importer = scope.ServiceProvider.GetRequiredService<IGmailImportService>();
+            await importer.SyncStartupConnectionsAsync(stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "The startup Gmail recovery cycle failed.");
+        }
+
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
-        do
+        while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
             {
@@ -32,6 +47,6 @@ public sealed class GmailImportWorker(
             {
                 logger.LogError(exception, "The automatic Gmail import cycle failed.");
             }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
+        }
     }
 }
