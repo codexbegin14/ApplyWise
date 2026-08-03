@@ -169,6 +169,63 @@ public sealed class GmailImportServiceTests
     }
 
     [Fact]
+    public async Task SyncUser_IncompleteKnownIndeedImport_IsRefreshedAndAutomaticallyAdded()
+    {
+        await using var db = CreateContext();
+        await SeedConnectionAsync(db, autoAdd: true);
+        var connectionId = await db.GmailConnections
+            .Select(connection => connection.Id)
+            .SingleAsync();
+        db.ApplicationImports.Add(new ApplicationImport
+        {
+            UserId = UserId,
+            GmailConnectionId = connectionId,
+            ExternalMessageId = "indeed-existing",
+            ExternalThreadId = "thread-indeed-existing",
+            Direction = ApplicationImportDirection.Incoming,
+            Status = ApplicationImportStatus.PendingReview,
+            Confidence = 87,
+            EmailSubject = "Indeed Application: Job Title: IT Intern – Internship",
+            SenderDomain = "indeed.com",
+            CompanyName = string.Empty,
+            JobTitle = "Job Title: IT Intern – Internship",
+            Source = JobSource.Indeed,
+            AppliedDate = new DateOnly(2026, 8, 3),
+            DetectedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new GmailApiHandler(
+            new Dictionary<string, string>
+            {
+                ["indeed-existing"] = CreateMessageJson(
+                    "indeed-existing",
+                    "Indeed Application: Job Title: IT Intern – Internship",
+                    "Indeed Apply <indeedapply@indeed.com>",
+                    "Application submitted. Job Title: IT Intern – Internship. "
+                    + "NKC SMC PVT LTD - Karachi. "
+                    + "The following items were sent to NKC SMC PVT LTD. Good luck!")
+            });
+        var service = CreateService(
+            db,
+            handler,
+            new ApplicationEmailParser());
+
+        var result = await service.SyncUserAsync(UserId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, result.AutomaticallyAddedCount);
+        Assert.Equal(0, result.ReviewCount);
+        Assert.Equal(1, handler.MessageDetailRequestCount);
+        var application = await db.JobApplications.SingleAsync();
+        Assert.Equal("NKC SMC PVT LTD", application.CompanyName);
+        Assert.Equal("IT Intern – Internship", application.JobTitle);
+        var applicationImport = await db.ApplicationImports.SingleAsync();
+        Assert.Equal(ApplicationImportStatus.AutoAccepted, applicationImport.Status);
+        Assert.Equal(application.Id, applicationImport.CreatedApplicationId);
+    }
+
+    [Fact]
     public async Task SyncUser_ParserFailureForOneMessage_DoesNotBlockLaterMessage()
     {
         await using var db = CreateContext();

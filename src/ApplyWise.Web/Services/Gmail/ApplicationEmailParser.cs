@@ -272,7 +272,7 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
     private static partial Regex JobAtCompanyRegex();
 
     [GeneratedRegex(
-        @"(?ix)(?:application\s+(?:(?:was|has\s+been)\s+)?(?:sent|submitted)\s+to|we(?:'ve|\s+have)?\s+(?:sent|submitted)\s+your\s+application\s+to|thank\s+you\s+for\s+applying\s+(?:to|with)|thanks\s+for\s+applying\s+(?:to|with))\s+(?<company>[^|\r\n]{2,100})")]
+        @"(?ix)(?:application\s+(?:(?:was|has\s+been)\s+)?(?:sent|submitted)\s+to|we(?:'ve|\s+have)?\s+(?:sent|submitted)\s+your\s+application\s+to|the\s+following\s+items\s+were\s+sent\s+to|thank\s+you\s+for\s+applying\s+(?:to|with)|thanks\s+for\s+applying\s+(?:to|with))\s+(?<company>[^.|\r\n]{2,100})")]
     private static partial Regex CompanySubjectRegex();
 
     [GeneratedRegex(
@@ -280,7 +280,7 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
     private static partial Regex JobTitleSubjectRegex();
 
     [GeneratedRegex(
-        @"(?ix)^\s*indeed\s+application\s*:\s*(?<job>[^|\r\n]{2,150})\s*$")]
+        @"(?ix)^\s*indeed\s+application\s*:\s*(?:job\s+title\s*:\s*)?(?<job>[^|\r\n]{2,150})\s*$")]
     private static partial Regex IndeedApplicationSubjectRegex();
 
     [GeneratedRegex(

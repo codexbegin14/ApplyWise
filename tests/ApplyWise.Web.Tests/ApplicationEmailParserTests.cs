@@ -48,19 +48,20 @@ public sealed class ApplicationEmailParserTests
     public void Parse_IndeedApplySubject_ExtractsTitleAndCompany()
     {
         var message = Message(
-            subject: "Indeed Application: Full Stack Software Developer (MERN) – Remote",
+            subject: "Indeed Application: Job Title: IT Intern – Internship",
             from: "indeedapply@indeed.com",
-            body: "Your application has been sent to Contoso.",
+            body:
+                "Application submitted. Job Title: IT Intern – Internship. "
+                + "NKC SMC PVT LTD - Karachi. "
+                + "The following items were sent to NKC SMC PVT LTD. Good luck!",
             labels: ["INBOX"]);
 
         var result = _parser.Parse(message);
 
         Assert.NotNull(result);
         Assert.Equal(JobSource.Indeed, result.Source);
-        Assert.Equal("Contoso", result.CompanyName);
-        Assert.Equal(
-            "Full Stack Software Developer (MERN) – Remote",
-            result.JobTitle);
+        Assert.Equal("NKC SMC PVT LTD", result.CompanyName);
+        Assert.Equal("IT Intern – Internship", result.JobTitle);
         Assert.True(
             result.Confidence >= ApplicationImportPolicy.HighConfidenceThreshold);
     }

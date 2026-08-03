@@ -297,18 +297,40 @@ public sealed class GmailImportService(
             if (page.MessageIds.Count == 0) break;
             inspectedCount += page.MessageIds.Count;
 
-            var knownIds = await dbContext.ApplicationImports
+            var knownImports = await dbContext.ApplicationImports
                 .AsNoTracking()
                 .Where(import =>
                     import.GmailConnectionId == connection.Id
                     && page.MessageIds.Contains(import.ExternalMessageId))
-                .Select(import => import.ExternalMessageId)
+                .Select(import => new
+                {
+                    import.Id,
+                    import.ExternalMessageId,
+                    Refreshable =
+                        import.Status == ApplicationImportStatus.PendingReview
+                        && import.Direction == ApplicationImportDirection.Incoming
+                        && !import.CreatedApplicationId.HasValue
+                        && (import.CompanyName == string.Empty
+                            || import.JobTitle == string.Empty
+                            || import.Confidence < ApplicationImportPolicy.HighConfidenceThreshold)
+                })
                 .ToListAsync(cancellationToken);
-            var known = knownIds.ToHashSet(StringComparer.Ordinal);
+            var known = knownImports
+                .Select(import => import.ExternalMessageId)
+                .ToHashSet(StringComparer.Ordinal);
+            var refreshableImportIds = knownImports
+                .Where(import => import.Refreshable)
+                .ToDictionary(
+                    import => import.ExternalMessageId,
+                    import => import.Id,
+                    StringComparer.Ordinal);
 
             foreach (var messageId in page.MessageIds)
             {
-                if (known.Contains(messageId)) continue;
+                var isRefresh = refreshableImportIds.TryGetValue(
+                    messageId,
+                    out var refreshableImportId);
+                if (known.Contains(messageId) && !isRefresh) continue;
                 var message = await GetMessageAsync(accessToken, messageId, cancellationToken);
                 ApplicationImportSuggestion? suggestion;
                 try
@@ -330,44 +352,48 @@ public sealed class GmailImportService(
                 }
                 if (suggestion is null) continue;
 
-                var applicationImport = new ApplicationImport
+                ApplicationImport applicationImport;
+                if (isRefresh)
                 {
-                    UserId = connection.UserId,
-                    GmailConnectionId = connection.Id,
-                    ExternalMessageId = message.MessageId,
-                    ExternalThreadId = TruncateNullable(message.ThreadId, 200),
-                    Direction = suggestion.Direction,
-                    Status = ApplicationImportStatus.PendingReview,
-                    Confidence = suggestion.Confidence,
-                    EmailSubject = Truncate(message.Subject, 500),
-                    SenderDomain = TruncateNullable(suggestion.SenderDomain, 255),
-                    CompanyName = Truncate(
-                        suggestion.CompanyName ?? string.Empty,
-                        150),
-                    JobTitle = Truncate(
-                        suggestion.JobTitle ?? string.Empty,
-                        150),
-                    JobLocation = TruncateNullable(suggestion.JobLocation, 150),
-                    Source = suggestion.Source,
-                    JobUrl = TruncateNullable(suggestion.JobUrl, 2048),
-                    AppliedDate = suggestion.AppliedDate,
-                    ResumeFileName = TruncateNullable(suggestion.ResumeFileName, 255),
-                    DetectedAt = DateTimeOffset.UtcNow
-                };
-                dbContext.ApplicationImports.Add(applicationImport);
-                try
-                {
+                    applicationImport = await dbContext.ApplicationImports
+                        .SingleOrDefaultAsync(import =>
+                            import.Id == refreshableImportId
+                            && import.UserId == connection.UserId
+                            && import.GmailConnectionId == connection.Id
+                            && import.Status == ApplicationImportStatus.PendingReview
+                            && !import.CreatedApplicationId.HasValue,
+                            cancellationToken)
+                        ?? throw new InvalidOperationException(
+                            "The incomplete application import was no longer available for refresh.");
+                    ApplySuggestion(applicationImport, message, suggestion);
                     await dbContext.SaveChangesAsync(cancellationToken);
                 }
-                catch (DbUpdateException exception)
-                    when (IsDuplicateMessageViolation(exception))
+                else
                 {
-                    dbContext.Entry(applicationImport).State = EntityState.Detached;
-                    logger.LogInformation(
-                        "Gmail message {MessageId} for connection {ConnectionId} was already imported by another sync.",
-                        messageId,
-                        connection.Id);
-                    continue;
+                    applicationImport = new ApplicationImport
+                    {
+                        UserId = connection.UserId,
+                        GmailConnectionId = connection.Id,
+                        ExternalMessageId = message.MessageId,
+                        Status = ApplicationImportStatus.PendingReview,
+                        DetectedAt = DateTimeOffset.UtcNow
+                    };
+                    ApplySuggestion(applicationImport, message, suggestion);
+                    dbContext.ApplicationImports.Add(applicationImport);
+                    try
+                    {
+                        await dbContext.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException exception)
+                        when (IsDuplicateMessageViolation(exception))
+                    {
+                        dbContext.Entry(applicationImport).State = EntityState.Detached;
+                        logger.LogInformation(
+                            "Gmail message {MessageId} for connection {ConnectionId} was already imported by another sync.",
+                            messageId,
+                            connection.Id);
+                        continue;
+                    }
                 }
 
                 known.Add(messageId);
@@ -375,7 +401,7 @@ public sealed class GmailImportService(
                     applicationImport.Id,
                     connection.UserId,
                     result,
-                    countAsReviewWhenNotEligible: true,
+                    countAsReviewWhenNotEligible: !isRefresh,
                     cancellationToken);
             }
 
@@ -383,6 +409,29 @@ public sealed class GmailImportService(
         } while (!string.IsNullOrWhiteSpace(pageToken));
 
         return result;
+    }
+
+    private static void ApplySuggestion(
+        ApplicationImport applicationImport,
+        GmailMessageEnvelope message,
+        ApplicationImportSuggestion suggestion)
+    {
+        applicationImport.ExternalThreadId = TruncateNullable(message.ThreadId, 200);
+        applicationImport.Direction = suggestion.Direction;
+        applicationImport.Confidence = suggestion.Confidence;
+        applicationImport.EmailSubject = Truncate(message.Subject, 500);
+        applicationImport.SenderDomain = TruncateNullable(suggestion.SenderDomain, 255);
+        applicationImport.CompanyName = Truncate(
+            suggestion.CompanyName ?? string.Empty,
+            150);
+        applicationImport.JobTitle = Truncate(
+            suggestion.JobTitle ?? string.Empty,
+            150);
+        applicationImport.JobLocation = TruncateNullable(suggestion.JobLocation, 150);
+        applicationImport.Source = suggestion.Source;
+        applicationImport.JobUrl = TruncateNullable(suggestion.JobUrl, 2048);
+        applicationImport.AppliedDate = suggestion.AppliedDate;
+        applicationImport.ResumeFileName = TruncateNullable(suggestion.ResumeFileName, 255);
     }
 
     private async Task ApplyAutomaticOutcomeAsync(
