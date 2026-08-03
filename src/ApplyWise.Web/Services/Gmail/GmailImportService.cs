@@ -253,7 +253,7 @@ public sealed class GmailImportService(
         var maxMessages = Math.Clamp(_options.GmailMaxMessagesPerSync, 25, 500);
         var lookbackDays = Math.Clamp(_options.GmailInitialLookbackDays, 1, 90);
         var query =
-            $"newer_than:{lookbackDays}d (\"thank you for applying\" OR \"thanks for applying\" OR \"application received\" OR \"application submitted\" OR \"application was sent\" OR (in:sent has:attachment (filename:pdf OR filename:doc OR filename:docx)))";
+            $"newer_than:{lookbackDays}d (\"thank you for applying\" OR \"thanks for applying\" OR \"application received\" OR \"application submitted\" OR \"application was sent\" OR subject:\"Indeed Application:\" OR (in:sent has:attachment (filename:pdf OR filename:doc OR filename:docx)))";
         var result = new GmailImportBatchResult();
         var inspectedCount = 0;
         string? pageToken = null;

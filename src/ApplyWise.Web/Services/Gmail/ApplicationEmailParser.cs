@@ -49,10 +49,19 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         var body = WebUtility.HtmlDecode(message.Body);
         var searchable = $"{message.Subject}\n{message.Snippet}\n{body}";
         var hasResumeAttachment = message.AttachmentFileNames.Any(IsResumeFile);
+        var senderDomain = GetSenderDomain(
+            direction == ApplicationImportDirection.Outgoing
+                ? message.To
+                : message.From);
+        var isVerifiedIndeedApplication =
+            direction == ApplicationImportDirection.Incoming
+            && IsIndeedDomain(senderDomain)
+            && IndeedApplicationSubjectRegex().IsMatch(message.Subject);
 
         if (direction == ApplicationImportDirection.Incoming)
         {
-            if (!ApplicationLanguageRegex().IsMatch(searchable))
+            if (!isVerifiedIndeedApplication
+                && !ApplicationLanguageRegex().IsMatch(searchable))
             {
                 return null;
             }
@@ -63,10 +72,6 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         }
 
         var source = DetectSource(searchable, message.From, direction);
-        var senderDomain = GetSenderDomain(
-            direction == ApplicationImportDirection.Outgoing
-                ? message.To
-                : message.From);
         var (company, jobTitle) = ExtractCompanyAndTitle(message.Subject, body);
         company ??= CompanyFromDomain(senderDomain);
         var jobUrl = ExtractJobUrl(body);
@@ -140,6 +145,15 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
 
         if (title is null)
         {
+            var indeedTitleMatch = IndeedApplicationSubjectRegex().Match(subject);
+            if (indeedTitleMatch.Success)
+            {
+                title = CleanCandidate(indeedTitleMatch.Groups["job"].Value);
+            }
+        }
+
+        if (title is null)
+        {
             var bodyTitleMatch = JobTitleBodyRegex().Match(StripHtml(body));
             if (bodyTitleMatch.Success)
             {
@@ -199,6 +213,11 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         return match.Success ? match.Groups["domain"].Value.ToLowerInvariant() : null;
     }
 
+    private static bool IsIndeedDomain(string? domain) =>
+        !string.IsNullOrWhiteSpace(domain)
+        && (domain.Equals("indeed.com", StringComparison.OrdinalIgnoreCase)
+            || domain.EndsWith(".indeed.com", StringComparison.OrdinalIgnoreCase));
+
     private static string? CompanyFromDomain(string? domain)
     {
         if (string.IsNullOrWhiteSpace(domain)) return null;
@@ -253,7 +272,7 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
     private static partial Regex JobAtCompanyRegex();
 
     [GeneratedRegex(
-        @"(?ix)(?:application\s+(?:was\s+)?(?:sent|submitted)\s+to|thank\s+you\s+for\s+applying\s+(?:to|with)|thanks\s+for\s+applying\s+(?:to|with))\s+(?<company>[^|\r\n]{2,100})")]
+        @"(?ix)(?:application\s+(?:(?:was|has\s+been)\s+)?(?:sent|submitted)\s+to|we(?:'ve|\s+have)?\s+(?:sent|submitted)\s+your\s+application\s+to|thank\s+you\s+for\s+applying\s+(?:to|with)|thanks\s+for\s+applying\s+(?:to|with))\s+(?<company>[^|\r\n]{2,100})")]
     private static partial Regex CompanySubjectRegex();
 
     [GeneratedRegex(
@@ -261,11 +280,15 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
     private static partial Regex JobTitleSubjectRegex();
 
     [GeneratedRegex(
+        @"(?ix)^\s*indeed\s+application\s*:\s*(?<job>[^|\r\n]{2,150})\s*$")]
+    private static partial Regex IndeedApplicationSubjectRegex();
+
+    [GeneratedRegex(
         @"(?ix)(?:position|role)\s+(?:of|for|as)?\s*(?<job>[A-Za-z0-9][^.,;|\r\n]{2,100})")]
     private static partial Regex JobTitleBodyRegex();
 
     [GeneratedRegex(
-        @"(?ix)\b(application\s+(?:received|submitted|confirmation|complete)|thank\s+you\s+for\s+applying|application\s+was\s+sent)\b")]
+        @"(?ix)\b(application\s+(?:received|submitted|confirmation|complete)|thank\s+you\s+for\s+applying|application\s+was\s+sent|indeed\s+application)\b")]
     private static partial Regex ConfirmationSubjectRegex();
 
     [GeneratedRegex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase)]

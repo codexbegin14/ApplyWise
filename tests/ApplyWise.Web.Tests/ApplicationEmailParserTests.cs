@@ -45,6 +45,39 @@ public sealed class ApplicationEmailParserTests
     }
 
     [Fact]
+    public void Parse_IndeedApplySubject_ExtractsTitleAndCompany()
+    {
+        var message = Message(
+            subject: "Indeed Application: Full Stack Software Developer (MERN) – Remote",
+            from: "indeedapply@indeed.com",
+            body: "Your application has been sent to Contoso.",
+            labels: ["INBOX"]);
+
+        var result = _parser.Parse(message);
+
+        Assert.NotNull(result);
+        Assert.Equal(JobSource.Indeed, result.Source);
+        Assert.Equal("Contoso", result.CompanyName);
+        Assert.Equal(
+            "Full Stack Software Developer (MERN) – Remote",
+            result.JobTitle);
+        Assert.True(
+            result.Confidence >= ApplicationImportPolicy.HighConfidenceThreshold);
+    }
+
+    [Fact]
+    public void Parse_IndeedApplySubjectFromUntrustedDomain_ReturnsNull()
+    {
+        var message = Message(
+            subject: "Indeed Application: Full Stack Software Developer (MERN) – Remote",
+            from: "sender@example.test",
+            body: "We'll help you get started.",
+            labels: ["INBOX"]);
+
+        Assert.Null(_parser.Parse(message));
+    }
+
+    [Fact]
     public void Parse_SentResumeApplication_UsesRecipientDomainAndAttachment()
     {
         var message = Message(

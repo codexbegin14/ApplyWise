@@ -134,6 +134,41 @@ public sealed class GmailImportServiceTests
     }
 
     [Fact]
+    public async Task SyncUser_IndeedApplySubject_IsQueriedAndAutomaticallyAdded()
+    {
+        await using var db = CreateContext();
+        await SeedConnectionAsync(db, autoAdd: true);
+        var handler = new GmailApiHandler(
+            new Dictionary<string, string>
+            {
+                ["indeed-apply"] = CreateMessageJson(
+                    "indeed-apply",
+                    "Indeed Application: Full Stack Software Developer (MERN) – Remote",
+                    "indeedapply@indeed.com",
+                    "Your application has been sent to Contoso.")
+            });
+        var service = CreateService(
+            db,
+            handler,
+            new ApplicationEmailParser());
+
+        var result = await service.SyncUserAsync(UserId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, result.AutomaticallyAddedCount);
+        Assert.Contains(
+            "subject:\"Indeed Application:\"",
+            handler.LastMessageListQuery,
+            StringComparison.Ordinal);
+        var application = await db.JobApplications.SingleAsync();
+        Assert.Equal("Contoso", application.CompanyName);
+        Assert.Equal(
+            "Full Stack Software Developer (MERN) – Remote",
+            application.JobTitle);
+        Assert.Equal(JobSource.Indeed, application.Source);
+    }
+
+    [Fact]
     public async Task SyncUser_ParserFailureForOneMessage_DoesNotBlockLaterMessage()
     {
         await using var db = CreateContext();
@@ -347,6 +382,7 @@ public sealed class GmailImportServiceTests
     {
         public int MessageDetailRequestCount { get; private set; }
         public int AttachmentRequestCount { get; private set; }
+        public string LastMessageListQuery { get; private set; } = string.Empty;
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -365,6 +401,7 @@ public sealed class GmailImportServiceTests
                     "/messages",
                     StringComparison.Ordinal))
             {
+                LastMessageListQuery = ParseQueryParameter(uri.Query, "q");
                 var payload = JsonSerializer.Serialize(new
                 {
                     messages = messages.Keys.Select(id => new { id }).ToArray()
@@ -393,6 +430,23 @@ public sealed class GmailImportServiceTests
 
             return Task.FromResult(new HttpResponseMessage(
                 HttpStatusCode.NotFound));
+        }
+
+        private static string ParseQueryParameter(string query, string name)
+        {
+            foreach (var part in query.TrimStart('?').Split('&'))
+            {
+                var pieces = part.Split('=', 2);
+                if (pieces.Length == 2
+                    && Uri.UnescapeDataString(pieces[0]).Equals(
+                        name,
+                        StringComparison.Ordinal))
+                {
+                    return Uri.UnescapeDataString(pieces[1].Replace('+', ' '));
+                }
+            }
+
+            return string.Empty;
         }
 
         private static Task<HttpResponseMessage> JsonResponse(
