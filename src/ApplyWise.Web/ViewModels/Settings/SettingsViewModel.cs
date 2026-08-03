@@ -6,13 +6,16 @@ namespace ApplyWise.Web.ViewModels.Settings;
 public sealed class SettingsViewModel
 {
     public string Email { get; init; } = string.Empty;
+    public bool HasPassword { get; init; }
+    public bool GoogleSignInConfigured { get; init; }
+    public bool GoogleSignInLinked { get; init; }
     public ChangePasswordInput ChangePassword { get; set; } = new();
     public DeleteAccountInput DeleteAccount { get; set; } = new();
 }
 
 public sealed class ChangePasswordInput
 {
-    [Required, DataType(DataType.Password), Display(Name = "Current password")]
+    [DataType(DataType.Password), Display(Name = "Current password")]
     public string CurrentPassword { get; set; } = string.Empty;
 
     [Required, StringLength(100, MinimumLength = PasswordRequirements.MinimumLength), StrongPassword]

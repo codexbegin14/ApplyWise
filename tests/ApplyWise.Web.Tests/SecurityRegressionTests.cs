@@ -172,6 +172,36 @@ public sealed class SecurityRegressionTests
         Assert.False(rejectedLease.IsAcquired);
     }
 
+    [Fact]
+    public void External_login_starts_use_a_separate_bounded_rate_limit()
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            RequestRateLimitPartitions.CreateAccountSecurity);
+        var passwordContext = CreateHttpContext(HttpMethods.Post, "/Identity/Account/Login");
+        var externalLoginContext = CreateHttpContext(HttpMethods.Post, "/Identity/Account/Login");
+        externalLoginContext.Request.QueryString = new QueryString("?handler=ExternalLogin");
+
+        for (var request = 0; request < 8; request++)
+        {
+            using var lease = limiter.AttemptAcquire(passwordContext);
+            Assert.True(lease.IsAcquired);
+        }
+
+        using (var rejectedPasswordLease = limiter.AttemptAcquire(passwordContext))
+        {
+            Assert.False(rejectedPasswordLease.IsAcquired);
+        }
+
+        for (var request = 0; request < 20; request++)
+        {
+            using var lease = limiter.AttemptAcquire(externalLoginContext);
+            Assert.True(lease.IsAcquired);
+        }
+
+        using var rejectedExternalLoginLease = limiter.AttemptAcquire(externalLoginContext);
+        Assert.False(rejectedExternalLoginLease.IsAcquired);
+    }
+
     [Theory]
     [InlineData("/health")]
     [InlineData("/css/site.css")]
@@ -203,6 +233,29 @@ public sealed class SecurityRegressionTests
         Assert.True(firstLease.IsAcquired);
         Assert.True(secondLease.IsAcquired);
         Assert.False(rejectedLease.IsAcquired);
+    }
+
+    [Fact]
+    public void Gmail_auto_add_preference_is_authenticated_post_with_antiforgery()
+    {
+        var controllerType =
+            typeof(ApplyWise.Web.Controllers.ApplicationImportsController);
+        var action = controllerType.GetMethod(
+            nameof(ApplyWise.Web.Controllers.ApplicationImportsController.UpdateAutoAddPreference));
+
+        Assert.NotNull(action);
+        Assert.NotEmpty(controllerType.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute),
+            inherit: true));
+        Assert.NotEmpty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.HttpPostAttribute),
+            inherit: true));
+        Assert.NotEmpty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute),
+            inherit: true));
+        Assert.Empty(action.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute),
+            inherit: true));
     }
 
     private static void AssertRateLimit<TPage>(string policyName)

@@ -4,6 +4,7 @@ using ApplyWise.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ApplyWise.Web.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728013507_AddGmailApplicationImports")]
+    partial class AddGmailApplicationImports
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -133,12 +136,6 @@ namespace ApplyWise.Web.Migrations
                     b.Property<DateTimeOffset?>("ReviewedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("SenderDomain")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
@@ -158,11 +155,7 @@ namespace ApplyWise.Web.Migrations
                     b.HasIndex("GmailConnectionId", "ExternalMessageId")
                         .IsUnique();
 
-                    b.HasIndex("UserId", "CreatedApplicationId");
-
                     b.HasIndex("UserId", "Status", "DetectedAt");
-
-                    b.HasIndex("UserId", "Status", "ReviewedAt");
 
                     b.ToTable("ApplicationImports");
                 });
@@ -265,11 +258,6 @@ namespace ApplyWise.Web.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("AutoAddHighConfidenceApplications")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<DateTimeOffset>("ConnectedAt")
                         .HasColumnType("datetimeoffset");
@@ -446,8 +434,6 @@ namespace ApplyWise.Web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ResumeId");
-
-                    b.HasIndex("UserId", "AppliedDate");
 
                     b.HasIndex("UserId", "CreatedAt");
 

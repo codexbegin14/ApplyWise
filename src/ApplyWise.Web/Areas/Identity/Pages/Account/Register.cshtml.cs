@@ -7,7 +7,9 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Profiles;
+using ApplyWise.Web.Services.Gmail;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -17,12 +19,14 @@ public class RegisterModel(
     SignInManager<IdentityUser> signInManager,
     IAccountSecurityCodeService securityCodes,
     ApplicationDbContext dbContext,
+    IOptions<GoogleIntegrationOptions> googleOptions,
     ILogger<RegisterModel> logger) : PageModel
 {
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
     public string? ReturnUrl { get; set; }
+    public bool IsGoogleLoginEnabled => googleOptions.Value.IsConfigured;
 
     public sealed class InputModel
     {
