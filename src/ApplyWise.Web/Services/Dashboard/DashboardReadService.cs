@@ -17,7 +17,7 @@ public interface IDashboardReadService
 }
 
 /// <summary>
-/// Builds the complete dashboard from five narrow, no-tracking projections.
+/// Builds the complete dashboard from four narrow, no-tracking projections.
 /// Keep dashboard reads in this service so new cards do not silently add
 /// sequential database round trips to the controller.
 /// </summary>
@@ -25,7 +25,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
 {
     public const int MaxApplicationRows = 500;
     public const int MaxInterviewRows = 250;
-    public const int MaxReminderRows = 250;
     public const int MaxAnalysisRows = 200;
     public const int MaxResumeRows = 100;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -42,7 +41,7 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
         var tomorrowStart = todayStart.AddDays(1);
 
         // EF Core does not allow concurrent operations on one DbContext. These
-        // five projections intentionally replace the former ~22 round trips.
+        // four projections intentionally replace the former collection of small round trips.
         var applications = await dbContext.JobApplications.AsNoTracking()
             .Where(application => application.UserId == userId)
             .OrderByDescending(application => application.UpdatedAt)
@@ -91,28 +90,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 interview => interview.UserId == userId,
                 cancellationToken)
             : interviews.Count;
-
-        var pendingReminders = await dbContext.Reminders.AsNoTracking()
-            .Where(reminder => reminder.UserId == userId && !reminder.IsCompleted)
-            .OrderBy(reminder => reminder.DueAt)
-            .Select(reminder => new ReminderRow(
-                reminder.Id,
-                reminder.Title,
-                reminder.JobApplication != null ? reminder.JobApplication.CompanyName : null,
-                reminder.JobApplication != null ? reminder.JobApplication.JobTitle : null,
-                reminder.DueAt))
-            .Take(MaxReminderRows + 1)
-            .ToListAsync(cancellationToken);
-        var remindersOverflowed = pendingReminders.Count > MaxReminderRows;
-        if (remindersOverflowed)
-        {
-            pendingReminders.RemoveAt(MaxReminderRows);
-        }
-        var pendingReminderCount = remindersOverflowed
-            ? await dbContext.Reminders.CountAsync(
-                reminder => reminder.UserId == userId && !reminder.IsCompleted,
-                cancellationToken)
-            : pendingReminders.Count;
 
         var analyses = await dbContext.ResumeAnalyses.AsNoTracking()
             .Where(analysis => analysis.UserId == userId)
@@ -177,9 +154,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 && interview.Status is InterviewStatus.Scheduled or InterviewStatus.Rescheduled)
             .OrderBy(interview => interview.ScheduledAt)
             .ToArray();
-        var orderedPendingReminders = pendingReminders
-            .OrderBy(reminder => reminder.DueAt)
-            .ToArray();
         var upcomingInterviewCount = interviewsOverflowed
             ? await dbContext.Interviews.CountAsync(
                 interview => interview.UserId == userId
@@ -188,14 +162,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                         || interview.Status == InterviewStatus.Rescheduled),
                 cancellationToken)
             : upcomingInterviews.Length;
-        var overdueReminderCount = remindersOverflowed
-            ? await dbContext.Reminders.CountAsync(
-                reminder => reminder.UserId == userId
-                    && !reminder.IsCompleted
-                    && reminder.DueAt < now,
-                cancellationToken)
-            : pendingReminders.Count(reminder => reminder.DueAt < now);
-
         var todayInterviews = interviews
             .Where(interview => interview.ScheduledAt >= todayStart
                 && interview.ScheduledAt < tomorrowStart
@@ -208,19 +174,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                 "Interviews",
                 "Details",
                 interview.Id))
-            .ToArray();
-        var todayReminders = pendingReminders
-            .Where(reminder => reminder.DueAt >= todayStart && reminder.DueAt < tomorrowStart)
-            .Select(reminder => new DashboardActionItemViewModel(
-                "Reminder",
-                reminder.Title,
-                reminder.JobTitle is not null && reminder.CompanyName is not null
-                    ? reminder.JobTitle + " at " + reminder.CompanyName
-                    : "Standalone reminder",
-                reminder.DueAt,
-                "Reminders",
-                "Index",
-                reminder.Id))
             .ToArray();
         var deadlineSortAt = todayStart.AddHours(23).AddMinutes(59);
         var todayDeadlines = applications
@@ -243,8 +196,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
             TotalInterviewCount = totalInterviewCount,
             AverageMatchScore = Math.Round(averageMatchScore, 1),
             UpcomingInterviewCount = upcomingInterviewCount,
-            PendingReminderCount = pendingReminderCount,
-            OverdueReminderCount = overdueReminderCount,
             Funnel = funnel,
             BestResumeVersionName = bestResume?.VersionName,
             BestResumeScore = bestResume?.AverageMatchScore ?? 0,
@@ -278,15 +229,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                     interview.InterviewType,
                     interview.ScheduledAt))
                 .ToArray(),
-            PendingReminders = orderedPendingReminders
-                .Take(5)
-                .Select(reminder => new DashboardReminderItemViewModel(
-                    reminder.Id,
-                    reminder.Title,
-                    reminder.CompanyName,
-                    reminder.DueAt,
-                    reminder.DueAt < now))
-                .ToArray(),
             UpcomingDeadlines = applications
                 .Where(application => application.Deadline >= today)
                 .OrderBy(application => application.Deadline)
@@ -298,12 +240,11 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
                     application.Deadline!.Value))
                 .ToArray(),
             TodayActions = todayInterviews
-                .Concat(todayReminders)
                 .Concat(todayDeadlines)
                 .OrderBy(item => item.SortAt)
                 .Take(8)
                 .ToArray(),
-            TodayActionCount = todayInterviews.Length + todayReminders.Length + todayDeadlines.Length
+            TodayActionCount = todayInterviews.Length + todayDeadlines.Length
         };
     }
 
@@ -509,13 +450,6 @@ public sealed class DashboardReadService(ApplicationDbContext dbContext) : IDash
         InterviewType InterviewType,
         InterviewStatus Status,
         DateTimeOffset ScheduledAt);
-
-    private sealed record ReminderRow(
-        int Id,
-        string Title,
-        string? CompanyName,
-        string? JobTitle,
-        DateTimeOffset DueAt);
 
     private sealed record AnalysisRow(
         int Id,

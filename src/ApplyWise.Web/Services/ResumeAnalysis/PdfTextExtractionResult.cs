@@ -14,7 +14,9 @@ public enum PdfTextExtractionStatus
 
 public sealed record PdfTextExtractionResult(
     PdfTextExtractionStatus Status,
-    string? Text = null)
+    string? Text = null,
+    int? PageCount = null,
+    ResumeFileDiagnostics? Diagnostics = null)
 {
     public bool IsValidDocument => Status is PdfTextExtractionStatus.Success or PdfTextExtractionStatus.NoText;
 }

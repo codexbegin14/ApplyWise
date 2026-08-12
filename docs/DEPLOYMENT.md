@@ -17,6 +17,8 @@ ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__DefaultConnection=<least-privilege Azure SQL connection string with Encrypt=True;TrustServerCertificate=False>
 PublicOrigin=https://<public-host-name>
 AllowedHosts=<public-host-name>
+AdminAccess__Emails__0=awaisshaikhcs786@gmail.com
+AdminAccess__RequireMfa=true
 Email__Host=<SMTP host>
 Email__Port=587
 Email__UserName=<SMTP user>
@@ -34,13 +36,18 @@ Production intentionally refuses to start with the `sa` login, placeholder value
 
 Mark secrets as deployment settings and keep them out of `appsettings.json`, shell history, screenshots, and Git.
 
+The owner email must match a registered ApplyWise account. On startup, ApplyWise synchronizes the `Admin` role to this exact allowlist and removes access from administrators no longer listed. The owner console is available at `/admin`. Production requires the owner to finish authenticator setup from Settings, sign out, and sign in again with the authenticator; the policy verifies second-factor evidence on the current session. Add more owners with `AdminAccess__Emails__1`, `AdminAccess__Emails__2`, and so on. Keep the list small and require strong, unique passwords for those accounts.
+
+Google sign-in and Gmail import are disabled by default. Only enable them after rotating the development OAuth secret, storing the replacement as `Google__ClientId` and `Google__ClientSecret`, configuring the consent screen, and registering the production callbacks `/signin-google` and `/signin-google-gmail`.
+
 ## 3. Apply migrations
 
 Apply migrations as a controlled deployment step from a trusted workstation or pipeline with temporary database access:
 
 ```powershell
 $env:ConnectionStrings__DefaultConnection = "<Azure SQL connection string>"
-dotnet ef database update --project src/ApplyWise.Web --configuration Release
+dotnet tool restore
+dotnet tool run dotnet-ef database update --project src/ApplyWise.Web --configuration Release
 Remove-Item Env:ConnectionStrings__DefaultConnection
 ```
 
@@ -64,11 +71,12 @@ Deploy the publish directory with an Azure-supported pipeline, ZIP deploy, or Vi
 - Verify static CSS/JavaScript, login/logout, and every protected navigation link.
 - Upload a small text-based demo PDF and confirm it is absent from public static URLs.
 - Create/edit/delete an application and confirm its resume relationship.
-- Run analysis, best-resume selection, reminder/interview, analytics, and scam review.
+- Run analysis, best-resume selection, interview scheduling, analytics, and scam review.
 - Confirm a second account receives 404/no data for the first account's record IDs.
 - Review App Service logs without logging resume contents or connection strings.
 - Configure backups, health monitoring, alerts, storage retention, and a rollback plan.
 - Confirm `/health` returns `Healthy` through the platform health probe after migrations are applied.
+- Restrict `/health` to the App Service health probe or other trusted monitoring path where supported; it is rate-limited but performs a real database readiness query.
 - Keep the app container/site private behind the TLS proxy; do not expose the internal HTTP listener directly.
 
 See the repository-level [deployment notes](../DEPLOYMENT.md) for the Docker Compose flow and complete production checklist.

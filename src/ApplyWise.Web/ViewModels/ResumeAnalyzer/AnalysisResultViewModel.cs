@@ -12,6 +12,7 @@ public sealed class AnalysisResultViewModel
     public required string ResumeVersionName { get; init; }
     public required string ContextTitle { get; init; }
     public string? ContextSubtitle { get; init; }
+    public required string ResumeTextSnapshot { get; init; }
     public required string JobDescriptionSnapshot { get; init; }
     public int OverallScore { get; init; }
     public int MatchScore => OverallScore;

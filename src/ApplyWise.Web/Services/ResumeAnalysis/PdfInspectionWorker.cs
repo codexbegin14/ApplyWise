@@ -13,7 +13,9 @@ public static class PdfInspectionWorker
             return false;
         }
 
-        var result = PdfTextInspector.Inspect(args[1]);
+        var result = string.Equals(Path.GetExtension(args[1]), ".docx", StringComparison.OrdinalIgnoreCase)
+            ? DocxTextInspector.Inspect(args[1])
+            : PdfTextInspector.Inspect(args[1]);
         Console.Out.Write(JsonSerializer.Serialize(result));
         return true;
     }

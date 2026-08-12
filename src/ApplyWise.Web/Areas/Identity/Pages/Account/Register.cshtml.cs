@@ -10,6 +10,7 @@ using ApplyWise.Web.Services.Profiles;
 using ApplyWise.Web.Services.Gmail;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -19,6 +20,7 @@ public class RegisterModel(
     SignInManager<IdentityUser> signInManager,
     IAccountSecurityCodeService securityCodes,
     ApplicationDbContext dbContext,
+    IProductEventRecorder events,
     IOptions<GoogleIntegrationOptions> googleOptions,
     ILogger<RegisterModel> logger) : PageModel
 {
@@ -105,6 +107,7 @@ public class RegisterModel(
 
             try
             {
+                var registeredAt = DateTimeOffset.UtcNow;
                 dbContext.CareerProfiles.Add(new CareerProfile
                 {
                     UserId = user.Id,
@@ -112,10 +115,21 @@ public class RegisterModel(
                     Gender = Input.Gender,
                     DateOfBirth = Input.DateOfBirth,
                     SelectedAvatarId = AvatarCatalog.GetDefaultAvatarId(Input.Gender),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    UpdatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = registeredAt,
+                    UpdatedAt = registeredAt
+                });
+                dbContext.UserAccountActivities.Add(new UserAccountActivity
+                {
+                    UserId = user.Id,
+                    RegisteredAt = registeredAt,
+                    LastActivityAt = registeredAt
                 });
                 await dbContext.SaveChangesAsync();
+                await events.RecordAsync(
+                    ProductEventNames.AccountRegistered,
+                    "password",
+                    user.Id,
+                    cancellationToken: HttpContext.RequestAborted);
             }
             catch (Exception exception)
             {

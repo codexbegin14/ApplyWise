@@ -9,6 +9,8 @@ public sealed class SettingsViewModel
     public bool HasPassword { get; init; }
     public bool GoogleSignInConfigured { get; init; }
     public bool GoogleSignInLinked { get; init; }
+    public bool IsAdmin { get; init; }
+    public bool MfaEnabled { get; init; }
     public ChangePasswordInput ChangePassword { get; set; } = new();
     public DeleteAccountInput DeleteAccount { get; set; } = new();
 }

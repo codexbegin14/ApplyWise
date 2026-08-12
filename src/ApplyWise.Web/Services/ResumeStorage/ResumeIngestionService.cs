@@ -1,9 +1,11 @@
 using System.Data;
+using System.Text.Json;
 using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Services.ResumeStorage;
 
@@ -12,10 +14,12 @@ public sealed class ResumeIngestionService(
     IResumeStorageService resumeStorage,
     IResumeTextExtractorService textExtractor,
     IResumeFileCleanupScheduler cleanupScheduler,
+    IProductEventRecorder events,
     IOptions<ResumeStorageOptions> storageOptions,
     ILogger<ResumeIngestionService> logger) : IResumeIngestionService
 {
     private static readonly byte[] PdfSignature = "%PDF-"u8.ToArray();
+    private static readonly byte[] ZipSignature = [0x50, 0x4B];
     private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     public async Task<ResumeIngestionResult> IngestAsync(
@@ -42,7 +46,8 @@ public sealed class ResumeIngestionService(
         }
 
         var originalFileName = SanitizeFileName(file.FileName);
-        var storedFileName = $"{Guid.NewGuid():N}.pdf";
+        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+        var storedFileName = $"{Guid.NewGuid():N}{extension}";
         var relativePath = resumeStorage.CreateRelativePath(request.UserId, storedFileName);
         var absolutePath = resumeStorage.ResolvePath(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
@@ -76,7 +81,7 @@ public sealed class ResumeIngestionService(
         {
             await DeleteOrScheduleAsync(relativePath, absolutePath, CancellationToken.None);
             return ResumeIngestionResult.Failed(
-                ["No selectable text was found. Upload a text-based PDF exported directly from your editor."],
+                ["No selectable text or other readable text was found. Upload a text-based PDF or DOCX exported directly from your editor."],
                 inspection);
         }
 
@@ -88,13 +93,19 @@ public sealed class ResumeIngestionService(
             OriginalFileName = originalFileName,
             StoredFileName = storedFileName,
             FilePath = relativePath,
-            ContentType = "application/pdf",
+            ContentType = extension == ".docx"
+                ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                : "application/pdf",
             FileSize = file.Length,
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
             IsDefault = request.IsDefault,
             UploadedAt = now,
             UpdatedAt = now,
-            ExtractedText = inspection.Text
+            ExtractedText = inspection.Text,
+            PageCount = inspection.PageCount,
+            FileDiagnosticsJson = inspection.Diagnostics is null
+                ? null
+                : JsonSerializer.Serialize(inspection.Diagnostics, new JsonSerializerOptions(JsonSerializerDefaults.Web))
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -133,6 +144,11 @@ public sealed class ResumeIngestionService(
             throw;
         }
 
+        await events.RecordAsync(
+            ProductEventNames.ResumeUploaded,
+            extension.TrimStart('.'),
+            request.UserId,
+            cancellationToken: cancellationToken);
         return new ResumeIngestionResult(resume, inspection, []);
     }
 
@@ -162,7 +178,7 @@ public sealed class ResumeIngestionService(
     {
         if (file is null)
         {
-            return ["Choose a PDF resume to upload."];
+            return ["Choose a PDF or DOCX resume to upload."];
         }
 
         var errors = new List<string>();
@@ -172,20 +188,28 @@ public sealed class ResumeIngestionService(
         }
         else if (file.Length > ResumeIngestionLimits.MaxFileSizeBytes)
         {
-            errors.Add("The PDF must be 5 MB or smaller.");
+            errors.Add("The resume must be 5 MB or smaller.");
         }
 
-        if (!string.Equals(Path.GetExtension(file.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
+        var extension = Path.GetExtension(file.FileName);
+        var isPdf = string.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase);
+        var isDocx = string.Equals(extension, ".docx", StringComparison.OrdinalIgnoreCase);
+        if (!isPdf && !isDocx)
         {
-            errors.Add("Only PDF files are supported.");
+            errors.Add("Only PDF and DOCX files are supported.");
         }
 
         if (file.Length > 0 && file.Length <= ResumeIngestionLimits.MaxFileSizeBytes)
         {
             await using var stream = file.OpenReadStream();
-            if (!await HasPdfSignatureAsync(stream, cancellationToken))
+            var hasExpectedSignature = isPdf
+                ? await HasPdfSignatureAsync(stream, cancellationToken)
+                : isDocx && await HasZipSignatureAsync(stream, cancellationToken);
+            if (!hasExpectedSignature)
             {
-                errors.Add("The selected file does not contain a valid PDF header.");
+                errors.Add(isPdf
+                    ? "The selected file does not contain a valid PDF header."
+                    : "The selected file does not contain a valid DOCX package header.");
             }
         }
 
@@ -208,6 +232,13 @@ public sealed class ResumeIngestionService(
                && header.AsSpan(offset, PdfSignature.Length).SequenceEqual(PdfSignature);
     }
 
+    private static async Task<bool> HasZipSignatureAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var header = new byte[4];
+        var bytesRead = await stream.ReadAsync(header, cancellationToken);
+        return bytesRead >= ZipSignature.Length && header.AsSpan(0, ZipSignature.Length).SequenceEqual(ZipSignature);
+    }
+
     private static string GetInspectionError(PdfTextExtractionStatus status) => status switch
     {
         PdfTextExtractionStatus.Encrypted =>
@@ -220,7 +251,7 @@ public sealed class ResumeIngestionService(
             "The PDF took too long to inspect. Try exporting a simpler PDF and upload it again.",
         PdfTextExtractionStatus.Unavailable =>
             "The PDF could not be inspected right now. Please try again.",
-        _ => "The selected file is damaged or is not a valid PDF."
+        _ => "The selected file is damaged or is not a valid PDF or DOCX document."
     };
 
     private static string SanitizeFileName(string fileName)
@@ -235,7 +266,10 @@ public sealed class ResumeIngestionService(
             safeName = "resume.pdf";
         }
 
-        return safeName.Length <= 255 ? safeName : safeName[..251] + ".pdf";
+        if (safeName.Length <= 255) return safeName;
+        var extension = Path.GetExtension(safeName);
+        var allowedExtension = extension.Equals(".docx", StringComparison.OrdinalIgnoreCase) ? ".docx" : ".pdf";
+        return safeName[..(255 - allowedExtension.Length)] + allowedExtension;
     }
 
     private async Task DeleteOrScheduleAsync(

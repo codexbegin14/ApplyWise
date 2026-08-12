@@ -9,4 +9,6 @@ public sealed class ResumeStorageOptions
     public int MaxFilesPerUser { get; set; } = 25;
     public long MaxBytesPerUser { get; set; } = 50 * 1024 * 1024;
     public int ExtractionTimeoutSeconds { get; set; } = 15;
+    public int ParserQueueLimit { get; set; } = 8;
+    public int ParserQueueTimeoutSeconds { get; set; } = 10;
 }

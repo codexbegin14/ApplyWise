@@ -199,7 +199,8 @@ public sealed class ResumeAnalysisV2Tests
         Assert.Equal(0, meaningless.DetectedJobRequirementCount);
         Assert.Contains(meaningless.Warnings, warning => warning.Code == AnalysisWarningCode.SparseJobDescription);
         Assert.Contains(meaningless.Warnings, warning => warning.Code == AnalysisWarningCode.NoMeaningfulRequirements);
-        Assert.DoesNotContain(meaningless.Warnings, warning => warning.Code == AnalysisWarningCode.NotAssessed);
+        Assert.Contains(meaningless.Warnings, warning => warning.Code == AnalysisWarningCode.NotAssessed &&
+            warning.Message.Contains("Visual", StringComparison.OrdinalIgnoreCase));
 
         var recognized = _service.Analyze(
             RepresentativeResume,
@@ -237,6 +238,55 @@ public sealed class ResumeAnalysisV2Tests
         Assert.Equal(
             (int)Math.Round(result.Components.Sum(component => component.Score), MidpointRounding.AwayFromZero),
             result.Score);
+    }
+
+    [Fact]
+    public void Assessed_layout_risks_reduce_parseability_and_create_specific_guidance()
+    {
+        var text = RepresentativeResume;
+        var cleanDocument = _sections.Detect(text, isStructured: true, pageCount: 2,
+            fileDiagnostics: new ResumeFileDiagnostics("PDF", true));
+        var riskyDocument = _sections.Detect(text, isStructured: true, pageCount: 4,
+            fileDiagnostics: new ResumeFileDiagnostics(
+                "PDF", true, SuspectedMultiColumn: true, RepeatedHeaderOrFooter: true,
+                HasRotatedText: true, HasVerySmallText: true, HasTextBoxes: true));
+
+        var clean = _ats.Score(cleanDocument);
+        var risky = _ats.Score(riskyDocument);
+
+        Assert.True(risky.Score < clean.Score);
+        Assert.Contains(risky.Warnings, warning => warning.Code == AnalysisWarningCode.LayoutRisk);
+        Assert.Contains(risky.Warnings, warning => warning.Code == AnalysisWarningCode.UnsupportedFormatting);
+        Assert.Contains(risky.ReviewItems, item => item.Category == ReviewCategory.DocumentFormatting);
+    }
+
+    [Fact]
+    public void Plain_or_cached_text_discloses_that_visual_layout_was_not_assessed()
+    {
+        var result = _ats.Score(_sections.Detect(RepresentativeResume));
+
+        Assert.Contains(result.Warnings, warning =>
+            warning.Code == AnalysisWarningCode.NotAssessed &&
+            warning.Message.Contains("Visual", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Calendar_year_alone_does_not_count_as_a_measurable_result()
+    {
+        const string resume = """
+            Jordan Lee
+            jordan@example.test
+            EXPERIENCE
+            Engineer | Jan 2023 - Present
+            - Worked with the product team in 2023.
+            """;
+
+        var result = _ats.Score(_sections.Detect(resume));
+        var review = Assert.Single(result.BulletReviews);
+
+        Assert.DoesNotContain(review.Strengths, strength => strength.Contains("measurable", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(review.Problems, problem => problem.Contains("No measurable evidence", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(review.Problems, problem => problem.Contains("method or skill", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -382,7 +432,7 @@ public sealed class ResumeAnalysisV2Tests
             item.Category == ReviewCategory.WeakEvidence &&
             item.RelatedJobRequirement == "Kubernetes");
 
-        Assert.Equal(.65d, evidence.EvidenceStrength, 6);
+        Assert.Equal(.5d, evidence.EvidenceStrength, 6);
         Assert.Equal(ReviewPriority.High, review.Priority);
         Assert.Contains("If you genuinely", review.RecommendedAction, StringComparison.OrdinalIgnoreCase);
         Assert.NotNull(review.ExampleImprovement);

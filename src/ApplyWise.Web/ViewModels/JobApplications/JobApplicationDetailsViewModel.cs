@@ -20,13 +20,9 @@ public sealed record JobApplicationDetailsViewModel(
     IReadOnlyList<ApplicationCustomFieldViewModel> CustomFields,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<ApplicationInterviewSummaryViewModel>? Interviews = null,
-    IReadOnlyList<ApplicationReminderSummaryViewModel>? Reminders = null);
+    IReadOnlyList<ApplicationInterviewSummaryViewModel>? Interviews = null);
 
 public sealed record ApplicationCustomFieldViewModel(string Label, string Value);
 
 public sealed record ApplicationInterviewSummaryViewModel(
     int Id, InterviewType InterviewType, InterviewStatus Status, DateTimeOffset ScheduledAt);
-
-public sealed record ApplicationReminderSummaryViewModel(
-    int Id, string Title, ReminderType ReminderType, DateTimeOffset DueAt, bool IsCompleted);

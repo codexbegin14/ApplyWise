@@ -1,0 +1,68 @@
+name: Validate release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore tools and packages
+        run: |
+          dotnet tool restore
+          dotnet restore ApplyWise.sln
+
+      - name: Build release
+        run: dotnet build ApplyWise.sln -c Release --no-restore
+
+      - name: Run .NET tests
+        run: dotnet test ApplyWise.sln -c Release --no-build --logger trx --results-directory TestResults
+
+      - name: Run browser-side tests
+        run: |
+          node --check src/ApplyWise.Web/wwwroot/js/resume-builder.js
+          node --check src/ApplyWise.Web/wwwroot/js/resume-analyzer.js
+          node --test tests/resume-builder/resume-builder.test.cjs
+
+      - name: Verify Entity Framework model
+        run: dotnet tool run dotnet-ef migrations has-pending-model-changes --project src/ApplyWise.Web/ApplyWise.Web.csproj --startup-project src/ApplyWise.Web/ApplyWise.Web.csproj --configuration Release --no-build
+
+      - name: Check dependency advisories
+        run: dotnet list ApplyWise.sln package --vulnerable --include-transitive
+
+      - name: Publish application
+        run: dotnet publish src/ApplyWise.Web/ApplyWise.Web.csproj -c Release --no-build -o .artifacts/publish
+
+      - name: Generate migration artifact
+        run: dotnet tool run dotnet-ef migrations script --idempotent --project src/ApplyWise.Web/ApplyWise.Web.csproj --startup-project src/ApplyWise.Web/ApplyWise.Web.csproj --configuration Release --no-build -o .artifacts/migrations.sql
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: applywise-release
+          path: |
+            .artifacts/publish
+            .artifacts/migrations.sql
+            TestResults
+          if-no-files-found: error
+          retention-days: 14

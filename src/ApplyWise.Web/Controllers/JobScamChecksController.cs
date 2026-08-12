@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -15,7 +16,8 @@ namespace ApplyWise.Web.Controllers;
 public class JobScamChecksController(
     ApplicationDbContext dbContext,
     UserManager<IdentityUser> userManager,
-    IJobScamDetectorService detectorService) : Controller
+    IJobScamDetectorService detectorService,
+    IProductEventRecorder events) : Controller
 {
     [HttpPost("analyze")]
     [ValidateAntiForgeryToken]
@@ -42,6 +44,11 @@ public class JobScamChecksController(
         };
         dbContext.JobScamChecks.Add(check);
         await dbContext.SaveChangesAsync();
+        await events.RecordAsync(
+            ProductEventNames.ScamCheckCompleted,
+            "job_application",
+            userId,
+            cancellationToken: HttpContext.RequestAborted);
         return RedirectToAction(nameof(Details), new { id = check.Id });
     }
 

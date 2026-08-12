@@ -205,7 +205,7 @@ public sealed class ResumeTaxonomyArtifactTests(ITestOutputHelper output)
 
     private static void AssertCuratedFallback(SkillTaxonomyService taxonomy)
     {
-        Assert.Equal("curated-fallback-2026.07", taxonomy.Version);
+        Assert.Equal("curated-fallback-2026.08-v3", taxonomy.Version);
         Assert.Contains(taxonomy.Entries, item => item.Id == "it.csharp");
         Assert.Single(taxonomy.FindMatches("C# developer"), match => match.SkillId == "it.csharp");
     }

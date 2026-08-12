@@ -6,7 +6,7 @@
 <div class="page-heading">
     <div>
         <h1>Upload Resume</h1>
-        <p>Add a clearly labeled PDF version to your resume library.</p>
+        <p>Add a clearly labeled PDF or DOCX version to your resume library.</p>
     </div>
 </div>
 
@@ -29,8 +29,8 @@
 
         <div class="mb-4">
             <label asp-for="ResumeFile" class="form-label"></label>
-            <input asp-for="ResumeFile" class="form-control" type="file" accept="application/pdf,.pdf" />
-            <div class="form-hint">PDF only, up to 5 MB and 50 pages. Scanned PDFs can be stored, but selectable text is required for analysis and matching.</div>
+            <input asp-for="ResumeFile" class="form-control" type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+            <div class="form-hint">PDF or DOCX, up to 5 MB. Scanned image-only PDFs can be stored, but readable text is required for analysis and matching.</div>
             <span asp-validation-for="ResumeFile" class="field-validation-error"></span>
         </div>
 

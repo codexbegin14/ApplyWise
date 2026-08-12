@@ -12,8 +12,6 @@ public sealed record AnalyticsOverviewResult(
     int CurrentScoreAnalysisCount,
     int LegacyAnalysisCount,
     string? MostFrequentParsingWarning,
-    int PendingReminderCount,
-    int OverdueReminderCount,
     int UpcomingInterviewCount,
     double InterviewRate,
     IReadOnlyList<StatusCountItem> ApplicationsByStatus,

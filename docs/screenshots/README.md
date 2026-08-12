@@ -11,7 +11,7 @@ Recommended filenames:
 - `05-applications.png`
 - `06-resume-analysis.png`
 - `07-best-resume.png`
-- `08-interviews-reminders.png`
+- `08-interviews.png`
 - `09-analytics.png`
 - `10-job-post-review.png`
 

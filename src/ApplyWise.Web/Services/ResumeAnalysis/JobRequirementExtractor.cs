@@ -29,7 +29,7 @@ public sealed partial class JobRequirementExtractor(
                 currentHeading = source;
                 continue;
             }
-            if (GenericPhrases.Any(phrase => source.Contains(phrase, StringComparison.OrdinalIgnoreCase))) continue;
+            if (IsGenericLine(source)) continue;
             foreach (var match in taxonomy.FindMatches(source))
             {
                 var priority = ClassifyPriority(source, currentHeading);
@@ -60,7 +60,8 @@ public sealed partial class JobRequirementExtractor(
         {
             var source = FindLine(text, match.Index);
             var priority = ClassifyPriority(source, FindHeadingBefore(text, match.Index));
-            AddOrUpgrade(byId, new JobRequirement("education.bachelors", "Bachelor's degree", priority,
+            var level = NormalizeEducationLevel(match.Groups["level"].Value);
+            AddOrUpgrade(byId, new JobRequirement("education." + level.Id, level.Name, priority,
                 RequirementCategory.Education, SafeSource(source), null, PriorityWeight(priority)));
         }
 
@@ -72,6 +73,22 @@ public sealed partial class JobRequirementExtractor(
             var priority = ClassifyPriority(source, FindHeadingBefore(text, match.Index));
             AddOrUpgrade(byId, new JobRequirement("cert." + Slug(name), name + " certification", priority,
                 RequirementCategory.Certification, SafeSource(source), null, PriorityWeight(priority)));
+        }
+
+        foreach (Match match in WorkAuthorizationRegex().Matches(text))
+        {
+            var source = FindLine(text, match.Index);
+            var priority = ClassifyPriority(source, FindHeadingBefore(text, match.Index));
+            AddOrUpgrade(byId, new JobRequirement("eligibility.work-authorization", "Work authorization", priority,
+                RequirementCategory.Eligibility, SafeSource(source), null, PriorityWeight(priority)));
+        }
+
+        foreach (Match match in SecurityClearanceRegex().Matches(text))
+        {
+            var source = FindLine(text, match.Index);
+            var priority = ClassifyPriority(source, FindHeadingBefore(text, match.Index));
+            AddOrUpgrade(byId, new JobRequirement("eligibility.security-clearance", "Security clearance", priority,
+                RequirementCategory.Eligibility, SafeSource(source), null, PriorityWeight(priority)));
         }
 
         AddResponsibilityRequirements(lines, byId);
@@ -94,7 +111,7 @@ public sealed partial class JobRequirementExtractor(
             var line = raw.Trim().TrimStart('-', '\u2022', '*', ' ');
             if (ResponsibilityHeading().IsMatch(line)) { inResponsibilities = true; continue; }
             if (RequirementHeading().IsMatch(line)) { inResponsibilities = false; continue; }
-            if (!inResponsibilities || line.Length is < 25 or > 220 || GenericPhrases.Any(phrase => line.Contains(phrase, StringComparison.OrdinalIgnoreCase))) continue;
+            if (!inResponsibilities || line.Length is < 25 or > 220 || IsGenericLine(line)) continue;
             var phrase = ResponsibilityCore().Match(line);
             if (!phrase.Success) continue;
             var name = phrase.Groups["task"].Value.Trim().TrimEnd('.', ';');
@@ -147,8 +164,9 @@ public sealed partial class JobRequirementExtractor(
     private static RequirementPriority ClassifyPriority(string line, string heading)
     {
         var context = (heading + " " + line).ToLowerInvariant();
-        if (context.Contains("must have") || context.Contains("mandatory") || context.Contains("essential")) return RequirementPriority.MustHave;
-        if (context.Contains("minimum qualification") || context.Contains("basic qualification") || context.Contains("required") || context.Contains("requirements")) return RequirementPriority.Required;
+        if (context.Contains("must have") || context.Contains("mandatory") || context.Contains("essential") || context.Contains("non-negotiable")) return RequirementPriority.MustHave;
+        if (context.Contains("minimum qualification") || context.Contains("basic qualification") || context.Contains("required") || context.Contains("requirements") ||
+            context.Contains("minimum requirement") || context.Contains("you need") || context.Contains("shall have")) return RequirementPriority.Required;
         if (context.Contains("preferred") || context.Contains("nice to have") || context.Contains("desirable") || context.Contains("bonus")) return RequirementPriority.Preferred;
         return RequirementPriority.Informational;
     }
@@ -165,6 +183,21 @@ public sealed partial class JobRequirementExtractor(
     {
         if (!items.TryGetValue(requirement.Id, out var existing) || requirement.PriorityWeight > existing.PriorityWeight)
             items[requirement.Id] = requirement;
+    }
+
+    private static bool IsGenericLine(string line)
+    {
+        var normalized = line.Trim().TrimEnd('.', ';', ':');
+        return GenericPhrases.Any(phrase => string.Equals(normalized, phrase, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static (string Id, string Name) NormalizeEducationLevel(string value)
+    {
+        var normalized = value.ToLowerInvariant().Replace(".", string.Empty).Replace("'", string.Empty);
+        if (normalized.Contains("doctor") || normalized.Contains("phd")) return ("doctorate", "Doctoral degree");
+        if (normalized.Contains("master") || normalized is "ms" or "ma" or "mba") return ("masters", "Master's degree");
+        if (normalized.Contains("associate")) return ("associates", "Associate degree");
+        return ("bachelors", "Bachelor's degree");
     }
 
     private static string FindLine(string text, int index)
@@ -186,21 +219,25 @@ public sealed partial class JobRequirementExtractor(
     private static string SafeSource(string value) => value.Length <= 180 ? value : value[..177] + "...";
     private static string Slug(string value) => Regex.Replace(value.ToLowerInvariant(), @"[^a-z0-9]+", ".").Trim('.');
 
-    [GeneratedRegex(@"(?<years>\d{1,2})\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+)?experience", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:at\s+least\s+|minimum\s+(?:of\s+)?)?(?<years>\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:relevant\s+|professional\s+|hands-on\s+)?experience", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex YearsRegex();
-    [GeneratedRegex(@"(?:bachelor(?:'s|s)?|undergraduate)\s+(?:degree|qualification)|(?:degree|bachelor(?:'s|s)?)\s+(?:is\s+)?(?:required|preferred)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?<level>doctor(?:al|ate)?|ph\.?d\.?|master(?:'s|s)?|m\.?s\.?|m\.?a\.?|mba|bachelor(?:'s|s)?|undergraduate|associate(?:'s|s)?)\s+(?:degree|qualification)|(?<level>bachelor(?:'s|s)?|master(?:'s|s)?|doctoral|associate(?:'s|s)?)\s+(?:is\s+)?(?:required|preferred)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EducationRegex();
-    [GeneratedRegex(@"(?:(?<name>AWS|Azure|PMP|CPA|CFA|CISSP|CompTIA|Scrum|Google|Microsoft)[\w +#.-]{0,45})?\s*certification\s*(?:is\s+)?(?:required|preferred|desired)?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:(?<name>AWS(?:\s+[\w +#.-]{1,35})?|Azure(?:\s+[\w +#.-]{1,35})?|PMP|CAPM|CPA|CFA|CISSP|CISM|CISA|CompTIA(?:\s+[A-Za-z+]+)?|ITIL|CCNA|CCNP|SHRM(?:-CP|-SCP)?|PHR|SPHR|Six Sigma(?:\s+(?:Green|Black) Belt)?|Scrum(?:\s+Master)?|Google(?:\s+[\w +#.-]{1,35})?|Microsoft(?:\s+[\w +#.-]{1,35})?))\s+certification|certification\s+in\s+(?<name>[A-Za-z][\w +#.-]{1,45})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CertificationRegex();
+    [GeneratedRegex(@"\b(?:authorized|authorization|eligible)\s+to\s+work\b|\bwork\s+authorization\b|\b(?:citizen|permanent resident)\s+(?:is\s+)?required\b|\bno\s+(?:visa\s+)?sponsorship\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex WorkAuthorizationRegex();
+    [GeneratedRegex(@"\b(?:active\s+|current\s+)?(?:security\s+)?clearance\b|\b(?:secret|top secret|ts\/sci)\s+clearance\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SecurityClearanceRegex();
     [GeneratedRegex(@"^(?:responsibilities|duties|what you will do|what you'll do|the role|key responsibilities)\s*:?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ResponsibilityHeading();
     [GeneratedRegex(@"^(?:minimum qualifications|basic qualifications|requirements|required skills|must have|preferred qualifications|nice to have|education|experience|certifications?)\s*:?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RequirementHeading();
-    [GeneratedRegex(@"^(?:you will\s+)?(?<task>(?:develop|build|design|manage|lead|analy[sz]e|create|deliver|support|coordinate|implement|maintain|optimi[sz]e|collaborate|prepare|monitor|resolve|own)\b.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?:you will\s+)?(?<task>(?:develop|build|design|manage|lead|analy[sz]e|create|deliver|support|coordinate|implement|maintain|optimi[sz]e|collaborate|prepare|monitor|resolve|own|oversee|administer|architect|automate|test|troubleshoot|audit|research|write|configure|deploy|migrate|mentor)\b.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ResponsibilityCore();
-    [GeneratedRegex(@"\b(?:intern|junior|entry[- ]level|mid[- ]level|senior|lead|principal|manager|director|head of)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\b(?:intern|associate|junior|entry[- ]level|mid[- ]level|senior|staff|lead|principal|manager|director|head of)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeniorityRegex();
-    [GeneratedRegex(@"(?<title>(?:(?:intern|junior|mid[- ]level|senior|lead|principal|head of)\s+)?(?:software|web|mobile|cloud|security|data|business|financial|marketing|sales|product|project|program|human resources|hr|customer success|operations|supply chain|ux|ui|graphic|healthcare|education)\s+(?:engineer|developer|architect|analyst|scientist|specialist|consultant|designer|administrator|coordinator|manager|director|officer|representative))\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?<title>(?:(?:intern|associate|junior|mid[- ]level|senior|staff|lead|principal|head of)\s+)?(?:software|frontend|front[- ]end|backend|back[- ]end|full[- ]stack|web|mobile|cloud|platform|devops|site reliability|security|data|machine learning|ai|business|systems|financial|marketing|sales|product|project|program|human resources|hr|customer success|customer support|operations|supply chain|ux|ui|graphic|healthcare|education|quality assurance|qa)\s+(?:engineer|developer|architect|analyst|scientist|specialist|consultant|designer|administrator|coordinator|manager|director|officer|representative))\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex JobTitleRegex();
     [GeneratedRegex(@"\b(?:experience|ability)\s+(?:in|to)?\s*(?<task>(?:manag(?:e|ing)|lead(?:ing)?|coordinat(?:e|ing)|mentor(?:ing)?|supervis(?:e|ing)|communicat(?:e|ing)|present(?:ing)?|negotiate|analy[sz](?:e|ing))\b[^.;\r\n]{3,90})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EmbeddedResponsibilityRegex();

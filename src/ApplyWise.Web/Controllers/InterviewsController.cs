@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using ApplyWise.Web.Services.Monitoring;
+using ApplyWise.Web.Services.Security;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -13,7 +15,9 @@ namespace ApplyWise.Web.Controllers;
 [Route("interviews")]
 public class InterviewsController(
     ApplicationDbContext dbContext,
-    UserManager<IdentityUser> userManager) : Controller
+    UserManager<IdentityUser> userManager,
+    IProductEventRecorder events,
+    IWorkspaceQuotaService quotas) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(string? filter)
@@ -68,11 +72,24 @@ public class InterviewsController(
             return View(model);
         }
 
+        var userId = GetUserId();
+        if (!await quotas.CanCreateInterviewAsync(userId, HttpContext.RequestAborted))
+        {
+            ModelState.AddModelError(string.Empty, "Your workspace reached its interview limit. Delete old interviews before scheduling another.");
+            await PopulateApplicationsAsync(model);
+            return View(model);
+        }
+
         var now = DateTimeOffset.UtcNow;
-        var interview = new Interview { UserId = GetUserId(), CreatedAt = now, UpdatedAt = now };
+        var interview = new Interview { UserId = userId, CreatedAt = now, UpdatedAt = now };
         ApplyForm(interview, model);
         dbContext.Interviews.Add(interview);
         await dbContext.SaveChangesAsync();
+        await events.RecordAsync(
+            ProductEventNames.InterviewScheduled,
+            "manual",
+            interview.UserId,
+            cancellationToken: HttpContext.RequestAborted);
 
         TempData["SuccessMessage"] = "Interview scheduled.";
         return RedirectToAction(nameof(Details), new { id = interview.Id });

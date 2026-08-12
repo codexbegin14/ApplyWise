@@ -4,6 +4,7 @@ using ApplyWise.Web.Models;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using ApplyWise.Web.Services.Security;
 
 namespace ApplyWise.Web.Services.Gmail;
 
@@ -27,7 +28,8 @@ public enum ApplicationImportProcessOutcome
     Created,
     LinkedExisting,
     AlreadyProcessed,
-    OwnershipConflict
+    OwnershipConflict,
+    QuotaExceeded
 }
 
 public sealed record ApplicationImportProcessResult(
@@ -52,7 +54,8 @@ public interface IApplicationImportProcessor
 
 public sealed class ApplicationImportProcessor(
     ApplicationDbContext dbContext,
-    ILogger<ApplicationImportProcessor> logger) : IApplicationImportProcessor
+    ILogger<ApplicationImportProcessor> logger,
+    IWorkspaceQuotaService? quotas = null) : IApplicationImportProcessor
 {
     private static readonly HashSet<string> TrackingQueryParameters =
         new(StringComparer.OrdinalIgnoreCase)
@@ -249,6 +252,12 @@ public sealed class ApplicationImportProcessor(
                 existingApplication.Id,
                 existingApplication.CompanyName,
                 existingApplication.JobTitle);
+        }
+
+        if (quotas is not null
+            && !await quotas.CanCreateApplicationAsync(userId, cancellationToken))
+        {
+            return new(ApplicationImportProcessOutcome.QuotaExceeded);
         }
 
         var now = DateTimeOffset.UtcNow;

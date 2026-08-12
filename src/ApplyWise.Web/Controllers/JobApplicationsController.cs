@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using ApplyWise.Web.Services.Monitoring;
+using ApplyWise.Web.Services.Security;
 
 namespace ApplyWise.Web.Controllers;
 
@@ -14,7 +16,9 @@ namespace ApplyWise.Web.Controllers;
 [Route("applications")]
 public class JobApplicationsController(
     ApplicationDbContext dbContext,
-    UserManager<IdentityUser> userManager) : Controller
+    UserManager<IdentityUser> userManager,
+    IProductEventRecorder events,
+    IWorkspaceQuotaService quotas) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(JobApplicationIndexViewModel filters)
@@ -99,10 +103,18 @@ public class JobApplicationsController(
             return View(model);
         }
 
+        var userId = GetUserId();
+        if (!await quotas.CanCreateApplicationAsync(userId, HttpContext.RequestAborted))
+        {
+            ModelState.AddModelError(string.Empty, "Your workspace reached its application limit. Delete old applications before adding another.");
+            await PopulateResumesAsync(model);
+            return View(model);
+        }
+
         var now = DateTimeOffset.UtcNow;
         var application = new JobApplication
         {
-            UserId = GetUserId(),
+            UserId = userId,
             Status = ApplicationStatus.Applied,
             CreatedAt = now,
             UpdatedAt = now
@@ -112,6 +124,11 @@ public class JobApplicationsController(
 
         dbContext.JobApplications.Add(application);
         await dbContext.SaveChangesAsync();
+        await events.RecordAsync(
+            ProductEventNames.ApplicationCreated,
+            "manual",
+            application.UserId,
+            cancellationToken: HttpContext.RequestAborted);
         TempData["SuccessMessage"] = $"{application.JobTitle} at {application.CompanyName} was added.";
         return RedirectToAction(nameof(Index));
     }
@@ -128,15 +145,7 @@ public class JobApplicationsController(
             .Select(interview => new ApplicationInterviewSummaryViewModel(
                 interview.Id, interview.InterviewType, interview.Status, interview.ScheduledAt))
             .ToListAsync();
-        var reminders = await dbContext.Reminders.AsNoTracking()
-            .Where(reminder => reminder.UserId == application.UserId && reminder.JobApplicationId == application.Id)
-            .OrderBy(reminder => reminder.IsCompleted)
-            .ThenBy(reminder => reminder.DueAt)
-            .Take(3)
-            .Select(reminder => new ApplicationReminderSummaryViewModel(
-                reminder.Id, reminder.Title, reminder.ReminderType, reminder.DueAt, reminder.IsCompleted))
-            .ToListAsync();
-        return View(ToDetailsViewModel(application, interviews, reminders));
+        return View(ToDetailsViewModel(application, interviews));
     }
 
     [HttpGet("{id:int}/edit")]
@@ -250,9 +259,6 @@ public class JobApplicationsController(
         await dbContext.Interviews
             .Where(interview => interview.UserId == application.UserId && interview.JobApplicationId == application.Id)
             .ExecuteDeleteAsync();
-        await dbContext.Reminders
-            .Where(reminder => reminder.UserId == application.UserId && reminder.JobApplicationId == application.Id)
-            .ExecuteDeleteAsync();
         await dbContext.JobScamChecks
             .Where(check => check.UserId == application.UserId && check.JobApplicationId == application.Id)
             .ExecuteDeleteAsync();
@@ -348,13 +354,12 @@ public class JobApplicationsController(
 
     private static JobApplicationDetailsViewModel ToDetailsViewModel(
         JobApplication application,
-        IReadOnlyList<ApplicationInterviewSummaryViewModel>? interviews = null,
-        IReadOnlyList<ApplicationReminderSummaryViewModel>? reminders = null) =>
+        IReadOnlyList<ApplicationInterviewSummaryViewModel>? interviews = null) =>
         new(application.Id, application.CompanyName, application.JobTitle, application.JobLocation,
             application.JobType, application.SalaryRange, application.Source, application.JobUrl,
             application.JobDescription, application.Status, application.Resume?.VersionName,
             application.AppliedDate, application.Deadline, application.Notes, ReadCustomFieldsForDetails(application.CustomFieldsJson),
-            application.CreatedAt, application.UpdatedAt, interviews, reminders);
+            application.CreatedAt, application.UpdatedAt, interviews);
 
     private static List<CustomApplicationFieldInput> ReadCustomFields(string? json)
     {

@@ -25,6 +25,9 @@ public sealed class PdfResumeExtractionTests
 
             Assert.Equal(PdfTextExtractionStatus.Success, result.Status);
             Assert.Contains("ASP.NET Core Developer", result.Text, StringComparison.Ordinal);
+            Assert.Equal(1, result.PageCount);
+            Assert.True(result.Diagnostics?.LayoutAssessed);
+            Assert.Equal("PDF", result.Diagnostics?.FileType);
         }
         finally
         {

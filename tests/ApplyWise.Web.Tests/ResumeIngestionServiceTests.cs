@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using ApplyWise.Web.Services.Monitoring;
 using Xunit;
 
 namespace ApplyWise.Web.Tests;
@@ -38,6 +39,26 @@ public sealed class ResumeIngestionServiceTests
         Assert.Equal("Jordan Lee\nProfessional Summary\nExperience", result.Resume.ExtractedText);
         Assert.True(File.Exists(files.ResolvePath(result.Resume.FilePath)));
         Assert.Equal(1, await context.Resumes.CountAsync());
+    }
+
+    [Fact]
+    public async Task Valid_docx_is_accepted_and_preserves_document_metadata()
+    {
+        await using var context = CreateContext();
+        using var files = new TemporaryStorage();
+        var diagnostics = new ResumeFileDiagnostics("DOCX", true, HasTables: true);
+        var extractor = new StubExtractor(new PdfTextExtractionResult(
+            PdfTextExtractionStatus.Success, "Jordan Lee\nExperience", 2, diagnostics));
+        var service = CreateService(context, files, extractor);
+
+        var result = await service.IngestAsync(new ResumeIngestionRequest(
+            "user-1", "DOCX Resume", DocxFile("resume.docx"), RequireSelectableText: true));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(".docx", Path.GetExtension(result.Resume!.StoredFileName));
+        Assert.Equal(2, result.Resume.PageCount);
+        Assert.Contains("DOCX", result.Resume.FileDiagnosticsJson);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.wordprocessingml.document", result.Resume.ContentType);
     }
 
     [Fact]
@@ -184,6 +205,7 @@ public sealed class ResumeIngestionServiceTests
             storage,
             extractor,
             new RecordingCleanupScheduler(),
+            new NoOpProductEventRecorder(),
             Options.Create(new ResumeStorageOptions
             {
                 MaxFileSizeBytes = ResumeIngestionLimits.MaxFileSizeBytes,
@@ -192,6 +214,12 @@ public sealed class ResumeIngestionServiceTests
                 ExtractionTimeoutSeconds = 15
             }),
             NullLogger<ResumeIngestionService>.Instance);
+
+    private sealed class NoOpProductEventRecorder : IProductEventRecorder
+    {
+        public Task RecordAsync(string name, string source, string? userId = null, bool succeeded = true, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RecordLoginAsync(string userId, string source, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
 
     private sealed class RecordingCleanupScheduler : IResumeFileCleanupScheduler
     {
@@ -207,11 +235,15 @@ public sealed class ResumeIngestionServiceTests
     private static IFormFile PdfFile(string fileName) =>
         FormFile(Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj\n%%EOF"), fileName);
 
-    private static IFormFile FormFile(byte[] bytes, string fileName) =>
+    private static IFormFile DocxFile(string fileName) =>
+        FormFile([0x50, 0x4B, 0x03, 0x04], fileName,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+    private static IFormFile FormFile(byte[] bytes, string fileName, string contentType = "application/pdf") =>
         new FormFile(new MemoryStream(bytes), 0, bytes.Length, "ResumeFile", fileName)
         {
             Headers = new HeaderDictionary(),
-            ContentType = "application/pdf"
+            ContentType = contentType
         };
 
     private sealed class StubExtractor(PdfTextExtractionResult result) : IResumeTextExtractorService

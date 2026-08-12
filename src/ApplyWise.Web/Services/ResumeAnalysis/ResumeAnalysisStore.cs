@@ -6,6 +6,7 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using Microsoft.EntityFrameworkCore;
 using ResumeAnalysisEntity = ApplyWise.Web.Models.ResumeAnalysis;
+using ApplyWise.Web.Services.Security;
 
 namespace ApplyWise.Web.Services.ResumeAnalysis;
 
@@ -14,9 +15,10 @@ public sealed class ResumeAnalysisStore(
     IResumeTextNormalizer normalizer,
     ISkillTaxonomyService taxonomy,
     IResumeAnalysisService analysisService,
-    ILogger<ResumeAnalysisStore> logger) : IResumeAnalysisStore
+    ILogger<ResumeAnalysisStore> logger,
+    IWorkspaceQuotaService? quotas = null) : IResumeAnalysisStore
 {
-    private const string ScoringConfigurationVersion = "ats20-job80-taxonomy-v1";
+    private const string ScoringConfigurationVersion = "ats-v3-evidence-layout-taxonomy-v2";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<StoredResumeAnalysis> AnalyzeAndStageAsync(
@@ -29,7 +31,9 @@ public sealed class ResumeAnalysisStore(
     {
         var startedAt = Stopwatch.GetTimestamp();
         var normalizedJob = normalizer.Normalize(jobDescription ?? string.Empty);
-        var inputHash = ComputeInputHash(normalizer.Normalize(resumeText), normalizedJob, taxonomy.Version);
+        var fileDiagnostics = DeserializeDiagnostics(resume.FileDiagnosticsJson);
+        var diagnosticsJson = fileDiagnostics is null ? string.Empty : JsonSerializer.Serialize(fileDiagnostics, JsonOptions);
+        var inputHash = ComputeInputHash(normalizer.Normalize(resumeText), normalizedJob, taxonomy.Version, resume.PageCount, diagnosticsJson);
         var cached = await dbContext.ResumeAnalyses
             .AsNoTracking()
             .Where(item => item.UserId == resume.UserId
@@ -57,7 +61,13 @@ public sealed class ResumeAnalysisStore(
             return new StoredResumeAnalysis(cached, cachedResult!, true);
         }
 
-        var result = analysisService.Analyze(resumeText, normalizedJob);
+        if (quotas is not null
+            && !await quotas.CanCreateAnalysisAsync(resume.UserId, cancellationToken))
+        {
+            throw new InvalidOperationException("Your workspace reached its saved-analysis limit. Delete old analyses before running another unique analysis.");
+        }
+
+        var result = analysisService.Analyze(resumeText, normalizedJob, resume.PageCount, fileDiagnostics);
         logger.LogInformation(
             "Resume analysis store completed in {DurationMs:F3} ms. CacheHit={CacheHit}; ResumeChars={ResumeCharacters}; JobChars={JobCharacters}; Requirements={RequirementCount}; Matches={MatchCount}; ScoreVersion={ScoreVersion}; TaxonomyVersion={TaxonomyVersion}.",
             Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
@@ -165,15 +175,29 @@ public sealed class ResumeAnalysisStore(
             ? []
             : JsonSerializer.Deserialize<T[]>(json, JsonOptions) ?? [];
 
-    private static string ComputeInputHash(string resumeText, string jobDescription, string taxonomyVersion)
+    private static string ComputeInputHash(
+        string resumeText,
+        string jobDescription,
+        string taxonomyVersion,
+        int? pageCount,
+        string diagnosticsJson)
     {
         var input = string.Join('\u001F',
             ResumeAnalysisResult.CurrentScoreVersion,
             ScoringConfigurationVersion,
             taxonomyVersion,
+            pageCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            diagnosticsJson,
             resumeText,
             jobDescription);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input)));
+    }
+
+    private static ResumeFileDiagnostics? DeserializeDiagnostics(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<ResumeFileDiagnostics>(json, JsonOptions); }
+        catch (JsonException) { return null; }
     }
 
     private sealed class ReviewPayload

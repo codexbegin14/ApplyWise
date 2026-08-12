@@ -1,0 +1,51 @@
+name: Deploy Azure App Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      webapp_name:
+        description: Azure App Service name
+        required: true
+        type: string
+      database_is_migrated_and_backed_up:
+        description: Confirm the database was backed up and the release migration was applied
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: applywise-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.database_is_migrated_and_backed_up }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Validate and publish release
+        run: |
+          dotnet restore ApplyWise.sln
+          dotnet build ApplyWise.sln -c Release --no-restore
+          dotnet test ApplyWise.sln -c Release --no-build
+          dotnet publish src/ApplyWise.Web/ApplyWise.Web.csproj -c Release --no-build -o .artifacts/publish
+
+      - name: Deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ inputs.webapp_name }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .artifacts/publish

@@ -43,26 +43,70 @@ public sealed class ResumeAnalysisEvaluationTests
                 .Select(item => item.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            Assert.Subset(required, fixture.ExpectedRequired.ToHashSet(StringComparer.OrdinalIgnoreCase));
-            Assert.Subset(preferred, fixture.ExpectedPreferred.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            var expectedRequired = fixture.ExpectedRequired.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedPreferred = fixture.ExpectedPreferred.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Assert.True(expectedRequired.SetEquals(required),
+                $"Required extraction differed for {fixture.Role}. Expected [{string.Join(", ", expectedRequired)}], actual [{string.Join(", ", required)}].");
+            Assert.True(expectedPreferred.SetEquals(preferred),
+                $"Preferred extraction differed for {fixture.Role}. Expected [{string.Join(", ", expectedPreferred)}], actual [{string.Join(", ", preferred)}].");
 
             var primary = _service.Analyze(fixture.PrimaryResume, fixture.JobDescription);
             var comparison = _service.Analyze(fixture.ComparisonResume, fixture.JobDescription);
             var primaryMatches = primary.MatchedRequirements
+                .Where(item => item.Priority != RequirementPriority.Informational)
                 .Select(item => item.RequirementName)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var comparisonMissing = comparison.MissingRequirements
+                .Where(item => item.Priority != RequirementPriority.Informational)
                 .Select(item => item.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             Assert.NotNull(primary.JobMatchScore);
             Assert.NotNull(comparison.JobMatchScore);
-            Assert.Subset(primaryMatches, fixture.ExpectedPrimaryMatches.ToHashSet(StringComparer.OrdinalIgnoreCase));
-            Assert.Subset(comparisonMissing, fixture.ExpectedComparisonMissing.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            var expectedPrimary = fixture.ExpectedPrimaryMatches.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedMissing = fixture.ExpectedComparisonMissing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Assert.True(expectedPrimary.SetEquals(primaryMatches),
+                $"Primary matches differed for {fixture.Role}. Expected [{string.Join(", ", expectedPrimary)}], actual [{string.Join(", ", primaryMatches)}].");
+            Assert.True(expectedMissing.SetEquals(comparisonMissing),
+                $"Comparison misses differed for {fixture.Role}. Expected [{string.Join(", ", expectedMissing)}], actual [{string.Join(", ", comparisonMissing)}].");
             Assert.True(
                 primary.OverallScore > comparison.OverallScore,
                 $"Expected the evidence-rich resume to rank first for {fixture.Role}, but scores were {primary.OverallScore} and {comparison.OverallScore}.");
         }
+    }
+
+    [Fact]
+    public void Evaluation_set_reports_perfect_exact_label_metrics_and_ranking_for_the_checked_in_fixture()
+    {
+        var truePositive = 0;
+        var falsePositive = 0;
+        var falseNegative = 0;
+        var correctRankings = 0;
+        foreach (var fixture in LoadFixtures())
+        {
+            var extracted = _requirements.Extract(fixture.JobDescription)
+                .Where(item => item.Priority is RequirementPriority.MustHave or RequirementPriority.Required or RequirementPriority.Preferred)
+                .Select(item => item.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expected = fixture.ExpectedRequired.Concat(fixture.ExpectedPreferred)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            truePositive += extracted.Intersect(expected).Count();
+            falsePositive += extracted.Except(expected).Count();
+            falseNegative += expected.Except(extracted).Count();
+
+            var primary = _service.Analyze(fixture.PrimaryResume, fixture.JobDescription);
+            var comparison = _service.Analyze(fixture.ComparisonResume, fixture.JobDescription);
+            if (primary.OverallScore > comparison.OverallScore) correctRankings++;
+        }
+
+        var precision = truePositive / (double)Math.Max(1, truePositive + falsePositive);
+        var recall = truePositive / (double)Math.Max(1, truePositive + falseNegative);
+        var falsePositiveRate = falsePositive / (double)Math.Max(1, truePositive + falsePositive);
+        var rankingAccuracy = correctRankings / (double)LoadFixtures().Count;
+        Assert.Equal(1d, precision);
+        Assert.Equal(1d, recall);
+        Assert.Equal(0d, falsePositiveRate);
+        Assert.Equal(1d, rankingAccuracy);
     }
 
     private static IReadOnlyList<EvaluationFixture> LoadFixtures()

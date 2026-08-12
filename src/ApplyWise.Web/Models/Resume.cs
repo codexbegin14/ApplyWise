@@ -17,6 +17,8 @@ public class Resume
     public DateTimeOffset UploadedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public string? ExtractedText { get; set; }
+    public int? PageCount { get; set; }
+    public string? FileDiagnosticsJson { get; set; }
     public IdentityUser? User { get; set; }
     public ICollection<JobApplication> JobApplications { get; set; } = [];
     public ICollection<ResumeAnalysis> Analyses { get; set; } = [];

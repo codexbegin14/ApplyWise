@@ -1,8 +1,8 @@
 namespace ApplyWise.Web.Services.ResumeAnalysis;
 
 public enum RequirementPriority { MustHave, Required, Preferred, Informational }
-public enum RequirementCategory { TechnicalSkill, Tool, DomainSkill, SoftSkill, Responsibility, JobTitle, Seniority, Experience, Education, Certification, Language }
-public enum AnalysisWarningCode { UnreadableText, LimitedText, ParsingOrder, MissingSections, SparseJobDescription, NoMeaningfulRequirements, KeywordStuffing, ExcessiveLength, InconsistentDates, NotAssessed }
+public enum RequirementCategory { TechnicalSkill, Tool, DomainSkill, SoftSkill, Responsibility, JobTitle, Seniority, Experience, Education, Certification, Language, Eligibility }
+public enum AnalysisWarningCode { UnreadableText, LimitedText, ParsingOrder, MissingSections, SparseJobDescription, NoMeaningfulRequirements, KeywordStuffing, ExcessiveLength, InconsistentDates, LayoutRisk, RepeatedHeaderFooter, UnsupportedFormatting, NotAssessed }
 public enum ReviewPriority { Critical, High, Medium, Low }
 public enum ReviewStatus { Strong, Good, NeedsImprovement, Missing }
 public enum ReviewCategory
@@ -21,7 +21,22 @@ public enum ReviewCategory
     KeywordStuffing,
     DatesAndConsistency,
     BulletQuality,
-    ResumeLength
+    ResumeLength,
+    DocumentFormatting
+}
+
+public sealed record ResumeFileDiagnostics(
+    string FileType,
+    bool LayoutAssessed,
+    bool SuspectedMultiColumn = false,
+    bool RepeatedHeaderOrFooter = false,
+    bool HasRotatedText = false,
+    bool HasVerySmallText = false,
+    bool HasTables = false,
+    bool HasTextBoxes = false,
+    IReadOnlyList<string>? Notes = null)
+{
+    public IReadOnlyList<string> SafeNotes => Notes ?? [];
 }
 
 public sealed record ResumeSection(string Key, string Title, string Text, int StartIndex, int EndIndex);
@@ -32,7 +47,8 @@ public sealed record ResumeDocument(
     IReadOnlyList<ResumeSection> Sections,
     bool IsExtractable = true,
     bool IsStructured = false,
-    int? PageCount = null)
+    int? PageCount = null,
+    ResumeFileDiagnostics? FileDiagnostics = null)
 {
     public int CharacterCount => NormalizedText.Length;
     public int WordCount => NormalizedText.Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries).Length;

@@ -2,7 +2,7 @@ namespace ApplyWise.Web.Services.ResumeAnalysis;
 
 public sealed record ResumeAnalysisResult
 {
-    public const string CurrentScoreVersion = "ats-v2.0";
+    public const string CurrentScoreVersion = "ats-v3.0";
 
     public required int OverallScore { get; init; }
     public int MatchScore => OverallScore;

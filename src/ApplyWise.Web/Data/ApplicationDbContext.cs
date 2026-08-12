@@ -10,13 +10,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
     public DbSet<ResumeAnalysis> ResumeAnalyses => Set<ResumeAnalysis>();
     public DbSet<Interview> Interviews => Set<Interview>();
-    public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<JobScamCheck> JobScamChecks => Set<JobScamCheck>();
     public DbSet<CareerProfile> CareerProfiles => Set<CareerProfile>();
     public DbSet<AccountSecurityCode> AccountSecurityCodes => Set<AccountSecurityCode>();
     public DbSet<ResumeFileCleanup> ResumeFileCleanups => Set<ResumeFileCleanup>();
     public DbSet<GmailConnection> GmailConnections => Set<GmailConnection>();
     public DbSet<ApplicationImport> ApplicationImports => Set<ApplicationImport>();
+    public DbSet<UserAccountActivity> UserAccountActivities => Set<UserAccountActivity>();
+    public DbSet<ProductEvent> ProductEvents => Set<ProductEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -143,26 +144,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
-        builder.Entity<Reminder>(entity =>
-        {
-            entity.Property(reminder => reminder.Title).HasMaxLength(150);
-            entity.Property(reminder => reminder.Notes).HasMaxLength(1000);
-
-            entity.HasIndex(reminder => new { reminder.UserId, reminder.DueAt });
-            entity.HasIndex(reminder => new { reminder.UserId, reminder.IsCompleted });
-            entity.HasIndex(reminder => new { reminder.UserId, reminder.IsCompleted, reminder.DueAt });
-
-            entity.HasOne(reminder => reminder.User)
-                .WithMany()
-                .HasForeignKey(reminder => reminder.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(reminder => reminder.JobApplication)
-                .WithMany(application => application.Reminders)
-                .HasForeignKey(reminder => reminder.JobApplicationId)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
         builder.Entity<JobScamCheck>(entity =>
         {
             entity.Property(check => check.RedFlagsJson).HasColumnType("nvarchar(max)");
@@ -217,6 +198,39 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(code => code.CodeHash).HasMaxLength(32);
             entity.HasOne(code => code.User).WithMany().HasForeignKey(code => code.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UserAccountActivity>(entity =>
+        {
+            entity.HasKey(activity => activity.UserId);
+            entity.Property(activity => activity.LastLoginProvider).HasMaxLength(30);
+            entity.HasIndex(activity => activity.RegisteredAt);
+            entity.HasIndex(activity => activity.LastActivityAt);
+            entity.HasOne(activity => activity.User)
+                .WithOne()
+                .HasForeignKey<UserAccountActivity>(activity => activity.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProductEvent>(entity =>
+        {
+            entity.Property(productEvent => productEvent.Name).HasMaxLength(64);
+            entity.Property(productEvent => productEvent.Source).HasMaxLength(32);
+            entity.HasIndex(productEvent => productEvent.OccurredAt);
+            entity.HasIndex(productEvent => new
+            {
+                productEvent.UserId,
+                productEvent.OccurredAt
+            });
+            entity.HasIndex(productEvent => new
+            {
+                productEvent.Name,
+                productEvent.OccurredAt
+            });
+            entity.HasOne(productEvent => productEvent.User)
+                .WithMany()
+                .HasForeignKey(productEvent => productEvent.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<ResumeFileCleanup>(entity =>

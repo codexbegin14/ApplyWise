@@ -51,7 +51,6 @@
     <symbol id="i-match" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M8 13l2.2 2.2L15 10.5M8 18h7"/></symbol>
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
-    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -72,9 +71,12 @@
                 <a class="@(controller == "ResumeBuilder" ? "active" : null)" aria-current="@(controller == "ResumeBuilder" ? "page" : null)" asp-controller="ResumeBuilder" asp-action="Index"><svg class="ui-icon"><use href="#i-edit-file" /></svg>Resume Builder</a>
                 <a class="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "active" : null)" aria-current="@(controller is "ResumeAnalyzer" or "BestResumePicker" ? "page" : null)" asp-controller="ResumeAnalyzer" asp-action="Index"><svg class="ui-icon"><use href="#i-match" /></svg>Resume tools</a>
                 <a class="@(controller == "Interviews" ? "active" : null)" aria-current="@(controller == "Interviews" ? "page" : null)" asp-controller="Interviews" asp-action="Index"><svg class="ui-icon"><use href="#i-calendar" /></svg>Interviews</a>
-                <a class="@(controller == "Reminders" ? "active" : null)" aria-current="@(controller == "Reminders" ? "page" : null)" asp-controller="Reminders" asp-action="Index"><svg class="ui-icon"><use href="#i-bell" /></svg>Reminders</a>
                 <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action == "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Settings"><svg class="ui-icon"><use href="#i-settings" /></svg>Settings</a>
                 <a class="@(controller == "Profile" ? "active" : null)" aria-current="@(controller == "Profile" ? "page" : null)" asp-controller="Profile" asp-action="Index"><svg class="ui-icon"><use href="#i-user" /></svg>Profile</a>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a class="@(controller == "Admin" ? "active" : null)" aria-current="@(controller == "Admin" ? "page" : null)" asp-controller="Admin" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Owner console</a>
+                }
             </nav>
         </aside>
         <div class="app-main">
@@ -120,6 +122,14 @@ else
         </header>
         <main id="main-content" role="main">@RenderBody()</main>
     }
+    <footer class="public-footer">
+        <nav aria-label="Legal and support">
+            <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+            <a asp-controller="Home" asp-action="Terms">Terms</a>
+            <a asp-controller="Home" asp-action="Support">Support</a>
+        </nav>
+        <span>&copy; @DateTime.UtcNow.Year ApplyWise</span>
+    </footer>
 }
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>

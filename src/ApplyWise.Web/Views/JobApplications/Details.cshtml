@@ -2,7 +2,6 @@
 @{
     ViewData["Title"] = "Application Details";
     var interviews = Model.Interviews ?? [];
-    var reminders = Model.Reminders ?? [];
 }
 
 <div class="aw-page aw-fade-in">
@@ -38,16 +37,11 @@
         <section class="aw-panel aw-detail-card aw-slide-up"><div class="aw-section-heading"><div><span class="aw-kicker">Role snapshot</span><h3>Job details</h3></div><span class="aw-stat-icon purple"><svg class="ui-icon"><use href="#i-briefcase" /></svg></span></div><dl class="aw-mini-details"><div><dt>Source</dt><dd>@Model.Source.GetDisplayName()</dd></div><div><dt>Type</dt><dd>@(Model.JobType?.GetDisplayName() ?? "Not specified")</dd></div><div><dt>Salary</dt><dd>@(Model.SalaryRange ?? "Not specified")</dd></div></dl>@if (Model.JobUrl is not null) { <a href="@Model.JobUrl" target="_blank" rel="noopener noreferrer">Open original listing ↗</a> }</section>
     </div>
 
-    <div class="aw-detail-grid aw-detail-grid-two">
+    <div class="aw-detail-grid">
         <section class="aw-panel aw-slide-up">
             <div class="aw-section-heading"><div><span class="aw-kicker">Interview plan</span><h3>Interviews</h3><p>Prep and outcomes connected to this role.</p></div><a class="btn btn-secondary-soft btn-sm" asp-controller="Interviews" asp-action="Create" asp-route-jobApplicationId="@Model.Id">+ Add Interview</a></div>
             @if (interviews.Count == 0) { <div class="aw-compact-state"><span class="aw-stat-icon purple"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><div><strong>No interviews yet</strong><p>Add one when the conversation is scheduled.</p></div></div> }
             else { <div class="aw-action-stack">@foreach (var interview in interviews) { <a class="aw-action-card" asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id"><span class="aw-action-mark purple"><svg class="ui-icon"><use href="#i-calendar" /></svg></span><span><b>@interview.InterviewType.GetDisplayName()</b><small>@interview.Status.GetDisplayName()</small></span><time>@interview.ScheduledAt.ToLocalTime().ToString("MMM d, h:mm tt")</time></a> }</div> }
-        </section>
-        <section class="aw-panel aw-slide-up">
-            <div class="aw-section-heading"><div><span class="aw-kicker">Next actions</span><h3>Reminders</h3><p>Follow-ups and deadlines for this role.</p></div><a class="btn btn-secondary-soft btn-sm" asp-controller="Reminders" asp-action="Create" asp-route-jobApplicationId="@Model.Id">+ Add Reminder</a></div>
-            @if (reminders.Count == 0) { <div class="aw-compact-state"><span class="aw-stat-icon amber"><svg class="ui-icon"><use href="#i-bell" /></svg></span><div><strong>No reminders yet</strong><p>Add a follow-up so nothing slips through.</p></div></div> }
-            else { <div class="aw-action-stack">@foreach (var reminder in reminders) { <a class="aw-action-card @(reminder.IsCompleted ? "is-complete" : null)" asp-controller="Reminders" asp-action="Index"><span class="aw-action-mark"><svg class="ui-icon"><use href="#i-bell" /></svg></span><span><b>@reminder.Title</b><small>@reminder.ReminderType.GetDisplayName()</small></span><time>@(reminder.IsCompleted ? "Complete" : reminder.DueAt.ToLocalTime().ToString("MMM d"))</time></a> }</div> }
         </section>
     </div>
 

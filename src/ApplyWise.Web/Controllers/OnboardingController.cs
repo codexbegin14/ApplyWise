@@ -5,12 +5,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Controllers;
 
 [Authorize]
 [Route("onboarding")]
-public class OnboardingController(ApplicationDbContext db, UserManager<IdentityUser> users) : Controller
+public class OnboardingController(
+    ApplicationDbContext db,
+    UserManager<IdentityUser> users,
+    IProductEventRecorder events) : Controller
 {
     [HttpGet("")] public async Task<IActionResult> Index()
     {
@@ -26,7 +30,9 @@ public class OnboardingController(ApplicationDbContext db, UserManager<IdentityU
         var userId = GetUserId(); var profile = await db.CareerProfiles.SingleOrDefaultAsync(p => p.UserId == userId);
         if (profile is null) { profile = new CareerProfile { UserId = userId, CreatedAt = DateTimeOffset.UtcNow }; db.CareerProfiles.Add(profile); }
         profile.FullName = model.FullName.Trim(); profile.CareerStage = model.CareerStage; profile.Institution = model.Institution?.Trim(); profile.DegreeProgram = model.DegreeProgram?.Trim(); profile.FieldOfStudy = model.FieldOfStudy?.Trim(); profile.GraduationYear = model.GraduationYear; profile.CurrentSemester = model.CurrentSemester; profile.PreferredLocations = model.PreferredLocations?.Trim(); profile.PreferredWorkModes = model.PreferredWorkModes?.Trim(); profile.Skills = model.Skills?.Trim(); profile.CareerInterests = model.CareerInterests?.Trim(); profile.AcademicHighlights = model.AcademicHighlights?.Trim(); profile.OnboardingCompleted = true; profile.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(); return RedirectToAction("Index", "Dashboard");
+        await db.SaveChangesAsync();
+        await events.RecordAsync(ProductEventNames.OnboardingCompleted, "onboarding", userId, cancellationToken: HttpContext.RequestAborted);
+        return RedirectToAction("Index", "Dashboard");
     }
     private string GetUserId() => users.GetUserId(User) ?? throw new InvalidOperationException("Authenticated user is missing an identifier.");
 }

@@ -180,7 +180,9 @@ public class DashboardController(
                 string.Equals(
                     login.LoginProvider,
                     GoogleDefaults.AuthenticationScheme,
-                    StringComparison.Ordinal))
+                    StringComparison.Ordinal)),
+            IsAdmin = await userManager.IsInRoleAsync(user, Services.Admin.AdminAccess.Role),
+            MfaEnabled = await userManager.GetTwoFactorEnabledAsync(user)
         };
     }
 

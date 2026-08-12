@@ -472,7 +472,6 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .aw-card,
 .application-form-section,
 .form-card,
-.reminder-form-card,
 .aw-ra-panel {
     min-width: 0;
     color: var(--aw-text);
@@ -484,8 +483,7 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 
 .aw-panel,
 .panel,
-.application-form-section,
-.reminder-form-card { padding: var(--aw-space-3); }
+.application-form-section { padding: var(--aw-space-3); }
 .aw-card { padding: var(--aw-space-3); }
 .aw-card:hover { border-color: var(--aw-border-strong); box-shadow: none !important; transform: none !important; }
 
@@ -517,7 +515,6 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .aw-stat-icon.amber,
 .aw-stat-icon.purple,
 .empty-icon,
-.reminder-type-mark,
 .form-section-heading > span,
 .aw-field-label > b,
 .aw-rb-section-number,
@@ -1136,21 +1133,16 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 }
 .app-table tbody tr:hover td { background: var(--aw-primary-soft); }
 .resume-list-header,
-.resume-row,
-.reminder-row { border-color: var(--aw-border); }
-.resume-row,
-.reminder-row { color: var(--aw-text); background: var(--aw-surface); }
-.resume-notes,
-.reminder-main p,
-.reminder-main time { color: var(--aw-text-2); }
+.resume-row { border-color: var(--aw-border); }
+.resume-row { color: var(--aw-text); background: var(--aw-surface); }
+.resume-notes { color: var(--aw-text-2); }
 .pdf-tile { color: var(--aw-info-text); border-color: var(--aw-border); background: var(--aw-info-soft); }
 .aw-pagination a { min-width: 44px; min-height: 44px; border-color: var(--aw-border); background: var(--aw-surface); }
 .aw-pagination a.active { color: #ffffff; border-color: var(--aw-primary); background: var(--aw-primary); }
 
 /* Forms, settings, profile, and confirmations */
 .application-form { max-width: 1080px; }
-.application-form-section,
-.reminder-form-card { padding: var(--aw-space-3); }
+.application-form-section { padding: var(--aw-space-3); }
 .form-section-heading { padding-bottom: var(--aw-space-2); border-color: var(--aw-border); }
 .form-section-heading h3 { color: var(--aw-text); font-size: 1.125rem; }
 .form-section-heading p { color: var(--aw-muted); font-size: .875rem; }
@@ -1439,7 +1431,6 @@ html[data-theme="dark"] .aw-panel,
 html[data-theme="dark"] .aw-card,
 html[data-theme="dark"] .application-form-section,
 html[data-theme="dark"] .form-card,
-html[data-theme="dark"] .reminder-form-card,
 html[data-theme="dark"] .aw-ra-panel,
 html[data-theme="dark"] .aw-applications-hero,
 html[data-theme="dark"] .aw-tool-hero,
@@ -1603,7 +1594,6 @@ html[data-theme="dark"] .account-avatar-fallback {
     .aw-panel,
     .panel,
     .application-form-section,
-    .reminder-form-card,
     .aw-card { padding: 16px; }
     .aw-applications-hero,
     .aw-tool-hero,

@@ -24,7 +24,7 @@
         <section class="aw-ra-panel aw-ra-history-empty">
             <span class="aw-ra-empty-icon" aria-hidden="true">%</span>
             <h3>No analyses saved yet</h3>
-            <p>Review ATS readiness by itself or add a real job description for requirement-specific matching.</p>
+            <p>Review general readiness by itself or add a real job description for requirement-specific matching.</p>
             <a class="btn btn-primary" asp-action="Index">Analyze a resume</a>
         </section>
     }
@@ -54,7 +54,7 @@
                                 <td data-label="Scoring model">
                                     <span class="aw-ra-version-badge @(isLegacy ? "is-legacy" : "is-current")">@(isLegacy ? "Legacy scoring" : "ATS v2.0")</span>
                                     @if (isLegacy) { <small class="aw-ra-history-note">Not comparable with ATS v2.0</small> }
-                                    else if (!hasJobMatch) { <small class="aw-ra-history-note">ATS Readiness only &middot; no job description</small> }
+                                    else if (!hasJobMatch) { <small class="aw-ra-history-note">Readiness estimate only &middot; no job description</small> }
                                 </td>
                                 <td data-label="Scores">
                                     @if (isLegacy)
@@ -65,14 +65,14 @@
                                     {
                                         var atsScore = analysis.AtsReadinessScore ?? analysis.MatchScore;
                                         <div class="aw-ra-history-scores is-ats-only">
-                                            <span class="aw-ra-history-score @ScoreTone(atsScore)"><small>ATS Readiness</small><strong>@atsScore</strong><span class="aw-ra-history-band">@ScoreBand(atsScore)</span></span>
+                                            <span class="aw-ra-history-score @ScoreTone(atsScore)"><small>Readiness estimate</small><strong>@atsScore</strong><span class="aw-ra-history-band">@ScoreBand(atsScore)</span></span>
                                         </div>
                                     }
                                     else
                                     {
                                         <div class="aw-ra-history-scores">
                                             <span class="aw-ra-history-score @ScoreTone(analysis.MatchScore)"><small>ApplyWise Fit</small><strong>@analysis.MatchScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.MatchScore)</span></span>
-                                            @if (analysis.AtsReadinessScore.HasValue) { <span class="aw-ra-history-score @ScoreTone(analysis.AtsReadinessScore.Value)"><small>ATS Readiness</small><strong>@analysis.AtsReadinessScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.AtsReadinessScore.Value)</span></span> }
+                                            @if (analysis.AtsReadinessScore.HasValue) { <span class="aw-ra-history-score @ScoreTone(analysis.AtsReadinessScore.Value)"><small>Readiness estimate</small><strong>@analysis.AtsReadinessScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.AtsReadinessScore.Value)</span></span> }
                                             <span class="aw-ra-history-score @ScoreTone(analysis.JobMatchScore!.Value)"><small>Job Match</small><strong>@analysis.JobMatchScore</strong><span class="aw-ra-history-band">@ScoreBand(analysis.JobMatchScore.Value)</span></span>
                                         </div>
                                     }

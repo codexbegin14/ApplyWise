@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
-public class ConfirmEmailModel(UserManager<IdentityUser> userManager) : PageModel
+public class ConfirmEmailModel(
+    UserManager<IdentityUser> userManager,
+    IProductEventRecorder events) : PageModel
 {
     private const string InvalidLinkMessage =
         "This confirmation link is invalid or has expired. Request a new email and use its newest link.";
@@ -50,6 +53,14 @@ public class ConfirmEmailModel(UserManager<IdentityUser> userManager) : PageMode
 
         var result = await userManager.ConfirmEmailAsync(user, decodedCode);
         Succeeded = result.Succeeded;
+        if (Succeeded)
+        {
+            await events.RecordAsync(
+                ProductEventNames.EmailConfirmed,
+                "email_link",
+                user.Id,
+                cancellationToken: HttpContext.RequestAborted);
+        }
         StatusMessage = Succeeded
             ? "Your email address has been verified. For your security, ApplyWise will now ask you to log in."
             : InvalidLinkMessage;
