@@ -101,7 +101,7 @@ Production values should come from environment variables or the host's secret st
 
 | Setting | Environment variable | Purpose |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | `ConnectionStrings__DefaultConnection` | Azure SQL / SQL Server connection |
+| `ConnectionStrings:DefaultConnection` | `ConnectionStrings__DefaultConnection` | Monster MSSQL / SQL Server connection |
 | `PublicOrigin` | `PublicOrigin` | Canonical HTTPS public URL; required in Production |
 | `AllowedHosts` | `AllowedHosts` | Exact public host names; wildcard values are rejected in Production |
 | `Email:*` | `Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From` | SMTP for confirmation and account recovery |
@@ -171,7 +171,7 @@ This is application-level hardening, not a substitute for platform monitoring, b
 
 ## Deployment
 
-The documented release path is **Azure App Service + Azure SQL Database**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for configuration, migration, storage, container, and verification steps.
+The documented hosted release path is **MonsterASP.NET + Monster MSSQL**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for configuration, migration, private storage, Web Deploy, and verification steps.
 
 Create a local release artifact outside the repository with:
 
@@ -203,7 +203,7 @@ Start with the dashboard, then show one complete story: upload two demo resumes,
 
 ## Future improvements
 
-- Azure Blob Storage and malware scanning for scalable production resume storage
+- private object storage and malware scanning for scalable production resume storage
 - Calendar integration for interviews and application deadlines
 - Rate limiting, structured observability, account export/deletion, and formal retention controls
 - Optional LLM-assisted analysis with consent, redaction, cost controls, and auditable prompts
