@@ -13,6 +13,7 @@ public sealed class ResumeTextExtractorService(
     // A separate worker process makes the timeout enforceable: the host can terminate the
     // parser and immediately reclaim this global admission slot.
     private static readonly SemaphoreSlim ExtractionSlots = new(initialCount: 1, maxCount: 1);
+    private static int _waitingExtractions;
 
     public async Task<string?> ExtractTextAsync(
         string filePath,
@@ -29,7 +30,32 @@ public sealed class ResumeTextExtractorService(
             return new PdfTextExtractionResult(PdfTextExtractionStatus.Invalid);
         }
 
-        await ExtractionSlots.WaitAsync(cancellationToken);
+        if (Interlocked.Increment(ref _waitingExtractions) > options.Value.ParserQueueLimit)
+        {
+            Interlocked.Decrement(ref _waitingExtractions);
+            logger.LogWarning("Resume parser queue is full.");
+            return new PdfTextExtractionResult(PdfTextExtractionStatus.Unavailable);
+        }
+
+        try
+        {
+            using var queueCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            queueCancellation.CancelAfter(TimeSpan.FromSeconds(options.Value.ParserQueueTimeoutSeconds));
+            try
+            {
+                await ExtractionSlots.WaitAsync(queueCancellation.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning("Resume parser queue wait exceeded the configured timeout.");
+                return new PdfTextExtractionResult(PdfTextExtractionStatus.Unavailable);
+            }
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _waitingExtractions);
+        }
+
         try
         {
             using var parserCancellation =

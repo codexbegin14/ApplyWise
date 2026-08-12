@@ -2052,3 +2052,60 @@ html[data-theme="dark"] .aw-ra-compact-good span {
         transition: none;
     }
 }
+.aw-ra-v3-panel { margin-top: 1rem; }
+.aw-ra-v3-list { display: grid; gap: .75rem; }
+.aw-ra-v3-list article,
+.aw-ra-v3-breakdown article,
+.aw-ra-v3-requirements article,
+.aw-ra-v3-section-grid article {
+    border: 1px solid var(--aw-border, #d8e0ea);
+    border-radius: .85rem;
+    background: var(--aw-surface, #fff);
+    padding: .9rem 1rem;
+}
+.aw-ra-v3-list article p,
+.aw-ra-v3-requirements article p,
+.aw-ra-v3-section-grid article p { margin: .35rem 0 0; }
+.aw-ra-v3-list article small { display: block; margin-top: .25rem; }
+.aw-ra-v3-list .is-critical,
+.aw-ra-v3-list .is-high { border-left: 4px solid #c2413b; }
+.aw-ra-v3-list .is-medium { border-left: 4px solid #c47a18; }
+.aw-ra-v3-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.aw-ra-v3-breakdown article > div:first-child,
+.aw-ra-v3-requirements article > div,
+.aw-ra-v3-section-grid article > div { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.aw-ra-v3-breakdown small { display: block; margin-top: .45rem; color: var(--aw-muted, #667085); }
+.aw-ra-v3-meter { height: .45rem; border-radius: 999px; background: #e9eef5; margin-top: .65rem; overflow: hidden; }
+.aw-ra-v3-meter i { display: block; height: 100%; border-radius: inherit; background: var(--aw-primary, #3759c5); }
+.aw-ra-v3-requirements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.aw-ra-v3-requirements > div { display: grid; align-content: start; gap: .7rem; }
+.aw-ra-v3-requirements h4 { margin: 0; }
+.aw-ra-v3-requirements article span,
+.aw-ra-v3-section-grid article span { color: var(--aw-muted, #667085); font-size: .8rem; }
+.aw-ra-v3-requirements article small { color: var(--aw-muted, #667085); }
+.aw-ra-v3-section-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.aw-ra-v3-section-grid .is-strong,
+.aw-ra-v3-section-grid .is-good { color: #18764a; }
+.aw-ra-v3-section-grid .is-needsimprovement,
+.aw-ra-v3-section-grid .is-missing { color: #a43c35; }
+.aw-ra-v3-details summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; }
+.aw-ra-v3-details summary span { display: grid; }
+.aw-ra-v3-details[open] summary { margin-bottom: 1rem; }
+.aw-ra-v3-parsed-text {
+    max-height: 28rem;
+    margin: .75rem 0 0;
+    padding: 1rem;
+    overflow: auto;
+    border: 1px solid rgba(23, 54, 74, .12);
+    border-radius: .75rem;
+    background: #f7fafb;
+    color: #203845;
+    font: 500 .82rem/1.55 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+    .aw-ra-v3-breakdown,
+    .aw-ra-v3-requirements,
+    .aw-ra-v3-section-grid { grid-template-columns: 1fr; }
+}

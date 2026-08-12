@@ -77,17 +77,6 @@ public sealed class DashboardReadServiceTests
                 CreatedAt = now,
                 UpdatedAt = now
             },
-            new Reminder
-            {
-                Id = 30,
-                UserId = "user-a",
-                JobApplicationId = application.Id,
-                Title = "Send follow-up",
-                ReminderType = ReminderType.FollowUp,
-                DueAt = now.AddHours(-1),
-                CreatedAt = now,
-                UpdatedAt = now
-            },
             new ResumeAnalysis
             {
                 Id = 40,
@@ -115,8 +104,6 @@ public sealed class DashboardReadServiceTests
         Assert.Equal(2, result.TotalApplications);
         Assert.Equal(1, result.TotalInterviewCount);
         Assert.Equal(1, result.UpcomingInterviewCount);
-        Assert.Equal(1, result.PendingReminderCount);
-        Assert.Equal(1, result.OverdueReminderCount);
         Assert.Equal(82, result.AverageMatchScore);
         Assert.Equal("Backend", result.BestResumeVersionName);
         Assert.Equal(82, result.BestResumeScore);
@@ -127,7 +114,6 @@ public sealed class DashboardReadServiceTests
         Assert.Single(result.TopSkillGaps);
         Assert.Equal("Docker", result.TopSkillGaps[0].SkillName);
         Assert.Single(result.UpcomingInterviews);
-        Assert.Single(result.PendingReminders);
         Assert.Single(result.UpcomingDeadlines);
         Assert.Single(result.RecentAnalyses);
     }

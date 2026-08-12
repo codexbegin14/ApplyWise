@@ -17,9 +17,9 @@ Job searches quickly become fragmented across job boards, company websites, emai
 - Browser-local one-page resume builder with live A4 fit checks, section reordering, safe bold/italic/underline formatting, autosave, and selectable-text PDF download
 - Job application CRUD with status, source, deadline, job link, notes, and submitted-resume memory
 - Search, filters, sorting, responsive tables, polished empty states, and confirmation screens
-- Deterministic ATS Readiness, Job Match, and ApplyWise Fit analysis with evidence, prioritized reviews, history comparison, and no per-analysis AI call
+- Deterministic Readiness, Job Match, and ApplyWise Fit estimates with evidence, document diagnostics, prioritized reviews, history comparison, and no per-analysis AI call
 - Best-resume comparison and one-click assignment to a tracked application
-- Interview scheduling, outcome tracking, reminders, follow-ups, and dashboard actions
+- Interview scheduling, outcome tracking, application deadlines, and dashboard actions
 - Application funnel, resume performance, platform response, and recurring skill-gap analytics
 - Rule-based job-post quality and scam-risk checks with saved private history
 - Per-user authorization across every product module and private resume downloads
@@ -48,7 +48,7 @@ The screenshot checklist and safe demo-data guidance are in [docs/screenshots/RE
 5. Applications list and details
 6. Resume analysis result
 7. Best resume picker
-8. Interviews and reminders
+8. Interviews and deadlines
 9. Analytics
 10. Job-post review result
 
@@ -82,7 +82,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<your SQL Server 
 
 ## Database and migrations
 
-The migration history builds Identity, resume management, application tracking, resume analysis, interviews/reminders, analytics, and job-post checks in order. Apply the existing migrations with:
+The migration history builds Identity, resume management, application tracking, resume analysis, interviews, analytics, and job-post checks in order. Apply the existing migrations with:
 
 ```powershell
 dotnet ef database update --project src/ApplyWise.Web
@@ -101,7 +101,7 @@ Production values should come from environment variables or the host's secret st
 
 | Setting | Environment variable | Purpose |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | `ConnectionStrings__DefaultConnection` | Azure SQL / SQL Server connection |
+| `ConnectionStrings:DefaultConnection` | `ConnectionStrings__DefaultConnection` | Monster MSSQL / SQL Server connection |
 | `PublicOrigin` | `PublicOrigin` | Canonical HTTPS public URL; required in Production |
 | `AllowedHosts` | `AllowedHosts` | Exact public host names; wildcard values are rejected in Production |
 | `Email:*` | `Email__Host`, `Email__Port`, `Email__UserName`, `Email__Password`, `Email__From` | SMTP for confirmation and account recovery |
@@ -171,7 +171,7 @@ This is application-level hardening, not a substitute for platform monitoring, b
 
 ## Deployment
 
-The documented release path is **Azure App Service + Azure SQL Database**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for configuration, migration, storage, container, and verification steps.
+The documented hosted release path is **MonsterASP.NET + Monster MSSQL**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for configuration, migration, private storage, Web Deploy, and verification steps.
 
 Create a local release artifact outside the repository with:
 
@@ -185,26 +185,26 @@ dotnet publish src/ApplyWise.Web -c Release -o "$env:TEMP/ApplyWise-publish"
 - Level 4: private resume version management
 - Level 5: application tracking and resume-used memory
 - Levels 6–7: resume/job analysis and best-resume selection
-- Level 8: interviews, reminders, deadlines, and next actions
+- Level 8: interviews, deadlines, and next actions
 - Level 9: analytics and rule-based job-post review
 - Level 10: product polish, accessibility, security review, documentation, and deployment readiness
 
 ## Interview demo
 
-Start with the dashboard, then show one complete story: upload two demo resumes, create a job with a description, compare both resumes, assign the recommended version, change the application status, schedule an interview/reminder, and finish on analytics and the job-post review. That demonstrates product thinking, relational modeling, authorization, file handling, service-layer logic, and responsive UI in one coherent flow.
+Start with the dashboard, then show one complete story: upload two demo resumes, create a job with a description, compare both resumes, assign the recommended version, change the application status, schedule an interview, and finish on analytics and the job-post review. That demonstrates product thinking, relational modeling, authorization, file handling, service-layer logic, and responsive UI in one coherent flow.
 
 ## Resume bullets
 
 - Built a full-stack ASP.NET Core MVC application that helps job seekers track applications, manage resume versions, and remember which resume was submitted for each job.
 - Added a privacy-first resume studio with structured editing, browser autosave, responsive live preview, and direct A4 PDF generation without uploading draft content.
 - Implemented explainable resume-to-job analysis with match scoring, missing-skill detection, best-resume recommendation, and private analysis history.
-- Developed interview scheduling, follow-up reminders, dashboard analytics, platform response insights, and rule-based job-post risk detection.
+- Developed interview scheduling, application-deadline tracking, dashboard analytics, platform response insights, and rule-based job-post risk detection.
 - Used ASP.NET Core Identity, Entity Framework Core, SQL Server, Razor Views, Bootstrap, secure private PDF storage, and per-user authorization to deliver a SaaS-style product.
 
 ## Future improvements
 
-- Azure Blob Storage and malware scanning for scalable production resume storage
-- Email/calendar integrations and background reminder delivery
+- private object storage and malware scanning for scalable production resume storage
+- Calendar integration for interviews and application deadlines
 - Rate limiting, structured observability, account export/deletion, and formal retention controls
 - Optional LLM-assisted analysis with consent, redaction, cost controls, and auditable prompts
 - Automated unit, integration, accessibility, and browser regression suites in CI

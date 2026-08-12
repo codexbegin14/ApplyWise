@@ -24,7 +24,7 @@
             <div>
                 <span class="aw-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-file" /></svg>ATS Resume Check</span>
                 <h1>Upload your resume. See what is missing.</h1>
-                <p>No job description needed. Get an ATS readiness score, missing-section checks, and clear instructions for improving your resume.</p>
+                <p>No job description needed. Get a readiness estimate, document checks, missing-section checks, and clear improvement guidance.</p>
             </div>
         }
     </section>
@@ -65,19 +65,19 @@
         <div class="aw-slide-up">
             <section class="aw-panel aw-analyzer-form aw-ats-upload-panel">
                 <div class="aw-section-heading">
-                    <div><span class="aw-kicker">Start a new check</span><h3>Add your resume PDF</h3><p>We will save it privately to your resume library, extract its text, and create an actionable ATS report.</p></div>
-                    <span class="aw-count-badge">PDF · 5 MB max</span>
+                    <div><span class="aw-kicker">Start a new check</span><h3>Add your resume</h3><p>We will save it privately, inspect its structure, extract its text, and create an actionable readiness report.</p></div>
+                    <span class="aw-count-badge">PDF or DOCX · 5 MB max</span>
                 </div>
 
                 <form asp-action="AnalyzeAtsUpload" method="post" enctype="multipart/form-data" class="aw-guided-form aw-ats-upload-form">
                     <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
                     <label class="aw-ats-dropzone" asp-for="Upload.ResumeFile">
                         <span class="aw-ats-file-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-file" /></svg></span>
-                        <span><strong data-ats-file-name>Choose your resume PDF</strong><small data-ats-file-help>Use a text-based, unlocked PDF. Scanned image-only files cannot be analyzed.</small></span>
+                        <span><strong data-ats-file-name>Choose your PDF or DOCX resume</strong><small data-ats-file-help>Use a readable, unlocked document. Scanned image-only files cannot be analyzed.</small></span>
                         <span class="btn btn-secondary-soft btn-sm">Browse file</span>
-                        <input asp-for="Upload.ResumeFile" type="file" accept=".pdf,application/pdf" aria-describedby="ats-upload-help" data-ats-upload-input />
+                        <input asp-for="Upload.ResumeFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="ats-upload-help" data-ats-upload-input />
                     </label>
-                    <small id="ats-upload-help" class="aw-ats-upload-help">PDF only · maximum 5 MB · the file name becomes the saved resume name</small>
+                    <small id="ats-upload-help" class="aw-ats-upload-help">PDF or DOCX · maximum 5 MB · the file name becomes the saved resume name</small>
                     <span asp-validation-for="Upload.ResumeFile" class="field-validation-error"></span>
                     <button class="btn btn-primary btn-analyze" type="submit"><svg class="ui-icon"><use href="#i-match" /></svg>Check my resume <span>&rarr;</span></button>
                 </form>

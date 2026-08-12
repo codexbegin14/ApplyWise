@@ -1,0 +1,147 @@
+@model ApplyWise.Web.ViewModels.Admin.AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Owner dashboard";
+    ViewData["MetaDescription"] = "Private operational metrics for the ApplyWise owner.";
+    var maximumDailyEvents = Math.Max(1, Model.DailyActivity.Max(day => day.Events));
+}
+
+<div class="admin-dashboard">
+    <section class="page-heading admin-heading">
+        <div>
+            <span class="eyebrow">Private owner console</span>
+            <h2>Product health</h2>
+            <p>Privacy-safe account, engagement, and feature metrics. User document contents are never shown here.</p>
+        </div>
+        <form method="get" class="admin-range-form">
+            <label for="days">Reporting range</label>
+            <select id="days" name="days" class="form-select" onchange="this.form.submit()">
+                @foreach (var range in new[] { 7, 30, 90 })
+                {
+                    if (Model.Range == $"Last {range} days")
+                    {
+                        <option value="@range" selected>Last @range days</option>
+                    }
+                    else
+                    {
+                        <option value="@range">Last @range days</option>
+                    }
+                }
+            </select>
+        </form>
+    </section>
+
+    <section class="admin-metric-grid" aria-label="Account metrics">
+        <article class="metric-card admin-metric-card">
+            <span>Total users</span><strong>@Model.TotalUsers</strong>
+            <small>@Model.NewUsersInRange new in this range</small>
+        </article>
+        <article class="metric-card admin-metric-card">
+            <span>Active users</span><strong>@Model.ActiveUsersInRange</strong>
+            <small>Activity recorded in this range</small>
+        </article>
+        <article class="metric-card admin-metric-card">
+            <span>Email confirmation</span><strong>@Model.ConfirmationRate.ToString("0.#")%</strong>
+            <small>@Model.ConfirmedUsers of @Model.TotalUsers accounts</small>
+        </article>
+        <article class="metric-card admin-metric-card">
+            <span>Onboarding completion</span><strong>@Model.OnboardingRate.ToString("0.#")%</strong>
+            <small>@Model.CompletedOnboardingUsers completed</small>
+        </article>
+    </section>
+
+    <section class="admin-content-grid">
+        <article class="panel admin-activity-panel">
+            <header class="panel-heading">
+                <div><span class="eyebrow">Engagement</span><h3>Daily activity</h3></div>
+                <small>UTC · @Model.Range</small>
+            </header>
+            <div class="admin-chart" role="img" aria-label="Daily product event activity">
+                @foreach (var day in Model.DailyActivity)
+                {
+                    var height = Math.Max(3, day.Events * 100d / maximumDailyEvents);
+                    <div class="admin-chart-column" title="@day.Date.ToString("MMM d"): @day.Events events, @day.ActiveUsers active users, @day.Signups signups">
+                        <div class="admin-chart-bar" style="height:@height.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                        <span>@day.Date.ToString(Model.DailyActivity.Count <= 7 ? "ddd" : "dd")</span>
+                    </div>
+                }
+            </div>
+            <div class="admin-chart-legend">
+                <span><i></i> Persisted product events</span>
+                <span>@Model.FailedEventsInRange failed event@(Model.FailedEventsInRange == 1 ? string.Empty : "s")</span>
+            </div>
+        </article>
+
+        <article class="panel admin-feature-panel">
+            <header class="panel-heading">
+                <div><span class="eyebrow">Adoption</span><h3>Feature usage</h3></div>
+            </header>
+            @if (Model.FeatureUsage.Count == 0)
+            {
+                <div class="admin-empty"><strong>No events yet</strong><span>New activity will appear after this release is used.</span></div>
+            }
+            else
+            {
+                <div class="admin-feature-list">
+                    @foreach (var item in Model.FeatureUsage)
+                    {
+                        <div>
+                            <span><strong>@item.Label</strong><small>@item.UniqueUsers unique user@(item.UniqueUsers == 1 ? string.Empty : "s")</small></span>
+                            <b>@item.Count</b>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+    </section>
+
+    <section class="admin-object-grid" aria-label="Stored product objects">
+        <article class="panel"><span>Applications</span><strong>@Model.TotalApplications</strong></article>
+        <article class="panel"><span>Resumes</span><strong>@Model.TotalResumes</strong></article>
+        <article class="panel"><span>Analyses</span><strong>@Model.TotalAnalyses</strong></article>
+        <article class="panel"><span>Interviews</span><strong>@Model.TotalInterviews</strong></article>
+    </section>
+
+    <section class="panel admin-users-panel">
+        <header class="panel-heading">
+            <div><span class="eyebrow">Accounts</span><h3>Recent users</h3></div>
+            <small>Maximum 100 · times shown locally</small>
+        </header>
+        <div class="table-responsive">
+            <table class="table app-table admin-user-table">
+                <thead>
+                    <tr><th>User</th><th>Joined</th><th>Last active</th><th>Account</th><th>Usage</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td data-label="User"><div class="admin-user-identity"><strong>@user.DisplayName</strong><span>@user.Email</span></div></td>
+                            <td data-label="Joined"><time datetime="@user.RegisteredAt.ToString("O")">@(user.RegisteredAt == DateTimeOffset.MinValue ? "Before tracking" : user.RegisteredAt.ToLocalTime().ToString("MMM d, yyyy"))</time></td>
+                            <td data-label="Last active">
+                                @if (user.LastActivityAt.HasValue)
+                                {
+                                    <time datetime="@user.LastActivityAt.Value.ToString("O")">@user.LastActivityAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</time>
+                                }
+                                else
+                                {
+                                    <span class="admin-muted">Not recorded</span>
+                                }
+                            </td>
+                            <td data-label="Account">
+                                <span class="badge @(user.EmailConfirmed ? "badge-success" : "badge-warning")">@(user.EmailConfirmed ? "Confirmed" : "Unconfirmed")</span>
+                                <small class="admin-account-detail">@(user.OnboardingCompleted ? "Onboarded" : "Onboarding incomplete") · @user.SuccessfulLogins login@(user.SuccessfulLogins == 1 ? string.Empty : "s")</small>
+                            </td>
+                            <td data-label="Usage"><span class="admin-usage-counts">@user.ResumeCount resumes · @user.AnalysisCount analyses · @user.ApplicationCount applications · @user.InterviewCount interviews</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="admin-generated">Generated @Model.GeneratedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm:ss tt") · Product events are retained for a limited period.</p>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}

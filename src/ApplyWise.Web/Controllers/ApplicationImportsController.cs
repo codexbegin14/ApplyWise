@@ -165,7 +165,9 @@ public sealed class ApplicationImportsController(
         {
             ModelState.AddModelError(
                 string.Empty,
-                "This Gmail suggestion could not be added. Refresh the page and try again.");
+                processingResult.Outcome == ApplicationImportProcessOutcome.QuotaExceeded
+                    ? "Your workspace reached its application limit. Delete old applications before accepting this suggestion."
+                    : "This Gmail suggestion could not be added. Refresh the page and try again.");
             CopyEvidence(item, model);
             return View(model);
         }

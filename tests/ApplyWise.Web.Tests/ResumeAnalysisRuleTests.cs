@@ -212,6 +212,107 @@ public sealed class ResumeAnalysisRuleTests
         Assert.Contains(result.MatchedRequirements, item => item.Category == RequirementCategory.Certification && item.RequirementName.Contains("PMP", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("SKILLS\nNo Docker experience")]
+    [InlineData("SUMMARY\nI do not have experience with Docker.")]
+    [InlineData("EXPERIENCE\n- Worked without Docker on legacy deployments.")]
+    public void Negated_skill_claims_do_not_match(string content)
+    {
+        const string job = "Must Have:\nDocker is mandatory for service deployment.";
+
+        var result = _service.Analyze(ResumeWith(content), job);
+
+        Assert.DoesNotContain(result.MatchedRequirements, item => item.RequirementName == "Docker");
+        Assert.Contains(result.MissingRequirements, item => item.Name == "Docker");
+        Assert.True(result.JobMatchScore <= 54);
+    }
+
+    [Fact]
+    public void Skills_only_mentions_receive_materially_less_credit_than_supported_experience()
+    {
+        const string job = "Must Have:\nDocker is mandatory for service deployment.";
+        var listed = _service.Analyze(ResumeWith("SKILLS\nDocker"), job);
+        var supported = _service.Analyze(ResumeWith(
+            "EXPERIENCE\n- Deployed customer services using Docker, enabling repeatable releases.\nSKILLS\nDocker"), job);
+
+        Assert.InRange(listed.JobMatchScore!.Value, 50, 75);
+        Assert.True(supported.JobMatchScore >= listed.JobMatchScore + 15);
+        Assert.True(supported.MustHaveCoverage > listed.MustHaveCoverage);
+    }
+
+    [Fact]
+    public void Common_modern_technology_requirements_are_in_the_fallback_taxonomy()
+    {
+        var ids = SkillIds("Terraform, GCP, Snowflake, Databricks, Kafka, Redis, MongoDB, PyTorch, Linux, Jenkins, Kotlin and Swift");
+
+        Assert.Contains("it.terraform", ids);
+        Assert.Contains("it.gcp", ids);
+        Assert.Contains("data.snowflake", ids);
+        Assert.Contains("data.databricks", ids);
+        Assert.Contains("it.kafka", ids);
+        Assert.Contains("it.redis", ids);
+        Assert.Contains("data.mongodb", ids);
+        Assert.Contains("data.pytorch", ids);
+        Assert.Contains("it.linux", ids);
+        Assert.Contains("it.jenkins", ids);
+        Assert.Contains("it.kotlin", ids);
+        Assert.Contains("it.swift", ids);
+    }
+
+    [Fact]
+    public void Advanced_degrees_and_work_eligibility_are_extracted_and_matched()
+    {
+        const string job = "Requirements:\nMaster's degree required. Work authorization is required. Active security clearance preferred.";
+        var result = _service.Analyze(ResumeWith(
+            "SUMMARY\nAuthorized to work in the United States. Active Secret clearance.\nEDUCATION\nMS Computer Science | 2021"), job);
+
+        Assert.Contains(result.MatchedRequirements, item => item.RequirementName == "Master's degree");
+        Assert.Contains(result.MatchedRequirements, item => item.RequirementName == "Work authorization");
+        Assert.Contains(result.MatchedRequirements, item => item.RequirementName == "Security clearance");
+    }
+
+    [Fact]
+    public void A_name_is_not_awarded_location_points()
+    {
+        const string resume = "Jordan Lee\njordan@example.test\n+1 555 010 1000\nSUMMARY\nOperations specialist.";
+        var result = new AtsReadinessScorer().Score(new ResumeSectionDetector(_normalizer).Detect(resume));
+        var contact = Assert.Single(result.Components, item => item.Key == "contact");
+
+        Assert.Equal(11, contact.Score);
+    }
+
+    [Theory]
+    [InlineData("Software Engineer")]
+    [InlineData("Senior Analyst")]
+    public void A_job_title_is_not_mistaken_for_a_name(string title)
+    {
+        var resume = $"{title}\njordan@example.test\n+1 555 010 1000\nSUMMARY\nOperations specialist.";
+        var result = new AtsReadinessScorer().Score(new ResumeSectionDetector(_normalizer).Detect(resume));
+        var contact = Assert.Single(result.Components, item => item.Key == "contact");
+
+        Assert.Equal(7, contact.Score);
+    }
+
+    [Fact]
+    public void A_job_team_pair_is_not_mistaken_for_a_location()
+    {
+        const string resume = "Senior Engineer, Platform Team\njordan@example.test\n+1 555 010 1000\nSUMMARY\nOperations specialist.";
+        var result = new AtsReadinessScorer().Score(new ResumeSectionDetector(_normalizer).Detect(resume));
+        var contact = Assert.Single(result.Components, item => item.Key == "contact");
+
+        Assert.Equal(7, contact.Score);
+    }
+
+    [Fact]
+    public void A_recognizable_city_and_region_receive_location_credit()
+    {
+        const string resume = "Jordan Lee\nKarachi, Pakistan\njordan@example.test\n+1 555 010 1000\nSUMMARY\nOperations specialist.";
+        var result = new AtsReadinessScorer().Score(new ResumeSectionDetector(_normalizer).Detect(resume));
+        var contact = Assert.Single(result.Components, item => item.Key == "contact");
+
+        Assert.Equal(13, contact.Score);
+    }
+
     private IReadOnlySet<string> SkillIds(string text) =>
         _taxonomy.FindMatches(text).Select(item => item.SkillId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 

@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using ApplyWise.Web.Services.Admin;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -18,6 +20,8 @@ public class LoginModel(
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
     ApplicationDbContext dbContext,
+    IProductEventRecorder events,
+    IAdminRoleAssignmentService adminRoles,
     IOptions<GoogleIntegrationOptions> googleOptions,
     ILogger<LoginModel> logger) : PageModel
 {
@@ -77,6 +81,16 @@ public class LoginModel(
 
         if (result.Succeeded)
         {
+            var user = await userManager.FindByEmailAsync(Input.Email);
+            if (user is not null)
+            {
+                var rolesChanged = await adminRoles.SynchronizeUserAsync(user);
+                if (rolesChanged)
+                {
+                    await signInManager.RefreshSignInAsync(user);
+                }
+                await events.RecordLoginAsync(user.Id, "password", HttpContext.RequestAborted);
+            }
             logger.LogInformation("User logged in.");
             return LocalRedirect(returnUrl);
         }
@@ -88,11 +102,21 @@ public class LoginModel(
 
         if (result.IsLockedOut)
         {
+            await events.RecordAsync(
+                ProductEventNames.LoginFailed,
+                "password_locked_out",
+                succeeded: false,
+                cancellationToken: HttpContext.RequestAborted);
             logger.LogWarning("User account locked out.");
             ModelState.AddModelError(string.Empty, "We couldn’t log you in with those details. Check your email and password, then try again.");
             return Page();
         }
 
+        await events.RecordAsync(
+            ProductEventNames.LoginFailed,
+            "password",
+            succeeded: false,
+            cancellationToken: HttpContext.RequestAborted);
         ModelState.AddModelError(string.Empty, "We couldn't log you in with those details. Check your email and password, then try again.");
         return Page();
     }
@@ -126,6 +150,11 @@ public class LoginModel(
         returnUrl = GetSafeReturnUrl(returnUrl);
         if (!string.IsNullOrWhiteSpace(remoteError))
         {
+            await events.RecordAsync(
+                ProductEventNames.LoginFailed,
+                "google_remote",
+                succeeded: false,
+                cancellationToken: HttpContext.RequestAborted);
             ErrorMessage = "Google sign-in was cancelled or could not be completed.";
             return RedirectToPage("./Login", new { returnUrl });
         }
@@ -148,6 +177,16 @@ public class LoginModel(
             bypassTwoFactor: false);
         if (result.Succeeded)
         {
+            var externalUser = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+            if (externalUser is not null)
+            {
+                var rolesChanged = await adminRoles.SynchronizeUserAsync(externalUser);
+                if (rolesChanged)
+                {
+                    await signInManager.RefreshSignInAsync(externalUser);
+                }
+                await events.RecordLoginAsync(externalUser.Id, "google", HttpContext.RequestAborted);
+            }
             logger.LogInformation("User logged in with Google.");
             return LocalRedirect(returnUrl);
         }
@@ -228,7 +267,18 @@ public class LoginModel(
                 CreatedAt = now,
                 UpdatedAt = now
             });
+            dbContext.UserAccountActivities.Add(new UserAccountActivity
+            {
+                UserId = user.Id,
+                RegisteredAt = now,
+                LastActivityAt = now
+            });
             await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+            await events.RecordAsync(
+                ProductEventNames.AccountRegistered,
+                "google",
+                user.Id,
+                cancellationToken: HttpContext.RequestAborted);
         }
         catch (Exception exception)
         {
@@ -241,6 +291,12 @@ public class LoginModel(
         }
 
         await signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
+        var adminRoleChanged = await adminRoles.SynchronizeUserAsync(user);
+        if (adminRoleChanged)
+        {
+            await signInManager.RefreshSignInAsync(user);
+        }
+        await events.RecordLoginAsync(user.Id, "google", HttpContext.RequestAborted);
         logger.LogInformation("User created a new account with Google.");
         return RedirectToAction("Index", "Onboarding");
     }

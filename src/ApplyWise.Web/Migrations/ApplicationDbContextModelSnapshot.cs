@@ -513,59 +513,42 @@ namespace ApplyWise.Web.Migrations
                     b.ToTable("JobScamChecks");
                 });
 
-            modelBuilder.Entity("ApplyWise.Web.Models.Reminder", b =>
+            modelBuilder.Entity("ApplyWise.Web.Models.ProductEvent", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("bigint");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
-                    b.Property<DateTimeOffset>("DueAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsCompleted")
+                    b.Property<bool>("Succeeded")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("JobApplicationId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("ReminderType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("JobApplicationId");
+                    b.HasIndex("OccurredAt");
 
-                    b.HasIndex("UserId", "DueAt");
+                    b.HasIndex("Name", "OccurredAt");
 
-                    b.HasIndex("UserId", "IsCompleted");
+                    b.HasIndex("UserId", "OccurredAt");
 
-                    b.HasIndex("UserId", "IsCompleted", "DueAt");
-
-                    b.ToTable("Reminders");
+                    b.ToTable("ProductEvents");
                 });
 
             modelBuilder.Entity("ApplyWise.Web.Models.Resume", b =>
@@ -582,6 +565,9 @@ namespace ApplyWise.Web.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ExtractedText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileDiagnosticsJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FilePath")
@@ -603,6 +589,9 @@ namespace ApplyWise.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("PageCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("StoredFileName")
                         .IsRequired()
@@ -782,6 +771,36 @@ namespace ApplyWise.Web.Migrations
                     b.HasIndex("NextAttemptAt");
 
                     b.ToTable("ResumeFileCleanups");
+                });
+
+            modelBuilder.Entity("ApplyWise.Web.Models.UserAccountActivity", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset?>("LastActivityAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastLoginProvider")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("RegisteredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("TotalSuccessfulLogins")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("LastActivityAt");
+
+                    b.HasIndex("RegisteredAt");
+
+                    b.ToTable("UserAccountActivities");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1094,20 +1113,12 @@ namespace ApplyWise.Web.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ApplyWise.Web.Models.Reminder", b =>
+            modelBuilder.Entity("ApplyWise.Web.Models.ProductEvent", b =>
                 {
-                    b.HasOne("ApplyWise.Web.Models.JobApplication", "JobApplication")
-                        .WithMany("Reminders")
-                        .HasForeignKey("JobApplicationId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("JobApplication");
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
                 });
@@ -1145,6 +1156,17 @@ namespace ApplyWise.Web.Migrations
                     b.Navigation("JobApplication");
 
                     b.Navigation("Resume");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ApplyWise.Web.Models.UserAccountActivity", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithOne()
+                        .HasForeignKey("ApplyWise.Web.Models.UserAccountActivity", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1210,8 +1232,6 @@ namespace ApplyWise.Web.Migrations
                     b.Navigation("Analyses");
 
                     b.Navigation("Interviews");
-
-                    b.Navigation("Reminders");
 
                     b.Navigation("ScamChecks");
                 });

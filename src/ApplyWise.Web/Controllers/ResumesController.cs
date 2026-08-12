@@ -74,7 +74,7 @@ public class ResumesController(
         if (ingestion.InspectionStatus == PdfTextExtractionStatus.NoText)
         {
             TempData["WarningMessage"] =
-                "No selectable text was found. You can store and download this PDF, but resume analysis and matching require a text-based PDF.";
+                "No readable text was found. You can store and download this document, but resume analysis and matching require a text-based PDF or DOCX.";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -163,17 +163,23 @@ public class ResumesController(
                 .SetProperty(application => application.ResumeId, (int?)null)
                 .SetProperty(application => application.UpdatedAt, now));
 
+        if (!await dbContext.ResumeFileCleanups.AnyAsync(
+                cleanup => cleanup.FilePath == resume.FilePath,
+                HttpContext.RequestAborted))
+        {
+            dbContext.ResumeFileCleanups.Add(new ResumeFileCleanup
+            {
+                FilePath = resume.FilePath,
+                CreatedAt = now,
+                NextAttemptAt = now
+            });
+        }
+
         dbContext.Resumes.Remove(resume);
         await dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        var absolutePath = resumeStorage.ResolvePath(resume.FilePath);
-        if (System.IO.File.Exists(absolutePath))
-        {
-            System.IO.File.Delete(absolutePath);
-        }
-
-        TempData["SuccessMessage"] = $"{resume.VersionName} was deleted.";
+        TempData["SuccessMessage"] = $"{resume.VersionName} was deleted. Its private file is queued for secure removal.";
         return RedirectToAction(nameof(Index));
     }
 

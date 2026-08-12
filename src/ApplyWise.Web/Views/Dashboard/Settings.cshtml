@@ -31,6 +31,23 @@
         <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h2>Sign-in details</h2><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div></div>
         <p class="aw-settings-security-note">For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.</p>
 
+        @if (Model.IsAdmin)
+        {
+            <div class="aw-settings-provider-row">
+                <span>
+                    <strong>Owner two-factor authentication</strong>
+                    <small>
+                        @(Model.MfaEnabled
+                            ? "An authenticator protects the owner console."
+                            : "Production owner-console access requires an authenticator.")
+                    </small>
+                </span>
+                <a class="btn btn-secondary-soft" asp-area="Identity" asp-page="/Account/Manage/TwoFactorAuthentication">
+                    @(Model.MfaEnabled ? "Manage MFA" : "Set up MFA")
+                </a>
+            </div>
+        }
+
         @if (Model.GoogleSignInConfigured)
         {
             <div class="aw-settings-provider-row">

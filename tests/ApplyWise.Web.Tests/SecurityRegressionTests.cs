@@ -203,7 +203,6 @@ public sealed class SecurityRegressionTests
     }
 
     [Theory]
-    [InlineData("/health")]
     [InlineData("/css/site.css")]
     [InlineData("/js/site.js")]
     public void Infrastructure_reads_do_not_consume_the_global_request_budget(string path)
@@ -217,6 +216,22 @@ public sealed class SecurityRegressionTests
             using var lease = limiter.AttemptAcquire(context);
             Assert.True(lease.IsAcquired);
         }
+    }
+
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/Dashboard/Index/expensive.css")]
+    public void Dynamic_and_dependency_backed_reads_consume_the_global_budget(string path)
+    {
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RequestRateLimitPartitions.CreateGlobal(context, permitLimit: 1));
+        var context = CreateHttpContext(HttpMethods.Get, path);
+
+        using var first = limiter.AttemptAcquire(context);
+        using var rejected = limiter.AttemptAcquire(context);
+
+        Assert.True(first.IsAcquired);
+        Assert.False(rejected.IsAcquired);
     }
 
     [Fact]

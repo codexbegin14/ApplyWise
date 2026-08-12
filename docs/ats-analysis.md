@@ -1,136 +1,121 @@
-# ApplyWise ATS analysis v2
+# ApplyWise resume analysis v3
 
-ApplyWise provides a deterministic compatibility estimate; it does not reproduce or
-represent an employer's applicant tracking system. Results cannot guarantee an
-interview or hiring outcome. Suggestions are intentionally conditional: a user should
-only add a skill, result, credential, or measurement when it is true and verifiable.
+ApplyWise produces a deterministic **readiness and job-alignment estimate**. It does
+not reproduce, query, or represent an employer's applicant tracking system. Real ATS
+products parse and search resumes differently, and the score cannot guarantee an
+interview or hiring outcome. Suggestions are conditional: users should add a skill,
+result, credential, or measurement only when it is true and supportable.
 
 ## Scores
 
-- **ATS Readiness (0-100)** is job-independent. It checks extractable text, contact
-  fields, standard sections, date/structural consistency, bullet quality, length,
-  clarity, and repetition. A layout property that cannot be inferred reliably from
-  extracted text is marked **Not assessed** instead of being guessed.
-- **Job Match (0-100)** compares one resume with meaningful requirements extracted
-  from a supplied job description. It separates must-have/required skill coverage,
-  preferred coverage, responsibilities, evidence placement, title/domain/seniority,
-  and credentials. Repeating a keyword does not create additional contributions.
-- **ApplyWise Fit (0-100)** is shown only when Job Match can be assessed:
+- **Readiness estimate (0-100)** is job-independent. It measures extractable text,
+  contact fields, conventional sections, recognizable chronology, bullet quality,
+  length, clarity, repetition, and available document-format diagnostics.
+- **Job Match estimate (0-100)** compares the resume with requirements extracted
+  from a supplied job description. It separates must-have/required skills, preferred
+  skills, responsibilities, evidence placement, title/domain/seniority, and
+  credentials or eligibility.
+- **ApplyWise Fit estimate (0-100)** is shown only when Job Match can be assessed:
 
-  `round(ATS Readiness * 0.20 + Job Match * 0.80)`
+  `round(Readiness * 0.20 + Job Match * 0.80)`
 
-When no usable job description is supplied, the interface shows ATS Readiness only.
-Unreadable, encrypted, invalid, image-only, oversized, or over-limit PDFs do not
-receive a normal Job Match score.
+Coverage is evidence-weighted. A skills-list mention receives half-strength evidence;
+experience or project evidence receives full placement strength. Exact and canonical
+term strength is also applied. A missing majority of must-have requirements caps Job
+Match below the "good" bands. Negated claims such as "no Docker experience" are not
+matches. Repeating a keyword never creates additional coverage.
 
-Score bands are 85-100 **Strong alignment**, 70-84 **Good alignment**, 50-69
-**Needs targeted improvement**, and 0-49 **Significant gaps**. Confidence describes
-the amount and reliability of available input; it never adds free score points.
+Score bands describe ApplyWise results only: 85-100 **Strong assessed signals**,
+70-84 **Good assessed signals**, 50-69 **Needs targeted improvement**, and 0-49
+**Significant gaps**. Confidence measures how much reliable input was available; it
+does not add score points.
 
-## Explainability and review behavior
+## Document inspection
 
-Each score component stores its points, maximum, assessed state, and machine-readable
-reasons. Matches store the canonical requirement, priority, category, source section,
-short encoded snippet, match strength, evidence strength, and weighted contribution.
-The review page exposes parsing notes, requirement coverage, matched evidence, missing
-requirements, section cards, bullet checks, and at most eight top improvements.
+PDF and DOCX uploads up to 5 MB are supported. PDF inspection returns page count,
+selectable text, likely multi-column layout, rotated text, unusually small text, and
+repeated top/bottom lines. DOCX inspection reads the Open XML package directly and
+reports page metadata when present, columns, tables, text boxes, headers/footers, and
+small-font runs. These are conservative heuristics rather than a claim to emulate
+every ATS renderer.
 
-Recommendations prioritize critical parsing failures, missing must-haves, missing
-required requirements, weak required evidence, missing important sections, weak
-experience/project bullets, preferred requirements, and general writing. Rewrite
-examples use placeholders such as `[technology]`, `[number]`, and `[result]`; the
-scorer never fabricates facts.
+If an older resume has cached text but no stored document diagnostics, visual layout
+is explicitly **Not assessed**. No penalty is silently invented. Image-only PDFs are
+still not OCR'd.
 
-## Architecture and performance
+## Explainability and safety
 
-The request path uses focused local services for normalization, section detection,
-taxonomy matching, requirement extraction, ATS scoring, Job Match scoring, orchestration,
-and persistence. Stateless deterministic services are singletons. The taxonomy is an
-immutable token trie loaded once at startup, longest valid phrases win, and no live
-taxonomy or AI request occurs during analysis. PDF text is reused from the private
-resume record after the first successful extraction.
+The report exposes:
 
-Identical inputs are cached per user, resume, job context, analysis type, score version,
-scoring configuration, and taxonomy version using a SHA-256 key. Cache lookup still
-validates ownership and relationships. `ats-v2.0` records remain distinct from legacy
-scores in history and analytics.
+- the overall estimate, subscores, confidence, and reliability warnings;
+- every score component with points, maximum, assessed state, and reasons;
+- matched requirements with source section, snippet, match strength, and evidence
+  strength;
+- missing requirements with priority and the source job-description line;
+- section and bullet reviews, including safe placeholder templates;
+- the reminder that missing claims must only be added when genuine.
 
-Measured on the local development environment after warm-up:
+No external model receives resume or job text. Names and protected characteristics do
+not participate in Job Match. The feature does not penalize age, gender, nationality,
+photographs, or similar characteristics.
 
-- 30 typical analyses: 3.483 ms average, 4.799 ms p95, 5.082 ms maximum.
-- Analyze and persist 25 cached-text resumes: 486.899 ms total.
-- Repeat cached ranking of those 25 resumes: 35.760 ms total.
+## Requirement and taxonomy coverage
 
-These measurements exclude PDF extraction and vary by machine and database. Run the
-performance tests again after scoring or taxonomy changes rather than treating the
-numbers as a permanent guarantee.
+The local fallback taxonomy is a reviewed multi-domain baseline covering common
+software, cloud, data, AI/ML, cybersecurity, testing, product/project management,
+sales, marketing, finance, HR, customer service, healthcare administration,
+education, design, operations, supply chain, soft skills, and languages. It includes
+modern terms such as Terraform, GCP, Snowflake, Databricks, Kafka, Redis, MongoDB,
+PyTorch, Linux, Jenkins, Kotlin, and Swift.
 
-## Privacy and security boundaries
+The offline ESCO-style artifact importer remains the preferred production path for a
+larger reviewed taxonomy. Configure `SkillTaxonomy:ArtifactPath` with a licensed,
+versioned artifact. The runtime never downloads taxonomy data. The taxonomy version,
+document diagnostics, score version, and scoring configuration all participate in
+the cache key.
 
-- Resume and job text stay in the existing private database and are never sent to an
-  external model by this feature.
-- Every resume, analysis, and saved-application lookup is scoped to the authenticated
-  user. Analysis POSTs retain antiforgery validation and a per-user rate limit.
-- Logs contain timing, cache status, character counts, requirement counts, match
-  counts, extraction status, and score version—not resume text, job text, email, or
-  phone values.
-- Razor encodes snippets and extracted text. Uploaded resumes remain behind private
-  storage authorization rather than public static-file hosting.
-- Names and protected characteristics do not participate in Job Match. The analyzer
-  does not penalize age, gender, nationality, photographs, or similar characteristics.
+The extractor also recognizes multiple degree levels, broader professional
+certifications, explicit years-of-experience ranges, work authorization, security
+clearance, expanded job titles/seniority, and a wider responsibility-verb set.
 
-Browser-local Resume Builder drafts keep their autosave and draft-readiness calculation
-in the browser. Opening an analyzer action is explicit; drafts are not silently
-uploaded.
+## Evaluation
 
-## Taxonomy and score versions
+The checked-in eight-role synthetic fixture is a deterministic regression benchmark,
+not evidence of market validity. Tests calculate exact-label extraction precision,
+recall, false-positive rate, and pairwise ranking accuracy for that fixture. Separate
+adversarial tests cover negation, keyword repetition, skills-only evidence, token
+boundaries, protected-characteristic invariance, location false positives, calendar
+years masquerading as metrics, layout risks, PDF metadata, and DOCX structure.
 
-The bundled curated fallback covers representative software/IT, data, cybersecurity,
-product/project management, sales, marketing, finance, HR, customer service,
-healthcare administration, education, design, operations, and supply-chain terms. It
-is not presented as the complete ESCO taxonomy. The offline, versioned ESCO-style
-import process and licensing checklist are in [ats-taxonomy.md](ats-taxonomy.md).
+Do not publish claims such as "90% accurate" from the synthetic fixture. Before
+claiming market-level validity, create a held-out, human-labelled corpus with licensed
+or consented resumes/job descriptions across seniority, geography, language, file
+layout, and occupation; report confidence intervals, slice metrics, and error cases.
 
-`ScoreVersion` is stored with every analysis. A taxonomy refresh changes the cache key
-without pretending that older scoring output used the new data. Legacy records remain
-readable and are labeled rather than mixed into current ApplyWise Fit averages.
-
-## Evaluation and verification
-
-The synthetic file
-`tests/ApplyWise.Web.Tests/Fixtures/ats-evaluation-set.json` covers ASP.NET, frontend,
-data analysis, product management, digital marketing, accounting, customer support,
-and project management. Each scenario defines a job description, an evidence-rich
-resume, a comparison resume, expected required/preferred requirements, expected
-matches/misses, and the expected pairwise winner. It contains no real personal data.
-
-Use the fixture to track:
-
-- **Skill extraction precision:** correct extracted canonical requirements divided by
-  all extracted canonical requirements.
-- **Skill extraction recall:** expected canonical requirements detected divided by all
-  expected canonical requirements.
-- **False-positive rate:** unexpected matches divided by all reported matches.
-- **Pairwise ranking accuracy:** scenarios where the evidence-rich expected resume
-  ranks first divided by all scenarios.
-- **Score stability:** byte-equivalent serialized results for identical inputs and
-  versions.
-- **Latency:** warm single-analysis, 25-resume first-pass, and 25-resume cache-hit time.
-
-Run the local verification suite from the repository root:
+Run verification from the repository root:
 
 ```powershell
 dotnet restore ApplyWise.sln
 dotnet build ApplyWise.sln --no-restore
 dotnet test ApplyWise.sln --no-build
-dotnet test tests/ApplyWise.Web.Tests/ApplyWise.Web.Tests.csproj --no-build --filter Category=Performance --logger "console;verbosity=detailed"
 node --check src/ApplyWise.Web/wwwroot/js/resume-builder.js
 node --test tests/resume-builder/resume-builder.test.cjs
 python -m unittest tools/taxonomy/test_import_esco_taxonomy.py
 dotnet ef migrations has-pending-model-changes --project src/ApplyWise.Web/ApplyWise.Web.csproj --startup-project src/ApplyWise.Web/ApplyWise.Web.csproj --no-build
 ```
 
-Known limitations include no OCR, no semantic embedding model, no visual-layout claims
-when only cached text exists, and dependence on the reviewed local taxonomy. Future
-work can add opt-in OCR and optional rewrite assistance without allowing either to
-control the deterministic score.
+## Versioning and remaining limitations
+
+`ats-v3.0` records remain distinct from v2 and legacy rows. The v3 cache configuration
+also includes file diagnostics and page count. Existing history stays readable and is
+labelled legacy rather than mixed into current analytics.
+
+Known limitations:
+
+- no OCR for scanned PDFs;
+- no semantic embedding or inference of unstated skills;
+- no employer-specific ATS emulation;
+- DOCX page count depends on document metadata and may be unavailable;
+- layout checks are heuristics and cannot prove how every ATS will parse a file;
+- language and regional resume conventions are not yet deeply localized;
+- the checked-in evaluation fixture is synthetic and small.

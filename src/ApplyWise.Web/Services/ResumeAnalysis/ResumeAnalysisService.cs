@@ -13,15 +13,21 @@ public sealed class ResumeAnalysisService(
     IJobMatchScorer jobMatchScorer,
     ILogger<ResumeAnalysisService> logger) : IResumeAnalysisService
 {
-    public ResumeAnalysisResult Analyze(string resumeText, string? jobDescription = null)
+    public ResumeAnalysisResult Analyze(
+        string resumeText,
+        string? jobDescription = null,
+        int? pageCount = null,
+        ResumeFileDiagnostics? fileDiagnostics = null)
     {
         var stopwatch = Stopwatch.StartNew();
         resumeText ??= string.Empty;
 
         var document = sectionDetector.Detect(
             resumeText,
-            isStructured: false,
-            isExtractable: !string.IsNullOrWhiteSpace(resumeText));
+            isStructured: fileDiagnostics is not null,
+            isExtractable: !string.IsNullOrWhiteSpace(resumeText),
+            pageCount: pageCount,
+            fileDiagnostics: fileDiagnostics);
         var ats = atsScorer.Score(document);
         var jobWasSupplied = !string.IsNullOrWhiteSpace(jobDescription);
         var requirements = requirementExtractor.Extract(jobDescription);
@@ -138,10 +144,12 @@ public sealed class ResumeAnalysisService(
     {
         if (!document.IsExtractable || document.CharacterCount == 0) return 0;
 
-        var confidence = 45;
+        var confidence = 40;
         confidence += Math.Min(20, document.Sections.Count * 4);
         confidence += document.CharacterCount >= 500 ? 15 : 5;
-        if (!jobWasSupplied) confidence += 15;
+        if (document.PageCount.HasValue) confidence += 5;
+        if (document.FileDiagnostics?.LayoutAssessed == true) confidence += 5;
+        if (!jobWasSupplied) confidence += 10;
         else if (requirementCount >= 5) confidence += 20;
         else if (requirementCount > 0) confidence += 10;
 
@@ -170,7 +178,7 @@ public sealed class ResumeAnalysisService(
     {
         "Experience" => requirement.Category is RequirementCategory.Experience or RequirementCategory.Responsibility or RequirementCategory.JobTitle or RequirementCategory.Seniority,
         "Education" => requirement.Category == RequirementCategory.Education,
-        "Certifications" => requirement.Category == RequirementCategory.Certification,
+        "Certifications" => requirement.Category is RequirementCategory.Certification or RequirementCategory.Eligibility,
         "Skills" => requirement.Category is RequirementCategory.TechnicalSkill or RequirementCategory.Tool or RequirementCategory.DomainSkill or RequirementCategory.SoftSkill or RequirementCategory.Language,
         "Projects" => requirement.Category is RequirementCategory.TechnicalSkill or RequirementCategory.Tool or RequirementCategory.Responsibility,
         _ => false

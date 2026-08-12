@@ -2,6 +2,7 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -129,6 +130,10 @@ public sealed class BestResumePickerService(
                     var inspection = await textExtractor.InspectAsync(absolutePath, cancellationToken);
                     extractionStatus = inspection.Status.ToString();
                     resumeText = inspection.Text;
+                    resume.PageCount = inspection.PageCount;
+                    resume.FileDiagnosticsJson = inspection.Diagnostics is null
+                        ? null
+                        : JsonSerializer.Serialize(inspection.Diagnostics, new JsonSerializerOptions(JsonSerializerDefaults.Web));
                 }
                 else extractionStatus = PdfTextExtractionStatus.Unavailable.ToString();
 
@@ -228,9 +233,9 @@ public sealed class BestResumePickerService(
 
     private static string BuildReason(CompletedComparison winner, int readableCount, int topScoreCount)
     {
-        var coverage = $"Its ApplyWise Fit is {winner.Result.OverallScore}%, with {winner.Result.MustHaveCoverage:P0} must-have coverage, {winner.Result.RequiredCoverage:P0} required coverage, {winner.Result.EvidenceQuality:P0} evidence quality, and {winner.Result.AtsReadinessScore}% ATS Readiness";
+        var coverage = $"Its ApplyWise Fit estimate is {winner.Result.OverallScore}%, with {winner.Result.MustHaveCoverage:P0} must-have coverage, {winner.Result.RequiredCoverage:P0} required coverage, {winner.Result.EvidenceQuality:P0} evidence quality, and {winner.Result.AtsReadinessScore}% readiness";
         return topScoreCount > 1
-            ? $"{coverage}. It tied for the highest fit score; requirement coverage, evidence, ATS Readiness, then your default/recency settings resolved the tie among {readableCount} readable resumes."
+            ? $"{coverage}. It tied for the highest fit estimate; requirement coverage, evidence, readiness, then your default/recency settings resolved the tie among {readableCount} readable resumes."
             : $"{coverage}, the strongest ranked result among {readableCount} readable resume{(readableCount == 1 ? string.Empty : "s")}.";
     }
 
@@ -239,12 +244,12 @@ public sealed class BestResumePickerService(
 
     private static string ExtractionMessage(string status) => status switch
     {
-        nameof(PdfTextExtractionStatus.NoText) => "This PDF has no selectable text and may be image-only. Export a text-based PDF to include it in the ranking.",
+        nameof(PdfTextExtractionStatus.NoText) => "This document has no readable text and may be image-only. Export a text-based PDF or DOCX to include it in the ranking.",
         nameof(PdfTextExtractionStatus.Encrypted) => "This PDF is encrypted. Upload an unlocked text-based PDF to include it in the ranking.",
         nameof(PdfTextExtractionStatus.PageLimitExceeded) => "This PDF exceeds the supported page limit and was not ranked.",
         nameof(PdfTextExtractionStatus.TextLimitExceeded) => "This PDF exceeds the safe extracted-text limit and was not ranked.",
         nameof(PdfTextExtractionStatus.TimedOut) => "Text extraction timed out for this PDF, so it was not ranked.",
         nameof(PdfTextExtractionStatus.Invalid) => "This PDF is invalid or unsupported and was not ranked.",
-        _ => "We could not reliably extract text from this PDF. Upload a valid text-based PDF to include it in the ranking."
+        _ => "We could not reliably extract text from this document. Upload a valid text-based PDF or DOCX to include it in the ranking."
     };
 }

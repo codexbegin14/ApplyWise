@@ -1,0 +1,60 @@
+name: Deploy MonsterASP.NET
+
+on:
+  workflow_dispatch:
+    inputs:
+      website_name:
+        description: MonsterASP.NET website name (for example, site12345)
+        required: true
+        type: string
+      database_is_migrated_and_backed_up:
+        description: Confirm the Monster MSSQL database was backed up and migrations were applied
+        required: true
+        default: false
+        type: boolean
+      production_environment_is_configured:
+        description: Confirm all required Monster environment variables and private paths are configured
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: applywise-monster-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.database_is_migrated_and_backed_up && inputs.production_environment_is_configured }}
+    runs-on: windows-latest
+    timeout-minutes: 25
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Validate release
+        shell: pwsh
+        run: |
+          dotnet restore ApplyWise.sln
+          dotnet build ApplyWise.sln -c Release --no-restore
+          dotnet test ApplyWise.sln -c Release --no-build
+          dotnet publish src/ApplyWise.Web/ApplyWise.Web.csproj -c Release --no-build --self-contained false -o .artifacts/publish
+
+      - name: Deploy compiled application through Monster Web Deploy
+        uses: rasmusbuchholdt/simply-web-deploy@026998dd5857dd5f3645cc13ed48335e07d7f94b
+        with:
+          website-name: ${{ inputs.website_name }}
+          server-computer-name: ${{ secrets.MONSTER_SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.MONSTER_SERVER_USERNAME }}
+          server-password: ${{ secrets.MONSTER_SERVER_PASSWORD }}
+          source-path: .artifacts/publish
+          target-delete: false

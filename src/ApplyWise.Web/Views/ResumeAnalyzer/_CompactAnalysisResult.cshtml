@@ -3,7 +3,7 @@
 @{
     var resultId = $"analysis-result-{Model.Id}";
     var primaryScore = Model.HasJobMatch ? Model.OverallScore : Model.AtsReadinessScore ?? Model.OverallScore;
-    var primaryLabel = Model.HasJobMatch ? "Overall fit" : "ATS readiness";
+    var primaryLabel = Model.HasJobMatch ? "ApplyWise fit estimate" : "Readiness estimate";
     var topFixes = Model.ReviewItems
         .DistinctBy(item => item.Issue, StringComparer.OrdinalIgnoreCase)
         .Take(4)
@@ -44,8 +44,9 @@
             @if (Model.HasJobMatch)
             {
                 <div class="aw-ra-compact-subscores" aria-label="Score summary">
-                    <span><small>ATS</small><strong>@(Model.AtsReadinessScore ?? 0)</strong></span>
+                    <span><small>Readiness</small><strong>@(Model.AtsReadinessScore ?? 0)</strong></span>
                     <span><small>Job match</small><strong>@Model.JobMatchScore</strong></span>
+                    <span><small>Confidence</small><strong>@(Model.ConfidenceScore ?? 0)</strong></span>
                 </div>
             }
         </div>
@@ -101,7 +102,98 @@
         }
     </section>
 
-    <p class="aw-ra-compact-note">This is an estimated readiness check, not an employer's ATS score. Keep every change truthful.</p>
+    @if (Model.Warnings.Count > 0)
+    {
+        <section class="aw-ra-panel aw-ra-v3-panel" aria-labelledby="@($"{resultId}-warnings")">
+            <div class="aw-ra-panel-heading"><div><span class="aw-kicker">Reliability notes</span><h3 id="@($"{resultId}-warnings")">What this check could and could not verify</h3></div><span class="aw-ra-count">@Model.Warnings.Count</span></div>
+            <div class="aw-ra-v3-list">
+                @foreach (var warning in Model.Warnings)
+                {
+                    <article class="is-@warning.Priority.ToString().ToLowerInvariant()"><strong>@WarningTitle(warning.Code)</strong><p>@warning.Message</p></article>
+                }
+            </div>
+        </section>
+    }
+
+    <section class="aw-ra-panel aw-ra-v3-panel" aria-labelledby="@($"{resultId}-breakdown")">
+        <div class="aw-ra-panel-heading"><div><span class="aw-kicker">Transparent scoring</span><h3 id="@($"{resultId}-breakdown")">Score breakdown</h3><p>Unassessed checks are excluded instead of receiving guessed points.</p></div></div>
+        <div class="aw-ra-v3-breakdown">
+            @foreach (var component in Model.ScoreBreakdown)
+            {
+                var percent = component.Assessed && component.Maximum > 0 ? Math.Round(component.Score * 100d / component.Maximum) : 0;
+                <article>
+                    <div><strong>@component.Label</strong><span>@(component.Assessed ? $"{component.Score:0.#}/{component.Maximum:0.#}" : "Not assessed")</span></div>
+                    <div class="aw-ra-v3-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent"><i style="width:@percent%"></i></div>
+                    @if (component.Reasons.Count > 0) { <small>@string.Join(" ", component.Reasons.Take(2))</small> }
+                </article>
+            }
+        </div>
+    </section>
+
+    @if (Model.HasJobMatch)
+    {
+        <section class="aw-ra-panel aw-ra-v3-panel" aria-labelledby="@($"{resultId}-requirements")">
+            <div class="aw-ra-panel-heading"><div><span class="aw-kicker">Job evidence</span><h3 id="@($"{resultId}-requirements")">Requirement coverage</h3><p>@Model.DetectedJobRequirementCount meaningful requirements detected · @Pct(Model.MustHaveCoverage) must-have coverage · @Pct(Model.RequiredCoverage) required coverage</p></div></div>
+            <div class="aw-ra-v3-requirements">
+                <div>
+                    <h4>Matched with evidence (@Model.Evidence.Count)</h4>
+                    @if (Model.Evidence.Count == 0) { <p class="aw-ra-empty">No supported matches were detected.</p> }
+                    @foreach (var evidence in Model.Evidence)
+                    {
+                        <article><div><strong>@evidence.RequirementName</strong><span>@evidence.Priority · @evidence.ResumeSection</span></div><p>@evidence.Snippet</p><small>Evidence strength @Pct(evidence.EvidenceStrength) · term match @Pct(evidence.MatchStrength)</small></article>
+                    }
+                </div>
+                <div>
+                    <h4>Not demonstrated (@Model.MissingRequirements.Count)</h4>
+                    @if (Model.MissingRequirements.Count == 0) { <p class="aw-ra-positive-empty"><strong>No detected requirements are missing.</strong></p> }
+                    @foreach (var requirement in Model.MissingRequirements)
+                    {
+                        <article><div><strong>@requirement.Name</strong><span>@requirement.Priority · @requirement.Category</span></div><p>@requirement.SourceText</p><small>Add it only if it is accurate and supportable.</small></article>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+
+    @if (Model.SectionReviews.Count > 0)
+    {
+        <section class="aw-ra-panel aw-ra-v3-panel" aria-labelledby="@($"{resultId}-sections")">
+            <div class="aw-ra-panel-heading"><div><span class="aw-kicker">Section review</span><h3 id="@($"{resultId}-sections")">Resume structure</h3></div></div>
+            <div class="aw-ra-v3-section-grid">
+                @foreach (var sectionReview in Model.SectionReviews)
+                {
+                    <article><div><strong>@sectionReview.Section</strong><span class="is-@sectionReview.Status.ToString().ToLowerInvariant()">@sectionReview.Status</span></div><small>@sectionReview.Score/100 section estimate</small>
+                    @foreach (var problem in sectionReview.Problems.Take(2)) { <p>@problem</p> }
+                    @foreach (var improvement in sectionReview.RecommendedImprovements.Take(1)) { <p><b>Next:</b> @improvement</p> }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Model.BulletReviews.Count > 0)
+    {
+        <details class="aw-ra-panel aw-ra-v3-panel aw-ra-v3-details">
+            <summary><span><small>Line-level review</small><strong>Experience and project bullets</strong></span><b>@Model.BulletReviews.Count bullets</b></summary>
+            <div class="aw-ra-v3-list">
+                @foreach (var bullet in Model.BulletReviews.Take(30))
+                {
+                    <article><strong>@bullet.Section · @bullet.Status</strong><p>“@bullet.Original”</p>
+                    @foreach (var problem in bullet.Problems.Take(3)) { <small>• @problem</small> }
+                    @if (bullet.Status == ReviewStatus.NeedsImprovement) { <p><b>Safe template:</b> @bullet.SuggestedTemplate</p> }
+                    </article>
+                }
+            </div>
+        </details>
+    }
+
+    <details class="aw-ra-panel aw-ra-v3-panel aw-ra-v3-details">
+        <summary><span><small>Parser verification</small><strong>Extracted resume text</strong></span><b>Review reading order</b></summary>
+        <p class="aw-ra-compact-note">This is the text and order ApplyWise actually analyzed. Missing or scrambled content usually signals a document-layout problem.</p>
+        <pre class="aw-ra-v3-parsed-text">@Model.ResumeTextSnapshot</pre>
+    </details>
+
+    <p class="aw-ra-compact-note">This is ApplyWise's deterministic estimate, not a score produced by an employer's ATS and not a prediction of an interview. Keep every change truthful.</p>
 </section>
 
 @functions {
@@ -115,17 +207,28 @@
 
     private static string ScoreTitle(int score) => score switch
     {
-        >= 85 => "Strong resume",
-        >= 70 => "Good resume",
+        >= 85 => "Strong assessed signals",
+        >= 70 => "Good assessed signals",
         >= 50 => "A few important fixes",
         _ => "Needs improvement"
     };
 
     private static string ScoreMessage(int score) => score switch
     {
-        >= 85 => "Your resume is clear and ATS-friendly. Give it one final proofread.",
-        >= 70 => "Your resume has a solid base. Complete the short review below.",
+        >= 85 => "The checks ApplyWise could assess are strong. Review the limitations and job evidence below.",
+        >= 70 => "The assessed signals have a solid base. Complete the prioritized review below.",
         >= 50 => "Focus on the few changes below before using this resume.",
         _ => "Start with the fixes below to make the resume easier to read and parse."
+    };
+
+    private static string Pct(double value) => $"{Math.Round(Math.Clamp(value, 0d, 1d) * 100d)}%";
+
+    private static string WarningTitle(AnalysisWarningCode code) => code switch
+    {
+        AnalysisWarningCode.NotAssessed => "Not assessed",
+        AnalysisWarningCode.LayoutRisk => "Layout risk",
+        AnalysisWarningCode.UnsupportedFormatting => "Formatting risk",
+        AnalysisWarningCode.RepeatedHeaderFooter => "Header or footer risk",
+        _ => code.ToString()
     };
 }

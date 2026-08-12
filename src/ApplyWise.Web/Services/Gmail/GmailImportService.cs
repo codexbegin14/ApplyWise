@@ -8,6 +8,7 @@ using ApplyWise.Web.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using ApplyWise.Web.Services.Security;
 
 namespace ApplyWise.Web.Services.Gmail;
 
@@ -36,7 +37,8 @@ public sealed class GmailImportService(
     IApplicationEmailParser emailParser,
     IApplicationImportProcessor importProcessor,
     IOptions<GoogleIntegrationOptions> options,
-    ILogger<GmailImportService> logger) : IGmailImportService
+    ILogger<GmailImportService> logger,
+    IWorkspaceQuotaService? quotas = null) : IGmailImportService
 {
     private static readonly ConcurrentDictionary<int, SemaphoreSlim> ConnectionLocks = new();
     private readonly GoogleIntegrationOptions _options = options.Value;
@@ -143,12 +145,15 @@ public sealed class GmailImportService(
 
             try
             {
+                using var syncCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                syncCancellation.CancelAfter(TimeSpan.FromSeconds(_options.GmailSyncTimeoutSeconds));
+                var syncToken = syncCancellation.Token;
                 var refreshToken = credentialProtector.Unprotect(connection.ProtectedRefreshToken);
-                var accessToken = await RefreshAccessTokenAsync(refreshToken, cancellationToken);
+                var accessToken = await RefreshAccessTokenAsync(refreshToken, syncToken);
                 var importResult = await ImportMessagesAsync(
                     connection,
                     accessToken,
-                    cancellationToken);
+                    syncToken);
 
                 dbContext.ChangeTracker.Clear();
                 connection = await LoadConnectionAsync(
@@ -420,6 +425,17 @@ public sealed class GmailImportService(
                 }
                 else
                 {
+                    if (quotas is not null
+                        && !await quotas.CanCreateApplicationImportAsync(
+                            connection.UserId,
+                            cancellationToken))
+                    {
+                        logger.LogWarning(
+                            "Gmail import quota reached for connection {ConnectionId}; remaining messages were deferred.",
+                            connection.Id);
+                        break;
+                    }
+
                     applicationImport = new ApplicationImport
                     {
                         UserId = connection.UserId,
@@ -635,6 +651,14 @@ public sealed class GmailImportService(
         }
 
         response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentLength is > 0
+            && response.Content.Headers.ContentLength > _options.GmailMaxResponseBytes)
+        {
+            throw new InvalidDataException("The Gmail response exceeded the configured byte limit.");
+        }
+        await response.Content.LoadIntoBufferAsync(
+            _options.GmailMaxResponseBytes,
+            cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
     }
@@ -701,6 +725,11 @@ public sealed class GmailImportService(
     private static string DecodeBase64Url(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        const int maximumEncodedCharacters = 300_000;
+        if (value.Length > maximumEncodedCharacters)
+        {
+            value = value[..maximumEncodedCharacters];
+        }
         var normalized = value.Replace('-', '+').Replace('_', '/');
         normalized = normalized.PadRight(normalized.Length + ((4 - normalized.Length % 4) % 4), '=');
         try

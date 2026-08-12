@@ -72,6 +72,8 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         }
 
         var source = DetectSource(searchable, message.From, direction);
+        var trustedIncomingDomain = direction == ApplicationImportDirection.Incoming
+            && IsTrustedAutoAddDomain(senderDomain);
         var (company, jobTitle) = ExtractCompanyAndTitle(message.Subject, body);
         company ??= CompanyFromDomain(senderDomain);
         var jobUrl = ExtractJobUrl(body);
@@ -81,7 +83,8 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
             company,
             jobTitle,
             hasResumeAttachment,
-            message.Subject);
+            message.Subject,
+            trustedIncomingDomain);
 
         return new ApplicationImportSuggestion(
             direction,
@@ -196,7 +199,8 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         string? company,
         string? jobTitle,
         bool hasResumeAttachment,
-        string subject)
+        string subject,
+        bool trustedIncomingDomain)
     {
         var confidence = direction == ApplicationImportDirection.Incoming ? 58 : 45;
         if (source is JobSource.LinkedIn or JobSource.Indeed or JobSource.Rozee) confidence += 12;
@@ -204,7 +208,10 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         if (!string.IsNullOrWhiteSpace(jobTitle)) confidence += 10;
         if (hasResumeAttachment) confidence += 5;
         if (ConfirmationSubjectRegex().IsMatch(subject)) confidence += 7;
-        return Math.Clamp(confidence, 0, 95);
+        var maximum = direction == ApplicationImportDirection.Incoming && !trustedIncomingDomain
+            ? ApplicationImportPolicy.HighConfidenceThreshold - 1
+            : 95;
+        return Math.Clamp(confidence, 0, maximum);
     }
 
     private static string? GetSenderDomain(string from)
@@ -217,6 +224,22 @@ public sealed partial class ApplicationEmailParser : IApplicationEmailParser
         !string.IsNullOrWhiteSpace(domain)
         && (domain.Equals("indeed.com", StringComparison.OrdinalIgnoreCase)
             || domain.EndsWith(".indeed.com", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsTrustedAutoAddDomain(string? domain) =>
+        IsIndeedDomain(domain)
+        || IsDomainOrSubdomain(domain, "linkedin.com")
+        || IsDomainOrSubdomain(domain, "greenhouse.io")
+        || IsDomainOrSubdomain(domain, "lever.co")
+        || IsDomainOrSubdomain(domain, "myworkday.com")
+        || IsDomainOrSubdomain(domain, "smartrecruiters.com")
+        || IsDomainOrSubdomain(domain, "icims.com")
+        || IsDomainOrSubdomain(domain, "jobvite.com")
+        || IsDomainOrSubdomain(domain, "ashbyhq.com");
+
+    private static bool IsDomainOrSubdomain(string? domain, string expected) =>
+        !string.IsNullOrWhiteSpace(domain)
+        && (domain.Equals(expected, StringComparison.OrdinalIgnoreCase)
+            || domain.EndsWith('.' + expected, StringComparison.OrdinalIgnoreCase));
 
     private static string? CompanyFromDomain(string? domain)
     {

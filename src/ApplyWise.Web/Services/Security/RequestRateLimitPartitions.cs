@@ -13,9 +13,7 @@ public static class RequestRateLimitPartitions
         int permitLimit)
     {
         var clientKey = GetClientKey(context);
-        if (IsReadOnly(context.Request.Method) &&
-            (context.Request.Path.StartsWithSegments("/health") ||
-             Path.HasExtension(context.Request.Path.Value)))
+        if (IsReadOnly(context.Request.Method) && IsStaticAssetPath(context.Request.Path))
         {
             return RateLimitPartition.GetNoLimiter($"global-read:{clientKey}");
         }
@@ -72,6 +70,13 @@ public static class RequestRateLimitPartitions
         HttpMethods.IsGet(method) ||
         HttpMethods.IsHead(method) ||
         HttpMethods.IsOptions(method);
+
+    private static bool IsStaticAssetPath(PathString path) =>
+        path.StartsWithSegments("/css", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/js", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/images", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/lib", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/favicon.ico");
 
     private static bool IsExternalLoginStart(HttpRequest request) =>
         request.Path.StartsWithSegments(

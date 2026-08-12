@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
+using ApplyWise.Web.Services.Monitoring;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -13,6 +14,7 @@ public class RegisterConfirmationModel(
     UserManager<IdentityUser> userManager,
     IAccountSecurityCodeService securityCodes,
     IAccountSecurityRequestQueue securityRequests,
+    IProductEventRecorder events,
     ILogger<RegisterConfirmationModel> logger) : PageModel
 {
     [BindProperty]
@@ -102,6 +104,11 @@ public class RegisterConfirmationModel(
         }
 
         await securityCodes.ConsumeAsync(verification.CodeId.Value, HttpContext.RequestAborted);
+        await events.RecordAsync(
+            ProductEventNames.EmailConfirmed,
+            "verification_code",
+            user.Id,
+            cancellationToken: HttpContext.RequestAborted);
         MarkSucceeded();
         return Page();
     }

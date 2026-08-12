@@ -111,6 +111,21 @@ public sealed class ApplicationEmailParserTests
     }
 
     [Fact]
+    public void Parse_UntrustedHighScoringConfirmation_RequiresReview()
+    {
+        var message = Message(
+            subject: "LinkedIn application confirmation for Software Engineer",
+            from: "attacker@example.test",
+            body: "Thank you for applying for Software Engineer at Contoso. View job: https://example.test/job/phish",
+            labels: ["INBOX"]);
+
+        var result = _parser.Parse(message);
+
+        Assert.NotNull(result);
+        Assert.True(result.Confidence < ApplicationImportPolicy.HighConfidenceThreshold);
+    }
+
+    [Fact]
     public void Parse_SentMessageWithoutResume_ReturnsNull()
     {
         var message = Message(

@@ -7,6 +7,7 @@ x-application-environment: &application-environment
   Email__From: "${SMTP_FROM:?set SMTP_FROM}"
   PublicOrigin: "${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN}"
   AllowedHosts: "${ALLOWED_HOSTS:?set ALLOWED_HOSTS}"
+  AdminAccess__Emails__0: "${ADMIN_EMAIL:?set ADMIN_EMAIL}"
   ResumeStorage__RootPath: "/app/App_Data/Uploads/Resumes"
   DataProtection__KeysPath: "/app/App_Data/DataProtectionKeys"
   DataProtection__CertificatePath: "/run/secrets/data-protection.pfx"

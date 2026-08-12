@@ -4,6 +4,7 @@ using ApplyWise.Web.Models;
 using ApplyWise.Web.Services.ResumeAnalysis;
 using ApplyWise.Web.Services.ResumeStorage;
 using ApplyWise.Web.ViewModels.ResumeAnalyzer;
+using ApplyWise.Web.Services.Monitoring;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ public class ResumeAnalyzerController(
     IResumeTextExtractorService textExtractor,
     IResumeIngestionService resumeIngestion,
     IResumeAnalysisStore analysisStore,
+    IProductEventRecorder events,
     ILogger<ResumeAnalyzerController> logger) : Controller
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -195,7 +197,7 @@ public class ResumeAnalyzerController(
         {
             ModelState.AddModelError(
                 "Upload.ResumeFile",
-                "No selectable text was found. Upload a text-based PDF exported directly from your editor.");
+                "No readable text was found. Upload a text-based PDF or DOCX exported directly from your editor.");
             return await RenderIndexAsync("ats", upload: form);
         }
 
@@ -306,6 +308,11 @@ public class ResumeAnalyzerController(
         try
         {
             await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+            await events.RecordAsync(
+                ProductEventNames.ResumeAnalysisCompleted,
+                stored.Analysis.AnalysisType.ToString(),
+                stored.Analysis.UserId,
+                cancellationToken: HttpContext.RequestAborted);
             return stored.Analysis.Id;
         }
         catch (DbUpdateException) when (!stored.IsCacheHit && !string.IsNullOrWhiteSpace(stored.Analysis.InputHash))
@@ -378,6 +385,10 @@ public class ResumeAnalyzerController(
             }
 
             resume.ExtractedText = resumeText;
+            resume.PageCount = inspection.PageCount;
+            resume.FileDiagnosticsJson = inspection.Diagnostics is null
+                ? null
+                : JsonSerializer.Serialize(inspection.Diagnostics, JsonOptions);
             resume.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
@@ -386,13 +397,13 @@ public class ResumeAnalyzerController(
 
     private static string ExtractionMessage(PdfTextExtractionStatus status) => status switch
     {
-        PdfTextExtractionStatus.NoText => "This PDF has no selectable text and may be image-only. Export a text-based PDF and try again.",
+        PdfTextExtractionStatus.NoText => "This document has no readable text and may be image-only. Export a text-based PDF or DOCX and try again.",
         PdfTextExtractionStatus.Encrypted => "This PDF is encrypted or password protected. Upload an unlocked text-based PDF.",
-        PdfTextExtractionStatus.Invalid => "This PDF is invalid or exceeds the supported file size. Export a fresh PDF and try again.",
+        PdfTextExtractionStatus.Invalid => "This resume file is invalid or exceeds the supported file size. Export a fresh PDF or DOCX and try again.",
         PdfTextExtractionStatus.PageLimitExceeded => "This PDF exceeds the supported page limit. Upload a shorter resume.",
         PdfTextExtractionStatus.TextLimitExceeded => "This PDF contains too much extracted text to analyze safely.",
         PdfTextExtractionStatus.TimedOut => "PDF text extraction timed out. Export a simpler text-based PDF and try again.",
-        _ => "We could not read text from this PDF. Please upload a valid text-based resume PDF."
+        _ => "We could not read text from this document. Please upload a valid text-based PDF or DOCX resume."
     };
 
     private async Task<IActionResult> RenderIndexAsync(
@@ -571,6 +582,7 @@ public class ResumeAnalyzerController(
                 ? $"{analysis.JobApplication!.JobTitle} at {analysis.JobApplication.CompanyName}"
                 : hasJobDescription ? "Pasted job requirements" : "ATS resume check",
             ContextSubtitle = isSavedApplication ? "Saved application" : hasJobDescription ? "Direct input" : "General readiness · no job description needed",
+            ResumeTextSnapshot = analysis.ResumeTextSnapshot,
             JobDescriptionSnapshot = analysis.JobDescriptionSnapshot,
             OverallScore = analysis.MatchScore,
             AtsReadinessScore = analysis.AtsReadinessScore,
@@ -603,7 +615,7 @@ public class ResumeAnalyzerController(
             analysis.Id,
             analysis.Resume?.VersionName ?? "Resume",
             saved ? $"{analysis.JobApplication!.JobTitle} at {analysis.JobApplication.CompanyName}" : hasJob ? "Pasted job requirements" : "ATS resume check",
-            saved ? "Saved application" : hasJob ? "Direct input" : "General ATS readiness",
+            saved ? "Saved application" : hasJob ? "Direct input" : "General readiness estimate",
             analysis.AnalysisType,
             analysis.MatchScore,
             analysis.AtsReadinessScore,

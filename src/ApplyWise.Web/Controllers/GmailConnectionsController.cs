@@ -101,7 +101,7 @@ public sealed class GmailConnectionsController(
                     ConnectedAt = now,
                     UpdatedAt = now,
                     NextSyncAt = now,
-                    AutoAddHighConfidenceApplications = true
+                    AutoAddHighConfidenceApplications = false
                 };
                 dbContext.GmailConnections.Add(connection);
             }
@@ -147,6 +147,7 @@ public sealed class GmailConnectionsController(
             return RedirectToAction("Index", "ApplicationImports");
         }
 
+        var revoked = false;
         try
         {
             var token = credentialProtector.Unprotect(connection.ProtectedRefreshToken);
@@ -169,6 +170,10 @@ public sealed class GmailConnectionsController(
                     (int)response.StatusCode,
                     connection.Id);
             }
+            else
+            {
+                revoked = true;
+            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -176,6 +181,18 @@ public sealed class GmailConnectionsController(
                 exception,
                 "Google token revocation could not be completed for Gmail connection {ConnectionId}.",
                 connection.Id);
+        }
+
+        if (!revoked)
+        {
+            connection.AutoAddHighConfidenceApplications = false;
+            connection.NextSyncAt = DateTimeOffset.MaxValue;
+            connection.LastErrorCode = "revocation_pending";
+            connection.UpdatedAt = DateTimeOffset.UtcNow;
+            await dbContext.SaveChangesAsync(HttpContext.RequestAborted);
+            TempData["ImportError"] =
+                "Gmail syncing was disabled, but Google did not confirm token revocation. Revoke ApplyWise from your Google Account permissions, then try disconnecting again.";
+            return RedirectToAction("Index", "ApplicationImports");
         }
 
         dbContext.GmailConnections.Remove(connection);

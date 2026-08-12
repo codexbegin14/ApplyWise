@@ -9,7 +9,11 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
         "achieve", "achieved", "analyze", "analyzed", "build", "built", "create", "created", "deliver", "delivered",
         "design", "designed", "develop", "developed", "drive", "drove", "implement", "implemented", "improve", "improved",
         "increase", "increased", "launch", "launched", "lead", "led", "manage", "managed", "optimize", "optimized",
-        "reduce", "reduced", "resolve", "resolved", "streamline", "streamlined", "support", "supported"
+        "reduce", "reduced", "resolve", "resolved", "streamline", "streamlined", "support", "supported", "administered",
+        "architected", "automated", "configured", "coordinated", "deployed", "directed", "established", "facilitated",
+        "generated", "maintained", "mentored", "migrated", "modernized", "negotiated", "owned", "prepared", "produced",
+        "programmed", "redesigned", "researched", "secured", "spearheaded", "tested", "trained", "transformed", "troubleshot",
+        "wrote", "audited", "forecasted", "reconciled", "presented", "planned", "executed", "oversaw"
     };
     private static readonly string[] WeakOpeners = ["worked on", "responsible for", "helped with", "participated in", "did various tasks", "hard-working", "hard working", "team player"];
     private static readonly HashSet<string> RepetitionStopWords = new(StringComparer.OrdinalIgnoreCase)
@@ -20,6 +24,15 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
     {
         "resume", "profile", "summary", "professional summary", "experience", "work experience",
         "employment", "education", "skills", "technical skills", "projects", "achievements", "certifications"
+    };
+    private static readonly HashSet<string> LocationQualifiers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Pakistan", "India", "Bangladesh", "Sri Lanka", "Nepal", "United States", "USA", "United Kingdom", "UK",
+        "Canada", "Australia", "New Zealand", "Germany", "France", "Spain", "Italy", "Portugal", "Netherlands",
+        "Ireland", "Sweden", "Norway", "Denmark", "Finland", "Poland", "Turkey", "UAE", "United Arab Emirates",
+        "Saudi Arabia", "Qatar", "Singapore", "Malaysia", "South Africa", "Nigeria", "Kenya", "Egypt",
+        "Sindh", "Punjab", "Balochistan", "Khyber Pakhtunkhwa", "Islamabad Capital Territory", "Ontario", "Quebec",
+        "British Columbia", "Alberta", "New South Wales", "Victoria", "Queensland", "England", "Scotland", "Wales"
     };
 
     public AtsReadinessResult Score(ResumeDocument document)
@@ -34,7 +47,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
                 "Text could not be reliably extracted. This PDF may be image-only, encrypted, invalid, or unsupported.", ReviewPriority.Critical));
             reviews.Add(new ReviewItem(ReviewPriority.Critical, ReviewCategory.AtsParsing, null,
                 "Resume text is unreadable.", "Applicant tracking systems need selectable text to parse the resume reliably.", null,
-                "Upload a valid text-based PDF exported directly from your editor.", null, 25, null, "ATS Readiness"));
+                "Upload a valid text-based PDF or DOCX exported directly from your editor.", null, 25, null, "Readiness estimate"));
             components.Add(new ScoreComponent("parseability", "Text extraction and parseability", 0, 25,
                 ["Text could not be reliably extracted."]));
             foreach (var item in StaticUnassessedComponents()) components.Add(item);
@@ -77,10 +90,60 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             score -= 5;
             warnings.Add(new AnalysisWarning(AnalysisWarningCode.ParsingOrder, "Some extracted characters appear corrupted.", ReviewPriority.High));
         }
+        var diagnostics = document.FileDiagnostics;
+        if (diagnostics is null || !diagnostics.LayoutAssessed)
+        {
+            reasons.Add("Visual layout risks were not fully assessed for this document.");
+            warnings.Add(new AnalysisWarning(AnalysisWarningCode.NotAssessed,
+                "Visual columns, tables, text boxes, font size, and header/footer risks were not assessed from plain or cached text.",
+                ReviewPriority.Low));
+        }
+        else
+        {
+            if (diagnostics.SuspectedMultiColumn)
+            {
+                score -= 5;
+                warnings.Add(new AnalysisWarning(AnalysisWarningCode.LayoutRisk,
+                    "A multi-column layout may change text reading order in some parsers.", ReviewPriority.High));
+                reviews.Add(FormattingReview("A multi-column layout was detected.",
+                    "Some ATS parsers read across columns or merge unrelated lines.",
+                    "Use a single-column version for applications that do not explicitly support designed resumes.", 5));
+            }
+            if (diagnostics.HasTextBoxes)
+            {
+                score -= 4;
+                warnings.Add(new AnalysisWarning(AnalysisWarningCode.UnsupportedFormatting,
+                    "Text boxes were detected and may not be read consistently.", ReviewPriority.High));
+                reviews.Add(FormattingReview("Text boxes carry resume content.",
+                    "Some parsers omit or reorder text stored in drawing objects.",
+                    "Move important content into normal document paragraphs.", 4));
+            }
+            if (diagnostics.HasRotatedText)
+            {
+                score -= 3;
+                warnings.Add(new AnalysisWarning(AnalysisWarningCode.LayoutRisk,
+                    "Rotated text was detected.", ReviewPriority.Medium));
+            }
+            if (diagnostics.HasVerySmallText)
+            {
+                score -= 2;
+                reviews.Add(FormattingReview("Very small text was detected.",
+                    "Tiny text is difficult for recruiters to review and may indicate an overcrowded layout.",
+                    "Use readable body text and remove lower-value content instead of shrinking it.", 2));
+            }
+            if (diagnostics.RepeatedHeaderOrFooter)
+            {
+                score -= 2;
+                warnings.Add(new AnalysisWarning(AnalysisWarningCode.RepeatedHeaderFooter,
+                    "Repeated header or footer text may be duplicated or ignored by parsers.", ReviewPriority.Medium));
+            }
+            if (diagnostics.HasTables)
+                reasons.Add("Table-based content was detected; verify the extracted reading order shown in this report.");
+        }
         if (score < 22)
             reviews.Add(new ReviewItem(ReviewPriority.High, ReviewCategory.AtsParsing, null, "The extracted text has reliability concerns.",
                 "Broken or sparse text can cause ATS fields and keywords to be missed.", null,
-                "Export a fresh text-based PDF and confirm that text can be selected and copied in reading order.", null, 25 - score, null, "ATS Readiness"));
+                "Export a fresh text-based PDF or DOCX and confirm that text can be selected and copied in reading order.", null, 25 - score, null, "Readiness estimate"));
         return new ScoreComponent("parseability", "Text extraction and parseability", Math.Max(0, score), 25, reasons);
     }
 
@@ -94,10 +157,10 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Take(8)
             .ToArray();
-        var hasName = firstLines.Any(line => NameLine().IsMatch(line) && !NonNameHeadings.Contains(line.Trim().TrimEnd(':')));
+        var hasName = firstLines.Any(HasLikelyName);
         var hasEmail = EmailRegex().IsMatch(text);
         var hasPhone = HasPhoneNumber(text);
-        var hasLocation = firstLines.Any(line => LocationRegex().IsMatch(line));
+        var hasLocation = firstLines.Any(HasLikelyLocation);
         var hasLink = LinkRegex().IsMatch(text);
         if (hasName) { score += 4; reasons.Add("A likely full name was detected near the top."); }
         if (hasEmail) { score += 4; reasons.Add("A valid-looking email address was detected."); }
@@ -111,7 +174,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             reviews.Add(new ReviewItem(field is "Email" or "Full name" ? ReviewPriority.High : ReviewPriority.Medium,
                 ReviewCategory.ContactInformation, "Contact Information", field + " was not detected.",
                 "Recruiters and parsing systems need clear contact details near the top of the resume.", null,
-                "Add a clearly labelled " + field.ToLowerInvariant() + " in the resume header.", null, impact, null, "ATS Readiness"));
+                "Add a clearly labelled " + field.ToLowerInvariant() + " in the resume header.", null, impact, null, "Readiness estimate"));
         }
         Missing(hasName, "Full name", 4); Missing(hasEmail, "Email", 4); Missing(hasPhone, "Phone number", 3);
         return new ScoreComponent("contact", "Contact information", score, 15, reasons.Count > 0 ? reasons : ["No standard contact fields were detected."]);
@@ -152,7 +215,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
                     SectionCategory(pair.Key),
                     char.ToUpperInvariant(pair.Key[0]) + pair.Key[1..], issue,
                     "Standard headings help ATS parsers classify resume content correctly.", null,
-                    "Add the section with a clear, conventional heading.", null, pair.Value, null, "ATS Readiness"));
+                    "Add the section with a clear, conventional heading.", null, pair.Value, null, "Readiness estimate"));
             }
         }
         return new ScoreComponent("sections", "Standard resume sections", score, 20, reasons);
@@ -163,7 +226,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
         var dateMatches = DateRegex().Matches(document.NormalizedText).Count;
         var bullets = ExtractBullets(document).Count;
         var reasons = new List<string>();
-        double score = 3;
+        double score = 0;
         if (dateMatches >= 4) { score += 6; reasons.Add("Multiple recognizable dates were detected."); }
         else if (dateMatches >= 2) score += 4;
         else
@@ -171,7 +234,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             warnings.Add(new AnalysisWarning(AnalysisWarningCode.InconsistentDates, "Few recognizable dates were detected.", ReviewPriority.Medium));
             reviews.Add(new ReviewItem(ReviewPriority.Medium, ReviewCategory.DatesAndConsistency, "Experience",
                 "Employment or education dates are sparse or unrecognized.", "Clear date ranges help establish experience chronology.", null,
-                "Use one consistent format such as \"Jan 2023 - Present\" for each role and degree.", null, 5, null, "ATS Readiness"));
+                "Use one consistent format such as \"Jan 2023 - Present\" for each role and degree.", null, 5, null, "Readiness estimate"));
         }
         if (document.Sections.Count >= 4) score += 3;
         if (bullets >= 3) { score += 3; reasons.Add("Bullet-style content was detected under resume sections."); }
@@ -188,7 +251,12 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             reviews.Add(new ReviewItem(ReviewPriority.High, ReviewCategory.DatesAndConsistency, "Experience",
                 "A date range appears chronologically impossible.", "Conflicting dates can confuse parsers and reviewers.",
                 impossibleRanges + " impossible date range(s) detected.",
-                "Correct the range and use the same month/year format throughout the resume.", null, 3, null, "ATS Readiness"));
+                "Correct the range and use the same month/year format throughout the resume.", null, 3, null, "Readiness estimate"));
+        }
+        else if (DateRangeRegex().IsMatch(document.NormalizedText))
+        {
+            score += 3;
+            reasons.Add("Recognizable chronological date ranges were detected.");
         }
         return new ScoreComponent("structure", "Dates and structural consistency", Math.Min(score, 15), 15, reasons);
     }
@@ -219,7 +287,7 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
             var first = words.FirstOrDefault()?.Trim(',', ':', ';') ?? string.Empty;
             var action = ActionVerbs.Contains(first);
             var weak = WeakOpeners.Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-            var metric = MetricRegex().IsMatch(value);
+            var metric = HasMeaningfulMetric(value);
             var technology = TechnologyCue().IsMatch(value);
             var clearTask = words.Length >= 6;
             var outcome = metric || OutcomeCue().IsMatch(value);
@@ -256,8 +324,8 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
         var words = document.NormalizedText.Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries);
         double score = 10;
         var reasons = new List<string>();
-        var pageLengthConcern = document.PageCount is > 2;
-        if (words.Length is < 180 or > 1100 || pageLengthConcern)
+        var pageLengthConcern = document.PageCount is > 3;
+        if (words.Length is < 120 or > 1200 || pageLengthConcern)
         {
             score -= 3;
             warnings.Add(new AnalysisWarning(AnalysisWarningCode.ExcessiveLength, "Resume length is outside the typical concise range.", ReviewPriority.Medium));
@@ -330,6 +398,42 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
         return result;
     }
 
+    private static bool HasLikelyLocation(string line)
+    {
+        var value = line.Trim();
+        if (value.Equals("remote", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("open to relocation", StringComparison.OrdinalIgnoreCase)) return true;
+        if (value.Contains('@') || PhoneRegex().IsMatch(value) || LinkRegex().IsMatch(value)) return false;
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is < 2 or > 3 || !PlaceName().IsMatch(parts[0])) return false;
+        return RegionCode().IsMatch(parts[1]) || LocationQualifiers.Contains(parts[1]) ||
+               (parts.Length == 3 && (RegionCode().IsMatch(parts[2]) || LocationQualifiers.Contains(parts[2])));
+    }
+
+    private static bool HasLikelyName(string line)
+    {
+        var value = line.Trim().TrimEnd(':');
+        return NameLine().IsMatch(value) &&
+               !NonNameHeadings.Contains(value) &&
+               !JobTitleTerm().IsMatch(value);
+    }
+
+    private static bool HasMeaningfulMetric(string value)
+    {
+        if (StrongMetricRegex().IsMatch(value)) return true;
+        foreach (Match match in PlainNumberRegex().Matches(value))
+        {
+            if (!int.TryParse(match.Groups["number"].Value.Replace(",", string.Empty), out var number)) continue;
+            if (number is >= 1900 and <= 2099) continue;
+            if (number <= 0) continue;
+            return true;
+        }
+        return false;
+    }
+
+    private static ReviewItem FormattingReview(string issue, string why, string action, double impact) =>
+        new(ReviewPriority.High, ReviewCategory.DocumentFormatting, null, issue, why, null, action, null, impact, null, "ATS parsing");
+
     private static IReadOnlyList<ScoreComponent> StaticUnassessedComponents() =>
     [
         new("contact", "Contact information", 0, 15, ["Not assessed because text extraction failed."], false),
@@ -343,11 +447,14 @@ public sealed partial class AtsReadinessScorer : IAtsReadinessScorer
     [GeneratedRegex(@"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex EmailRegex();
     [GeneratedRegex(@"(?<!\d)(?:\+?\d[\d ().-]{6,}\d)(?!\d)", RegexOptions.CultureInvariant)] private static partial Regex PhoneRegex();
     [GeneratedRegex(@"\b(?:linkedin\.com|github\.com|https?://|www\.)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex LinkRegex();
-    [GeneratedRegex(@"\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,?\s+(?:[A-Z]{2}|[A-Z][a-z]+)|remote)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex LocationRegex();
+    [GeneratedRegex(@"^[\p{L}][\p{L} .'-]{1,44}$", RegexOptions.CultureInvariant)] private static partial Regex PlaceName();
+    [GeneratedRegex(@"^[A-Z]{2,3}$", RegexOptions.CultureInvariant)] private static partial Regex RegionCode();
+    [GeneratedRegex(@"\b(?:engineer|developer|manager|director|analyst|specialist|consultant|architect|designer|accountant|assistant|coordinator|officer|administrator|technician|scientist|lead|intern|student|professional)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex JobTitleTerm();
     [GeneratedRegex(@"\b(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+)?(?:19|20)\d{2}\b|\bpresent\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex DateRegex();
     [GeneratedRegex(@"(?<start>(?:19|20)\d{2})\s*(?:-|to)\s*(?<end>(?:19|20)\d{2})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex DateRangeRegex();
-    [GeneratedRegex(@"(?:\b\d+(?:\.\d+)?%|[$\u00A3\u20AC]\s?\d|\b\d+[kKmM]?\+?\b)", RegexOptions.CultureInvariant)] private static partial Regex MetricRegex();
-    [GeneratedRegex(@"\b(?:using|with|via|through|built with|developed with|designed with|implemented with)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex TechnologyCue();
+    [GeneratedRegex(@"(?:\b\d+(?:\.\d+)?\s*%|[$\u00A3\u20AC]\s?\d[\d,.]*|\b\d+(?:\.\d+)?\s*(?:hours?|days?|weeks?|months?|users?|customers?|clients?|records?|requests?|tickets?|projects?|people|members?|teams?|systems?|services?|applications?|reports?|dashboards?|markets?|countries|locations|transactions|cases|minutes?|seconds?)\b)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex StrongMetricRegex();
+    [GeneratedRegex(@"(?<![\w.-])(?<number>\d{1,3}(?:,\d{3})*|\d{1,6})(?:\+)?(?![\w.-])", RegexOptions.CultureInvariant)] private static partial Regex PlainNumberRegex();
+    [GeneratedRegex(@"\b(?:using|via|through|built with|developed with|designed with|implemented with|powered by|based on)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex TechnologyCue();
     [GeneratedRegex(@"\b(?:resulting in|leading to|enabled|improved|increased|reduced|saved|accelerated|grew|delivered|so that|which allowed)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex OutcomeCue();
     [GeneratedRegex(@"^[A-Z][^.!?]{20,}[.!?]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex SentenceLike();
     [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)] private static partial Regex WhitespaceRegex();

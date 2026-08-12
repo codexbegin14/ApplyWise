@@ -64,11 +64,6 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             .Select(group => group.Key)
             .FirstOrDefault();
 
-        var pendingReminderCount = await dbContext.Reminders.CountAsync(
-            reminder => reminder.UserId == userId && !reminder.IsCompleted, cancellationToken);
-        var overdueReminderCount = await dbContext.Reminders.CountAsync(
-            reminder => reminder.UserId == userId && !reminder.IsCompleted && reminder.DueAt < now, cancellationToken);
-
         var statusCounts = Enum.GetValues<ApplicationStatus>()
             .Select(status => new StatusCountItem(status, applications.Count(application => application.Status == status)))
             .ToArray();
@@ -86,8 +81,6 @@ public sealed class AnalyticsService(ApplicationDbContext dbContext) : IAnalytic
             currentAnalyses.Length,
             analysisRows.Count - currentAnalyses.Length,
             mostFrequentWarning,
-            pendingReminderCount,
-            overdueReminderCount,
             interviewRows.Count(interview => interview.ScheduledAt >= now
                 && interview.Status is InterviewStatus.Scheduled or InterviewStatus.Rescheduled),
             total == 0 ? 0 : Math.Round(interviewedApplicationIds.Count * 100d / total, 1),

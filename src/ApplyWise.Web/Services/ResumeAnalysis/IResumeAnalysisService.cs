@@ -2,7 +2,11 @@ namespace ApplyWise.Web.Services.ResumeAnalysis;
 
 public interface IResumeAnalysisService
 {
-    ResumeAnalysisResult Analyze(string resumeText, string? jobDescription = null);
+    ResumeAnalysisResult Analyze(
+        string resumeText,
+        string? jobDescription = null,
+        int? pageCount = null,
+        ResumeFileDiagnostics? fileDiagnostics = null);
 }
 
 public interface IResumeTextNormalizer
@@ -15,7 +19,12 @@ public sealed record NormalizedToken(string Value, string Original, int StartInd
 
 public interface IResumeSectionDetector
 {
-    ResumeDocument Detect(string text, bool isStructured = false, bool isExtractable = true, int? pageCount = null);
+    ResumeDocument Detect(
+        string text,
+        bool isStructured = false,
+        bool isExtractable = true,
+        int? pageCount = null,
+        ResumeFileDiagnostics? fileDiagnostics = null);
 }
 
 public interface ISkillTaxonomyService

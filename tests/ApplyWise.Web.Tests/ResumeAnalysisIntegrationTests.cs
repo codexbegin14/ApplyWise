@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using ApplyWise.Web.Services.Monitoring;
 using Xunit;
 
 namespace ApplyWise.Web.Tests;
@@ -179,6 +180,7 @@ public sealed class ResumeAnalysisIntegrationTests
             new UnusedTextExtractor(),
             new UnusedIngestionService(),
             CreateStore(db),
+            new NoOpProductEventRecorder(),
             NullLogger<ResumeAnalyzerController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
@@ -206,6 +208,12 @@ public sealed class ResumeAnalysisIntegrationTests
         Assert.NotNull(pageModel.LatestResult);
         Assert.Equal(analysis.AtsReadinessScore, pageModel.LatestResult.AtsReadinessScore);
         Assert.False(pageModel.LatestResult.HasJobMatch);
+    }
+
+    private sealed class NoOpProductEventRecorder : IProductEventRecorder
+    {
+        public Task RecordAsync(string name, string source, string? userId = null, bool succeeded = true, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RecordLoginAsync(string userId, string source, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     [Fact]

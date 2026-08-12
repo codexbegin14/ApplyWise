@@ -45,11 +45,16 @@ public sealed partial class ResumeSectionDetector(IResumeTextNormalizer normaliz
         ["activities"] = "interests"
     };
 
-    public ResumeDocument Detect(string text, bool isStructured = false, bool isExtractable = true, int? pageCount = null)
+    public ResumeDocument Detect(
+        string text,
+        bool isStructured = false,
+        bool isExtractable = true,
+        int? pageCount = null,
+        ResumeFileDiagnostics? fileDiagnostics = null)
     {
         var normalized = normalizer.Normalize(text);
         if (normalized.Length == 0)
-            return new ResumeDocument(text ?? string.Empty, string.Empty, [], isExtractable, isStructured, pageCount);
+            return new ResumeDocument(text ?? string.Empty, string.Empty, [], isExtractable, isStructured, pageCount, fileDiagnostics);
 
         var headings = new List<(string Key, string Title, int Start, int ContentStart)>();
         foreach (Match match in LineRegex().Matches(normalized))
@@ -62,7 +67,7 @@ public sealed partial class ResumeSectionDetector(IResumeTextNormalizer normaliz
         }
 
         if (headings.Count == 0)
-            return new ResumeDocument(text, normalized, [new ResumeSection("general", "Resume", normalized, 0, normalized.Length)], isExtractable, isStructured, pageCount);
+            return new ResumeDocument(text, normalized, [new ResumeSection("general", "Resume", normalized, 0, normalized.Length)], isExtractable, isStructured, pageCount, fileDiagnostics);
 
         var sections = new List<ResumeSection>();
         if (headings[0].Start > 0)
@@ -79,7 +84,7 @@ public sealed partial class ResumeSectionDetector(IResumeTextNormalizer normaliz
             sections.Add(new ResumeSection(heading.Key, heading.Title, content, heading.Start, end));
         }
 
-        return new ResumeDocument(text, normalized, sections, isExtractable, isStructured, pageCount);
+        return new ResumeDocument(text, normalized, sections, isExtractable, isStructured, pageCount, fileDiagnostics);
     }
 
     [GeneratedRegex(@"(?m)^(?<line>[^\r\n]+)(?:\r?\n|$)", RegexOptions.CultureInvariant)]

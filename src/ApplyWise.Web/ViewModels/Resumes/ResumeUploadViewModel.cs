@@ -12,8 +12,8 @@ public class ResumeUploadViewModel
     [StringLength(1000)]
     public string? Notes { get; set; }
 
-    [Required(ErrorMessage = "Choose a PDF resume to upload.")]
-    [Display(Name = "Resume PDF")]
+    [Required(ErrorMessage = "Choose a PDF or DOCX resume to upload.")]
+    [Display(Name = "Resume file")]
     public IFormFile? ResumeFile { get; set; }
 
     [Display(Name = "Set as default resume")]

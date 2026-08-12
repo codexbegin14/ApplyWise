@@ -192,7 +192,7 @@
 .aw-home-wiso-card small { color: var(--aw-muted, #64748b); font-size: .6875rem; }
 .aw-home-wiso-card b { color: var(--aw-text, #0f172a); font-size: .75rem; }
 .aw-home-wiso-card-tracking { top: 112px; right: 14px; }
-.aw-home-wiso-card-reminder { right: 20px; bottom: 22px; }
+.aw-home-wiso-card-interview { right: 20px; bottom: 22px; }
 
 .aw-home-kicker {
     display: inline-flex;
@@ -466,7 +466,7 @@
     .aw-home-wiso-intro { top: 14px; left: 14px; }
     .aw-home-wiso-card { padding: 8px 10px; }
     .aw-home-wiso-card-tracking { top: 92px; right: 8px; }
-    .aw-home-wiso-card-reminder { right: 12px; bottom: 14px; }
+    .aw-home-wiso-card-interview { right: 12px; bottom: 14px; }
     .aw-home-wiso-card small { display: none; }
     .aw-home-section { padding: 48px 0; }
     .aw-home-section-heading { margin-bottom: 24px; }

@@ -8,7 +8,7 @@
 
     input?.addEventListener('change', () => {
         const file = input.files?.[0];
-        if (fileName) fileName.textContent = file?.name ?? 'Choose your resume PDF';
+        if (fileName) fileName.textContent = file?.name ?? 'Choose your PDF or DOCX resume';
         if (fileHelp) {
             fileHelp.textContent = file
                 ? `${Math.max(1, Math.ceil(file.size / 1024))} KB selected · ready for ATS checks`

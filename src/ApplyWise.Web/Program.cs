@@ -12,12 +12,16 @@ using ApplyWise.Web.Services.AccountSecurity;
 using ApplyWise.Web.Services.Dashboard;
 using ApplyWise.Web.Services.Security;
 using ApplyWise.Web.Services.Gmail;
+using ApplyWise.Web.Services.Admin;
+using ApplyWise.Web.Services.Monitoring;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Threading.RateLimiting;
@@ -62,6 +66,9 @@ var slowRequestThreshold = TimeSpan.FromMilliseconds(Math.Clamp(
 var googleIntegration = builder.Configuration
     .GetSection(GoogleIntegrationOptions.SectionName)
     .Get<GoogleIntegrationOptions>() ?? new GoogleIntegrationOptions();
+var configuredAdminEmails = builder.Configuration
+    .GetSection($"{AdminAccessOptions.SectionName}:Emails")
+    .Get<string[]>() ?? [];
 
 static bool IsUnset(string? value) => string.IsNullOrWhiteSpace(value) || value.Contains("__SET_", StringComparison.Ordinal);
 static bool IsHttpsOrigin(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -80,10 +87,11 @@ if (isProduction &&
      || !Path.IsPathRooted(dataProtectionKeysPath)
      || IsUnset(dataProtectionCertificatePath)
      || !Path.IsPathRooted(dataProtectionCertificatePath)
-     || IsUnset(dataProtectionCertificatePassword)))
+     || IsUnset(dataProtectionCertificatePassword)
+     || configuredAdminEmails.Length == 0))
 {
     throw new InvalidOperationException(
-        "Production requires a non-sa SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
+        "Production requires a non-sa SQL connection string, HTTPS PublicOrigin, exact AllowedHosts, SMTP settings, an administrator email allowlist, and absolute persistent paths for resume storage, Data Protection keys, and its encryption certificate.");
 }
 
 var resolvedDataProtectionKeysPath = Path.GetFullPath(
@@ -154,6 +162,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 if (googleIntegration.IsConfigured)
 {
@@ -282,8 +291,53 @@ builder.Services.AddRateLimiter(options =>
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 6, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+    options.AddPolicy("health", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminAccess.Policy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireRole(AdminAccess.Role)
+        .AddRequirements(new AdminMfaRequirement())
+        .RequireAssertion(context =>
+        {
+            var authenticatedEmail = context.User.FindFirstValue(ClaimTypes.Email)
+                ?? context.User.Identity?.Name;
+            return configuredAdminEmails.Any(email => string.Equals(
+                email.Trim(),
+                authenticatedEmail,
+                StringComparison.OrdinalIgnoreCase));
+        }));
+});
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOptions<AdminAccessOptions>()
+    .Bind(builder.Configuration.GetSection(AdminAccessOptions.SectionName))
+    .Validate(options => options.Emails.All(email =>
+        new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email)),
+        "AdminAccess:Emails must contain only valid email addresses.")
+    .ValidateOnStart();
+builder.Services.AddOptions<ProductEventRetentionOptions>()
+    .Bind(builder.Configuration.GetSection(ProductEventRetentionOptions.SectionName))
+    .Validate(options => options.RetentionDays is >= 30 and <= 365,
+        "ProductEvents:RetentionDays must be between 30 and 365 days.")
+    .ValidateOnStart();
+builder.Services.AddOptions<WorkspaceQuotaOptions>()
+    .Bind(builder.Configuration.GetSection(WorkspaceQuotaOptions.SectionName))
+    .Validate(options => options.MaxApplicationsPerUser is >= 100 and <= 10_000
+        && options.MaxInterviewsPerUser is >= 100 and <= 10_000
+        && options.MaxAnalysesPerUser is >= 100 and <= 20_000
+        && options.MaxApplicationImportsPerUser is >= 100 and <= 20_000,
+        "Workspace quotas are outside safe bounds.")
+    .ValidateOnStart();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -319,13 +373,27 @@ builder.Services.AddScoped<IBestResumePickerService, BestResumePickerService>();
 builder.Services.AddSingleton<IJobScamDetectorService, JobScamDetectorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IDashboardReadService, DashboardReadService>();
+builder.Services.AddScoped<IProductEventRecorder, ProductEventRecorder>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAdminRoleAssignmentService, AdminRoleAssignmentService>();
+builder.Services.AddScoped<IWorkspaceQuotaService, WorkspaceQuotaService>();
+builder.Services.AddScoped<IAuthorizationHandler, AdminMfaAuthorizationHandler>();
+builder.Services.AddHostedService<ProductEventCleanupService>();
 builder.Services.AddOptions<GoogleIntegrationOptions>()
     .Bind(builder.Configuration.GetSection(GoogleIntegrationOptions.SectionName))
     .Validate(
+        options => (string.IsNullOrWhiteSpace(options.ClientId)
+                    && string.IsNullOrWhiteSpace(options.ClientSecret))
+                   || options.IsConfigured,
+        "Google ClientId and ClientSecret must either both be empty or contain a valid OAuth web client configuration.")
+    .Validate(
         options => options.GmailSyncIntervalMinutes is >= 5 and <= 1440
             && options.GmailInitialLookbackDays is >= 1 and <= 90
-            && options.GmailMaxMessagesPerSync is >= 25 and <= 500,
-        "Google Gmail sync limits are outside safe bounds.");
+            && options.GmailMaxMessagesPerSync is >= 25 and <= 500
+            && options.GmailSyncTimeoutSeconds is >= 30 and <= 600
+            && options.GmailMaxResponseBytes is >= 262_144 and <= 10 * 1024 * 1024,
+        "Google Gmail sync limits are outside safe bounds.")
+    .ValidateOnStart();
 builder.Services.AddHttpClient("GoogleOAuth", client =>
     client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddHttpClient("Gmail", client =>
@@ -339,7 +407,7 @@ builder.Services.AddOptions<ResumeStorageOptions>()
     .Bind(builder.Configuration.GetSection(ResumeStorageOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.RootPath),
         "ResumeStorage:RootPath must be configured.")
-    .Validate(options => options.MaxFileSizeBytes is > 0 and <= 10 * 1024 * 1024 && options.MaxFilesPerUser > 0 && options.MaxBytesPerUser >= options.MaxFileSizeBytes && options.ExtractionTimeoutSeconds is >= 5 and <= 120,
+    .Validate(options => options.MaxFileSizeBytes is > 0 and <= 10 * 1024 * 1024 && options.MaxFilesPerUser > 0 && options.MaxBytesPerUser >= options.MaxFileSizeBytes && options.ExtractionTimeoutSeconds is >= 5 and <= 120 && options.ParserQueueLimit is >= 1 and <= 100 && options.ParserQueueTimeoutSeconds is >= 1 and <= 60,
         "ResumeStorage limits are outside safe bounds.")
     .ValidateOnStart();
 builder.Services.AddSingleton<IResumeStorageService, ResumeStorageService>();
@@ -362,6 +430,11 @@ if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
     var migrationDb = migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await migrationDb.Database.MigrateAsync();
     migrationLogger.LogInformation("Database migrations are current.");
+}
+
+await using (var adminScope = app.Services.CreateAsyncScope())
+{
+    await AdminRoleSynchronizer.SynchronizeAsync(adminScope.ServiceProvider);
 }
 
 // Configure the HTTP request pipeline.
@@ -426,6 +499,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
+app.UseMiddleware<UserActivityMiddleware>();
 
 app.MapStaticAssets();
 
@@ -436,7 +510,7 @@ app.MapControllerRoute(
 
 app.MapRazorPages()
    .WithStaticAssets();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").RequireRateLimiting("health");
 
 app.Run();
 
