@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Track, match, and build your job search";
+    ViewData["Title"] = "Track every opportunity and apply with the right resume";
     ViewData["MetaDescription"] = "Track every job application, compare evidence against real requirements, and build parser-friendly resumes in one focused ApplyWise workspace.";
 }
 
@@ -11,24 +11,31 @@
     <section class="aw-home-hero" aria-labelledby="home-hero-title">
         <div class="aw-home-container aw-home-hero-grid">
             <div class="aw-home-hero-copy">
-                <h1 id="home-hero-title">Build the right resume. Apply with confidence. Track every opportunity.</h1>
-                <p class="aw-home-lead">Track applications, choose the right resume, and know your next step&mdash;all in one workspace.</p>
-                <div class="d-flex flex-wrap gap-2 mt-4" aria-label="ApplyWise account actions">
-                    <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Create your free account</a>
-                    <a class="btn btn-secondary-soft btn-lg" asp-area="Identity" asp-page="/Account/Login">Log in</a>
+                <span class="aw-home-kicker aw-home-hero-kicker">Your opportunity tracker</span>
+                <h1 id="home-hero-title">Track every opportunity. <span>Apply with the right resume.</span></h1>
+                <p class="aw-home-lead">Keep every application, deadline, interview, and follow-up organized. Build a focused resume when you need one, then apply with confidence.</p>
+                <div class="aw-home-hero-actions" aria-label="ApplyWise actions">
+                    <a class="btn btn-primary btn-lg" asp-area="Identity" asp-page="/Account/Register">Start tracking free</a>
+                    <a class="btn btn-secondary-soft btn-lg" href="#how-it-works">See how it works</a>
                 </div>
+                <ol class="aw-home-hero-path" aria-label="Track, match, and apply workflow">
+                    <li><span>1</span><strong>Track</strong><small>Save the opportunity</small></li>
+                    <li><span>2</span><strong>Match</strong><small>Choose the right resume</small></li>
+                    <li><span>3</span><strong>Apply</strong><small>Keep your next move clear</small></li>
+                </ol>
             </div>
 
             <figure class="aw-home-wiso-visual">
                 <div class="aw-home-wiso-orbit">
-                    <span class="aw-home-wiso-intro"><b>Meet Wiso</b><small>Your friendly ApplyWise guide</small></span>
-                    <span class="aw-home-wiso-card aw-home-wiso-card-tracking"><b>Application tracked</b><small>Your next step stays clear</small></span>
+                    <span class="aw-home-wiso-intro"><b>Your search, organized</b><small>Meet Wiso, your ApplyWise guide</small></span>
+                    <span class="aw-home-wiso-card aw-home-wiso-card-tracking"><b>Opportunity tracked</b><small>Next action ready</small></span>
                     <img src="~/images/wiso.jpg"
                          width="620"
                          height="620"
                          decoding="async"
                          fetchpriority="high"
                          alt="Wiso, the ApplyWise career assistant, holding a resume checklist" />
+                    <span class="aw-home-wiso-card aw-home-wiso-card-resume"><b>Right resume linked</b><small>Ready for this role</small></span>
                     <span class="aw-home-wiso-card aw-home-wiso-card-interview"><b>Interview ready</b><small>Preparation stays close</small></span>
                 </div>
                 <figcaption class="visually-hidden">Wiso helps organize applications, resumes, deadlines, and interviews inside ApplyWise.</figcaption>
@@ -40,7 +47,7 @@
         <div class="aw-home-container">
             <header class="aw-home-section-heading">
                 <span class="aw-home-kicker">One connected workspace</span>
-                <h2 id="services-title">Everything you need to apply smarter</h2>
+                <h2 id="services-title">Everything you need to keep opportunities moving</h2>
                 <p>Track every opportunity, choose the strongest resume for each job, and build a polished version when you need one.</p>
             </header>
 
@@ -96,21 +103,21 @@
     <section class="aw-home-section aw-home-process" id="how-it-works" aria-labelledby="process-title">
         <div class="aw-home-container">
             <header class="aw-home-section-heading is-centered">
-                <span class="aw-home-kicker">A clearer way to apply</span>
-                <h2 id="process-title">From resume to interview, in three simple steps</h2>
+                <span class="aw-home-kicker">A clearer way to track and apply</span>
+                <h2 id="process-title">From opportunity to interview, in three clear steps</h2>
             </header>
             <ol class="aw-home-process-list">
                 <li>
-                    <div class="aw-home-step-marker"><span>1</span><svg class="ui-icon" aria-hidden="true"><use href="#i-edit-file" /></svg></div>
-                    <div><h3>Create or upload your resume</h3><p>Build a new resume with ApplyWise or add the resume versions you already use.</p></div>
+                    <div class="aw-home-step-marker"><span>1</span><svg class="ui-icon" aria-hidden="true"><use href="#i-briefcase" /></svg></div>
+                    <div><h3>Track the opportunity</h3><p>Save the role, source, deadline, and next action before it gets lost.</p></div>
                 </li>
                 <li>
                     <div class="aw-home-step-marker"><span>2</span><svg class="ui-icon" aria-hidden="true"><use href="#i-match" /></svg></div>
-                    <div><h3>Match it to the job</h3><p>Paste a job description to review readiness, evidence-weighted requirement coverage, and the strongest resume version.</p></div>
+                    <div><h3>Choose or build the right resume</h3><p>Compare the job with your saved versions, then improve or create the strongest fit.</p></div>
                 </li>
                 <li>
-                    <div class="aw-home-step-marker"><span>3</span><svg class="ui-icon" aria-hidden="true"><use href="#i-briefcase" /></svg></div>
-                    <div><h3>Track your application</h3><p>Save the opportunity, remember which resume you submitted, and manage every deadline and interview.</p></div>
+                    <div class="aw-home-step-marker"><span>3</span><svg class="ui-icon" aria-hidden="true"><use href="#i-arrow" /></svg></div>
+                    <div><h3>Apply and keep moving</h3><p>Record the resume you sent, update the status, and stay ahead of follow-ups and interviews.</p></div>
                 </li>
             </ol>
         </div>
@@ -123,7 +130,7 @@
         <div class="aw-home-footer-brand"><a class="brand" asp-controller="Home" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a><p>Track every application. Choose the right version. Build smarter resumes.</p></div>
         <nav aria-label="Product links"><h2>Product</h2><a href="#job-tracker">Job Tracker</a><a href="#resume-match">Best Resume Match</a><a href="#resume-builder">Resume Builder</a></nav>
         <nav aria-label="Account links"><h2>Account</h2><a asp-area="Identity" asp-page="/Account/Register">Create Account</a><a asp-area="Identity" asp-page="/Account/Login">Sign In</a></nav>
-        <nav aria-label="Legal links"><h2>Legal</h2><a asp-controller="Home" asp-action="Privacy">Privacy</a></nav>
+        <nav aria-label="Legal and support links"><h2>Legal &amp; support</h2><a asp-controller="Home" asp-action="Privacy">Privacy</a><a asp-controller="Home" asp-action="Terms">Terms</a><a asp-controller="Home" asp-action="Support">Support</a></nav>
     </div>
     <div class="aw-home-container aw-home-footer-bottom"><span>&copy; @DateTime.UtcNow.Year ApplyWise. All rights reserved.</span><a href="#main-content">Back to top <span aria-hidden="true">&uarr;</span></a></div>
 </footer>
