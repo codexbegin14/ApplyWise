@@ -22,6 +22,7 @@ public class LoginModel(
     ApplicationDbContext dbContext,
     IProductEventRecorder events,
     IAdminRoleAssignmentService adminRoles,
+    IOptions<AdminAccessOptions> adminOptions,
     IOptions<GoogleIntegrationOptions> googleOptions,
     ILogger<LoginModel> logger) : PageModel
 {
@@ -76,12 +77,21 @@ public class LoginModel(
             return Page();
         }
 
-        var result = await signInManager.PasswordSignInAsync(
-            Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
+        var passwordUser = await userManager.FindByEmailAsync(Input.Email);
+        if (passwordUser is not null && adminOptions.Value.Contains(passwordUser.Email))
+        {
+            await adminRoles.SynchronizeUserAsync(passwordUser);
+            await signInManager.ForgetTwoFactorClientAsync();
+        }
+
+        var result = passwordUser is null
+            ? Microsoft.AspNetCore.Identity.SignInResult.Failed
+            : await signInManager.PasswordSignInAsync(
+                passwordUser, Input.Password, Input.RememberMe, lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
-            var user = await userManager.FindByEmailAsync(Input.Email);
+            var user = passwordUser;
             if (user is not null)
             {
                 var rolesChanged = await adminRoles.SynchronizeUserAsync(user);
@@ -170,6 +180,13 @@ public class LoginModel(
             return RedirectToPage("./Login", new { returnUrl });
         }
 
+        var externalUser = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+        if (externalUser is not null && adminOptions.Value.Contains(externalUser.Email))
+        {
+            await adminRoles.SynchronizeUserAsync(externalUser);
+            await signInManager.ForgetTwoFactorClientAsync();
+        }
+
         var result = await signInManager.ExternalLoginSignInAsync(
             info.LoginProvider,
             info.ProviderKey,
@@ -177,7 +194,6 @@ public class LoginModel(
             bypassTwoFactor: false);
         if (result.Succeeded)
         {
-            var externalUser = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
             if (externalUser is not null)
             {
                 var rolesChanged = await adminRoles.SynchronizeUserAsync(externalUser);

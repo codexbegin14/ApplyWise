@@ -2,6 +2,7 @@ using ApplyWise.Web.Data;
 using ApplyWise.Web.Services.Monitoring;
 using ApplyWise.Web.ViewModels.Admin;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace ApplyWise.Web.Services.Admin;
 
@@ -12,7 +13,8 @@ public interface IAdminDashboardService
 
 public sealed class AdminDashboardService(
     ApplicationDbContext dbContext,
-    TimeProvider timeProvider) : IAdminDashboardService
+    TimeProvider timeProvider,
+    IOptions<AdminAccessOptions> adminOptions) : IAdminDashboardService
 {
     private static readonly IReadOnlyDictionary<string, string> EventLabels =
         new Dictionary<string, string>(StringComparer.Ordinal)
@@ -39,9 +41,11 @@ public sealed class AdminDashboardService(
         var rangeStart = new DateTimeOffset(
             rangeStartDate.ToDateTime(TimeOnly.MinValue),
             TimeSpan.Zero);
+        var adminUserIds = await GetAdminUserIdsAsync(cancellationToken);
 
         var users = await (
             from user in dbContext.Users.AsNoTracking()
+            where !adminUserIds.Contains(user.Id)
             join profile in dbContext.CareerProfiles.AsNoTracking()
                 on user.Id equals profile.UserId into profiles
             from profile in profiles.DefaultIfEmpty()
@@ -72,7 +76,8 @@ public sealed class AdminDashboardService(
 
         var eventRows = await dbContext.ProductEvents
             .AsNoTracking()
-            .Where(productEvent => productEvent.OccurredAt >= rangeStart)
+            .Where(productEvent => productEvent.OccurredAt >= rangeStart
+                && (productEvent.UserId == null || !adminUserIds.Contains(productEvent.UserId)))
             .Select(productEvent => new
             {
                 productEvent.Name,
@@ -84,7 +89,8 @@ public sealed class AdminDashboardService(
 
         var registrations = await dbContext.UserAccountActivities
             .AsNoTracking()
-            .Where(activity => activity.RegisteredAt >= rangeStart)
+            .Where(activity => activity.RegisteredAt >= rangeStart
+                && !adminUserIds.Contains(activity.UserId))
             .Select(activity => new { activity.UserId, activity.RegisteredAt })
             .ToListAsync(cancellationToken);
 
@@ -124,21 +130,36 @@ public sealed class AdminDashboardService(
         {
             GeneratedAt = now,
             Range = $"Last {days} days",
-            TotalUsers = await dbContext.Users.CountAsync(cancellationToken),
-            ConfirmedUsers = await dbContext.Users.CountAsync(user => user.EmailConfirmed, cancellationToken),
+            TotalUsers = await dbContext.Users.CountAsync(
+                user => !adminUserIds.Contains(user.Id),
+                cancellationToken),
+            ConfirmedUsers = await dbContext.Users.CountAsync(
+                user => user.EmailConfirmed && !adminUserIds.Contains(user.Id),
+                cancellationToken),
             NewUsersInRange = await dbContext.UserAccountActivities.CountAsync(
-                activity => activity.RegisteredAt >= rangeStart,
+                activity => activity.RegisteredAt >= rangeStart
+                    && !adminUserIds.Contains(activity.UserId),
                 cancellationToken),
             ActiveUsersInRange = await dbContext.UserAccountActivities.CountAsync(
-                activity => activity.LastActivityAt >= rangeStart,
+                activity => activity.LastActivityAt >= rangeStart
+                    && !adminUserIds.Contains(activity.UserId),
                 cancellationToken),
             CompletedOnboardingUsers = await dbContext.CareerProfiles.CountAsync(
-                profile => profile.OnboardingCompletedAt != null,
+                profile => profile.OnboardingCompletedAt != null
+                    && !adminUserIds.Contains(profile.UserId),
                 cancellationToken),
-            TotalApplications = await dbContext.JobApplications.CountAsync(cancellationToken),
-            TotalResumes = await dbContext.Resumes.CountAsync(cancellationToken),
-            TotalAnalyses = await dbContext.ResumeAnalyses.CountAsync(cancellationToken),
-            TotalInterviews = await dbContext.Interviews.CountAsync(cancellationToken),
+            TotalApplications = await dbContext.JobApplications.CountAsync(
+                application => !adminUserIds.Contains(application.UserId),
+                cancellationToken),
+            TotalResumes = await dbContext.Resumes.CountAsync(
+                resume => !adminUserIds.Contains(resume.UserId),
+                cancellationToken),
+            TotalAnalyses = await dbContext.ResumeAnalyses.CountAsync(
+                analysis => !adminUserIds.Contains(analysis.UserId),
+                cancellationToken),
+            TotalInterviews = await dbContext.Interviews.CountAsync(
+                interview => !adminUserIds.Contains(interview.UserId),
+                cancellationToken),
             FailedEventsInRange = eventRows.Count(row => !row.Succeeded),
             Users = users.Select(user => new AdminUserRowViewModel(
                 user.Email,
@@ -156,5 +177,31 @@ public sealed class AdminDashboardService(
             DailyActivity = dailyActivity,
             FeatureUsage = featureUsage
         };
+    }
+
+    private async Task<string[]> GetAdminUserIdsAsync(CancellationToken cancellationToken)
+    {
+        var roleUserIds = await (
+            from userRole in dbContext.UserRoles.AsNoTracking()
+            join role in dbContext.Roles.AsNoTracking()
+                on userRole.RoleId equals role.Id
+            where role.NormalizedName == AdminAccess.Role.ToUpperInvariant()
+            select userRole.UserId)
+            .ToListAsync(cancellationToken);
+
+        var configuredEmails = adminOptions.Value.ValidEmails()
+            .Select(email => email.ToUpperInvariant())
+            .ToArray();
+        if (configuredEmails.Length > 0)
+        {
+            roleUserIds.AddRange(await dbContext.Users
+                .AsNoTracking()
+                .Where(user => user.NormalizedEmail != null
+                    && configuredEmails.Contains(user.NormalizedEmail))
+                .Select(user => user.Id)
+                .ToListAsync(cancellationToken));
+        }
+
+        return roleUserIds.Distinct(StringComparer.Ordinal).ToArray();
     }
 }

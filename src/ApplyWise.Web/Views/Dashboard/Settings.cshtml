@@ -1,11 +1,18 @@
 @model ApplyWise.Web.ViewModels.Settings.SettingsViewModel
 @{
-    ViewData["Title"] = "Settings";
+    ViewData["Title"] = Model.IsAdmin ? "Owner security" : "Settings";
     var openSection = ViewData["SettingsOpenSection"]?.ToString();
 }
 
 <div class="page-heading aw-settings-heading">
-    <div><h1>Settings</h1><p>Manage your account, privacy, and workspace preferences.</p></div>
+    @if (Model.IsAdmin)
+    {
+        <div><h1>Owner security</h1><p>Protect the administrator account and owner console.</p></div>
+    }
+    else
+    {
+        <div><h1>Settings</h1><p>Manage your account, privacy, and workspace preferences.</p></div>
+    }
 </div>
 
 @if (TempData["SettingsSuccess"] is string success)
@@ -22,14 +29,21 @@
 }
 
 <div class="aw-settings-grid">
-    <section class="panel aw-settings-card">
-        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Appearance</span><h2>Dashboard theme</h2><p>Choose the look of your signed-in workspace.</p></div></div>
-        <label class="aw-settings-switch-row" for="theme-toggle"><span><strong>Dark mode</strong><small>Darken the dashboard after you sign in. Public and account pages always stay light.</small></span><input id="theme-toggle" type="checkbox" data-theme-toggle role="switch" /><i aria-hidden="true"></i></label>
-    </section>
+    @if (!Model.IsAdmin)
+    {
+        <section class="panel aw-settings-card">
+            <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Appearance</span><h2>Dashboard theme</h2><p>Choose the look of your signed-in workspace.</p></div></div>
+            <label class="aw-settings-switch-row" for="theme-toggle"><span><strong>Dark mode</strong><small>Darken the dashboard after you sign in. Public and account pages always stay light.</small></span><input id="theme-toggle" type="checkbox" data-theme-toggle role="switch" /><i aria-hidden="true"></i></label>
+        </section>
+    }
 
     <section class="panel aw-settings-card aw-settings-account">
-        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">Account</span><h2>Sign-in details</h2><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div></div>
-        <p class="aw-settings-security-note">For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.</p>
+        <div class="aw-settings-card-heading"><div><span class="aw-auth-kicker">@(Model.IsAdmin ? "Administrator" : "Account")</span><h2>Sign-in details</h2><p>Your account is signed in with <strong>@Model.Email</strong>.</p></div></div>
+        <p class="aw-settings-security-note">
+            @(Model.IsAdmin
+                ? "For your security, ApplyWise emails a one-time code before the owner password can be changed."
+                : "For your security, ApplyWise emails a one-time code before a password can be changed or an account can be deleted.")
+        </p>
 
         @if (Model.IsAdmin)
         {
@@ -48,7 +62,7 @@
             </div>
         }
 
-        @if (Model.GoogleSignInConfigured)
+        @if (!Model.IsAdmin && Model.GoogleSignInConfigured)
         {
             <div class="aw-settings-provider-row">
                 <span>
@@ -89,6 +103,8 @@
             </div>
         </details>
 
+        @if (!Model.IsAdmin)
+        {
         <details class="aw-settings-disclosure aw-settings-danger" open="@(openSection == "delete")">
             <summary><span><strong>Delete account</strong><small>Permanently erase your account, applications, profiles, and private resumes.</small></span><span>⌄</span></summary>
             <div class="aw-settings-disclosure-body">
@@ -101,6 +117,7 @@
                 </form>
             </div>
         </details>
+        }
     </section>
 </div>
 

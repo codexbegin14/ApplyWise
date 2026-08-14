@@ -497,6 +497,7 @@ app.Use(async (context, next) =>
 app.UseRouting();
 
 app.UseAuthentication();
+app.UseMiddleware<AdminOnlyAccountMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.UseMiddleware<UserActivityMiddleware>();

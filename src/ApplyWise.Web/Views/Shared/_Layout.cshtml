@@ -1,5 +1,12 @@
+@using ApplyWise.Web.Services.Admin
+@using Microsoft.Extensions.Options
+@inject IOptions<AdminAccessOptions> AdminOptions
 @{
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var authenticatedEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+        ?? User.Identity?.Name;
+    var isAdmin = User.IsInRole(AdminAccess.Role)
+        || AdminOptions.Value.Contains(authenticatedEmail);
     var isIdentityPage = string.Equals(ViewContext.RouteData.Values["area"]?.ToString(), "Identity", StringComparison.OrdinalIgnoreCase);
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
@@ -62,8 +69,22 @@
 {
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
-            <a class="brand" asp-controller="Dashboard" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
+            @if (isAdmin)
+            {
+                <a class="brand" asp-controller="Admin" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
+            }
+            else
+            {
+                <a class="brand" asp-controller="Dashboard" asp-action="Index"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
+            }
             <nav class="sidebar-nav" aria-label="Main navigation">
+                @if (isAdmin)
+                {
+                    <a class="@(controller == "Admin" ? "active" : null)" aria-current="@(controller == "Admin" ? "page" : null)" asp-controller="Admin" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Owner console</a>
+                    <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action == "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Settings"><svg class="ui-icon"><use href="#i-settings" /></svg>Owner security</a>
+                }
+                else
+                {
                 <a class="@(controller == "Dashboard" && action != "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action != "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Dashboard</a>
                 <a class="@(controller == "JobApplications" ? "active" : null)" aria-current="@(controller == "JobApplications" ? "page" : null)" asp-controller="JobApplications" asp-action="Index"><svg class="ui-icon"><use href="#i-briefcase" /></svg>Applications</a>
                 <a class="@(controller is "ApplicationImports" or "GmailConnections" ? "active" : null)" aria-current="@(controller is "ApplicationImports" or "GmailConnections" ? "page" : null)" asp-controller="ApplicationImports" asp-action="Index"><svg class="ui-icon"><use href="#i-mail" /></svg>Imports</a>
@@ -73,9 +94,6 @@
                 <a class="@(controller == "Interviews" ? "active" : null)" aria-current="@(controller == "Interviews" ? "page" : null)" asp-controller="Interviews" asp-action="Index"><svg class="ui-icon"><use href="#i-calendar" /></svg>Interviews</a>
                 <a class="@(controller == "Dashboard" && action == "Settings" ? "active" : null)" aria-current="@(controller == "Dashboard" && action == "Settings" ? "page" : null)" asp-controller="Dashboard" asp-action="Settings"><svg class="ui-icon"><use href="#i-settings" /></svg>Settings</a>
                 <a class="@(controller == "Profile" ? "active" : null)" aria-current="@(controller == "Profile" ? "page" : null)" asp-controller="Profile" asp-action="Index"><svg class="ui-icon"><use href="#i-user" /></svg>Profile</a>
-                @if (User.IsInRole("Admin"))
-                {
-                    <a class="@(controller == "Admin" ? "active" : null)" aria-current="@(controller == "Admin" ? "page" : null)" asp-controller="Admin" asp-action="Index"><svg class="ui-icon"><use href="#i-grid" /></svg>Owner console</a>
                 }
             </nav>
         </aside>
