@@ -375,6 +375,7 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IDashboardReadService, DashboardReadService>();
 builder.Services.AddScoped<IProductEventRecorder, ProductEventRecorder>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAdminUserReportService, AdminUserReportService>();
 builder.Services.AddScoped<IAdminRoleAssignmentService, AdminRoleAssignmentService>();
 builder.Services.AddScoped<IWorkspaceQuotaService, WorkspaceQuotaService>();
 builder.Services.AddScoped<IAuthorizationHandler, AdminMfaAuthorizationHandler>();

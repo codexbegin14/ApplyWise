@@ -1,0 +1,306 @@
+@model ApplyWise.Web.ViewModels.Admin.AdminUserReportViewModel
+@{
+    ViewData["Title"] = "User report";
+    ViewData["MetaDescription"] = "Private operational report for an ApplyWise user.";
+    var displayName = string.IsNullOrWhiteSpace(Model.Profile?.FullName)
+        ? Model.Account.Email
+        : Model.Profile.FullName;
+}
+
+<div class="admin-dashboard admin-user-report">
+    <a class="admin-back-link" asp-action="Index">← Back to owner dashboard</a>
+
+    <section class="page-heading admin-heading admin-report-heading">
+        <div>
+            <span class="eyebrow">Private user report</span>
+            <h1>@displayName</h1>
+            <p>@Model.Account.Email · Operational metadata only; private document contents and account secrets are excluded.</p>
+        </div>
+        <div class="admin-report-badges" aria-label="Account status">
+            <span class="badge @(Model.Account.EmailConfirmed ? "badge-success" : "badge-warning")">Email @(Model.Account.EmailConfirmed ? "confirmed" : "unconfirmed")</span>
+            <span class="badge @(Model.Account.TwoFactorEnabled ? "badge-success" : "badge-neutral")">MFA @(Model.Account.TwoFactorEnabled ? "enabled" : "not enabled")</span>
+        </div>
+    </section>
+
+    <section class="admin-metric-grid admin-report-metric-grid" aria-label="User totals">
+        <article class="metric-card admin-metric-card"><span>Resumes</span><strong>@Model.Totals.ResumeCount</strong><small>Uploaded versions</small></article>
+        <article class="metric-card admin-metric-card"><span>Analyses</span><strong>@Model.Totals.AnalysisCount</strong><small>ATS and job-match reports</small></article>
+        <article class="metric-card admin-metric-card"><span>Applications</span><strong>@Model.Totals.ApplicationCount</strong><small>Tracked jobs</small></article>
+        <article class="metric-card admin-metric-card"><span>Email imports</span><strong>@Model.Totals.ImportCount</strong><small>Detected messages</small></article>
+        <article class="metric-card admin-metric-card"><span>Interviews</span><strong>@Model.Totals.InterviewCount</strong><small>Scheduled records</small></article>
+    </section>
+
+    <section class="admin-content-grid admin-report-overview">
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Account</span><h3>Sign-in activity</h3></div></header>
+            <dl class="admin-detail-list">
+                <div><dt>Joined</dt><dd>@(Model.Account.RegisteredAt?.ToUniversalTime().ToString("MMM d, yyyy 'at' h:mm tt 'UTC'") ?? "Before tracking")</dd></div>
+                <div><dt>Last active</dt><dd>@(Model.Account.LastActivityAt?.ToUniversalTime().ToString("MMM d, yyyy 'at' h:mm tt 'UTC'") ?? "Not recorded")</dd></div>
+                <div><dt>Last login</dt><dd>@(Model.Account.LastLoginAt?.ToUniversalTime().ToString("MMM d, yyyy 'at' h:mm tt 'UTC'") ?? "Not recorded")</dd></div>
+                <div><dt>Login provider</dt><dd>@(Model.Account.LastLoginProvider ?? "Not recorded")</dd></div>
+                <div><dt>Successful logins</dt><dd>@Model.Account.SuccessfulLogins</dd></div>
+                <div><dt>Failed sign-in attempts</dt><dd>@Model.Account.AccessFailedCount</dd></div>
+                <div><dt>Account lock</dt><dd>@(Model.Account.LockoutEnd > DateTimeOffset.UtcNow ? $"Until {Model.Account.LockoutEnd.Value.ToUniversalTime():MMM d, h:mm tt} UTC" : "Not locked")</dd></div>
+            </dl>
+        </article>
+
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Connected inbox</span><h3>Gmail import health</h3></div></header>
+            @if (Model.GmailConnection is null)
+            {
+                <div class="admin-empty admin-compact-empty"><strong>Not connected</strong><span>This user has not connected Gmail.</span></div>
+            }
+            else
+            {
+                <dl class="admin-detail-list">
+                    <div><dt>Account</dt><dd>@Model.GmailConnection.EmailAddress</dd></div>
+                    <div><dt>Connected</dt><dd>@Model.GmailConnection.ConnectedAt.ToUniversalTime().ToString("MMM d, yyyy 'UTC'")</dd></div>
+                    <div><dt>Last successful sync</dt><dd>@(Model.GmailConnection.LastSuccessfulSyncAt?.ToUniversalTime().ToString("MMM d, h:mm tt 'UTC'") ?? "Not yet")</dd></div>
+                    <div><dt>Next sync</dt><dd>@Model.GmailConnection.NextSyncAt.ToUniversalTime().ToString("MMM d, h:mm tt 'UTC'")</dd></div>
+                    <div><dt>Auto-add</dt><dd>@(Model.GmailConnection.AutoAddHighConfidenceApplications ? "Enabled" : "Review required")</dd></div>
+                    <div><dt>Latest status</dt><dd><span class="badge @(string.IsNullOrWhiteSpace(Model.GmailConnection.LastErrorCode) ? "badge-success" : "badge-warning")">@(string.IsNullOrWhiteSpace(Model.GmailConnection.LastErrorCode) ? "Healthy" : Model.GmailConnection.LastErrorCode)</span></dd></div>
+                </dl>
+            }
+        </article>
+    </section>
+
+    <section class="panel admin-report-panel">
+        <header class="panel-heading">
+            <div><span class="eyebrow">Candidate context</span><h3>Career profile</h3></div>
+            <small>@(Model.Profile?.OnboardingCompletedAt is null ? "Onboarding incomplete" : "Onboarding complete")</small>
+        </header>
+        @if (Model.Profile is null)
+        {
+            <div class="admin-empty admin-compact-empty"><strong>No profile yet</strong><span>The user has not saved onboarding details.</span></div>
+        }
+        else
+        {
+            <dl class="admin-profile-grid">
+                <div><dt>Career stage</dt><dd>@(Model.Profile.CareerStage?.ToString() ?? "Not provided")</dd></div>
+                <div><dt>Institution</dt><dd>@(Model.Profile.Institution ?? "Not provided")</dd></div>
+                <div><dt>Program</dt><dd>@(Model.Profile.DegreeProgram ?? "Not provided")</dd></div>
+                <div><dt>Field of study</dt><dd>@(Model.Profile.FieldOfStudy ?? "Not provided")</dd></div>
+                <div><dt>Graduation</dt><dd>@(Model.Profile.GraduationYear?.ToString() ?? "Not provided")</dd></div>
+                <div><dt>Current semester</dt><dd>@(Model.Profile.CurrentSemester ?? "Not provided")</dd></div>
+                <div><dt>Preferred locations</dt><dd>@(Model.Profile.PreferredLocations ?? "Not provided")</dd></div>
+                <div><dt>Work modes</dt><dd>@(Model.Profile.PreferredWorkModes ?? "Not provided")</dd></div>
+                <div class="admin-profile-wide"><dt>Skills</dt><dd>@(Model.Profile.Skills ?? "Not provided")</dd></div>
+                <div class="admin-profile-wide"><dt>Career interests</dt><dd>@(Model.Profile.CareerInterests ?? "Not provided")</dd></div>
+                <div class="admin-profile-wide"><dt>Academic highlights</dt><dd>@(Model.Profile.AcademicHighlights ?? "Not provided")</dd></div>
+            </dl>
+        }
+    </section>
+
+    <section class="admin-content-grid admin-report-overview">
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Application funnel</span><h3>Status breakdown</h3></div></header>
+            @if (Model.ApplicationStatusBreakdown.Count == 0)
+            {
+                <div class="admin-empty admin-compact-empty"><strong>No applications</strong><span>Status totals will appear here.</span></div>
+            }
+            else
+            {
+                <div class="admin-breakdown-list">
+                    @foreach (var item in Model.ApplicationStatusBreakdown)
+                    {
+                        <div><span>@item.Status</span><strong>@item.Count</strong></div>
+                    }
+                </div>
+            }
+        </article>
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Acquisition</span><h3>Application sources</h3></div></header>
+            @if (Model.ApplicationSourceBreakdown.Count == 0)
+            {
+                <div class="admin-empty admin-compact-empty"><strong>No source data</strong><span>Sources will appear after jobs are added.</span></div>
+            }
+            else
+            {
+                <div class="admin-breakdown-list">
+                    @foreach (var item in Model.ApplicationSourceBreakdown)
+                    {
+                        <div><span>@item.Source</span><strong>@item.Count</strong></div>
+                    }
+                </div>
+            }
+        </article>
+    </section>
+
+    <section class="panel admin-report-panel">
+        <header class="panel-heading">
+            <div><span class="eyebrow">Documents</span><h3>Resume versions</h3></div>
+            <small>Metadata only · contents protected</small>
+        </header>
+        @if (Model.Resumes.Count == 0)
+        {
+            <div class="admin-empty admin-compact-empty"><strong>No resumes uploaded</strong><span>New versions will appear here.</span></div>
+        }
+        else
+        {
+            <div class="admin-resume-grid">
+                @foreach (var resume in Model.Resumes)
+                {
+                    <article class="admin-resume-card">
+                        <div class="admin-resume-icon" aria-hidden="true">CV</div>
+                        <div>
+                            <span class="admin-card-kicker">@(resume.IsDefault ? "Default resume" : "Resume version")</span>
+                            <h4>@resume.VersionName</h4>
+                            <p>@resume.OriginalFileName</p>
+                            <small>@((resume.FileSize / 1024d).ToString("0.#")) KB · @(resume.PageCount?.ToString() ?? "?") page@(resume.PageCount == 1 ? string.Empty : "s") · updated @resume.UpdatedAt.ToUniversalTime().ToString("MMM d, yyyy 'UTC'")</small>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+        <p class="admin-privacy-note"><strong>Why no open/download button?</strong> Original CV access needs a separately audited, purpose-bound support workflow. This report intentionally prevents silent document browsing.</p>
+    </section>
+
+    <section class="panel admin-report-panel">
+        <header class="panel-heading">
+            <div><span class="eyebrow">Job tracking</span><h3>Applications</h3></div>
+            <small>Page @Model.Applications.Page of @Math.Max(1, Model.Applications.TotalPages)</small>
+        </header>
+        @if (Model.Applications.Items.Count == 0)
+        {
+            <div class="admin-empty admin-compact-empty"><strong>No applications on this page</strong><span>This user has not added tracked jobs.</span></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table app-table admin-report-table">
+                    <caption class="visually-hidden">Tracked job applications for @displayName</caption>
+                    <thead><tr><th>Role</th><th>Status</th><th>Source</th><th>Dates</th><th>Resume</th></tr></thead>
+                    <tbody>
+                    @foreach (var application in Model.Applications.Items)
+                    {
+                        <tr>
+                            <td data-label="Role"><strong>@application.JobTitle</strong><span>@application.CompanyName@(string.IsNullOrWhiteSpace(application.JobLocation) ? string.Empty : $" · {application.JobLocation}")</span></td>
+                            <td data-label="Status"><span class="badge badge-neutral">@application.Status</span></td>
+                            <td data-label="Source"><strong>@application.Source</strong><span>@(application.JobType?.ToString() ?? "Type not provided")</span></td>
+                            <td data-label="Dates"><strong>@(application.AppliedDate?.ToString("MMM d, yyyy") ?? "No applied date")</strong><span>@(application.Deadline is null ? "No deadline" : $"Deadline {application.Deadline:MMM d, yyyy}")</span></td>
+                            <td data-label="Resume">@(application.ResumeVersionName ?? "Not linked")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        <nav class="admin-pagination" aria-label="Application pages">
+            @if (Model.Applications.HasPreviousPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="UserDetails" asp-route-userId="@Model.UserId" asp-route-applicationsPage="@(Model.Applications.Page - 1)" asp-route-importsPage="@Model.Imports.Page">← Previous</a>
+            }
+            <span>@Model.Applications.TotalCount total</span>
+            @if (Model.Applications.HasNextPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="UserDetails" asp-route-userId="@Model.UserId" asp-route-applicationsPage="@(Model.Applications.Page + 1)" asp-route-importsPage="@Model.Imports.Page">Next →</a>
+            }
+        </nav>
+    </section>
+
+    <section class="panel admin-report-panel">
+        <header class="panel-heading">
+            <div><span class="eyebrow">Gmail evidence</span><h3>Application imports</h3></div>
+            <small>Page @Model.Imports.Page of @Math.Max(1, Model.Imports.TotalPages) · message contents excluded</small>
+        </header>
+        @if (Model.Imports.Items.Count == 0)
+        {
+            <div class="admin-empty admin-compact-empty"><strong>No imports on this page</strong><span>Detected job emails will appear here.</span></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table app-table admin-report-table">
+                    <caption class="visually-hidden">Gmail-detected application imports for @displayName</caption>
+                    <thead><tr><th>Detected job</th><th>Evidence</th><th>Status</th><th>Detected</th></tr></thead>
+                    <tbody>
+                    @foreach (var import in Model.Imports.Items)
+                    {
+                        <tr>
+                            <td data-label="Detected job"><strong>@import.JobTitle</strong><span>@import.CompanyName@(string.IsNullOrWhiteSpace(import.JobLocation) ? string.Empty : $" · {import.JobLocation}")</span></td>
+                            <td data-label="Evidence"><strong>@import.Direction · @import.Source</strong><span>@(import.SenderDomain ?? "Sender domain unavailable") · @import.Confidence% confidence</span></td>
+                            <td data-label="Status"><span class="badge badge-neutral">@import.Status</span><span>@(import.CreatedApplicationId.HasValue ? $"Application #{import.CreatedApplicationId}" : "Not linked")</span></td>
+                            <td data-label="Detected"><time datetime="@import.DetectedAt.ToString("O")">@import.DetectedAt.ToUniversalTime().ToString("MMM d, yyyy h:mm tt 'UTC'")</time></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        <nav class="admin-pagination" aria-label="Import pages">
+            @if (Model.Imports.HasPreviousPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="UserDetails" asp-route-userId="@Model.UserId" asp-route-applicationsPage="@Model.Applications.Page" asp-route-importsPage="@(Model.Imports.Page - 1)">← Previous</a>
+            }
+            <span>@Model.Imports.TotalCount total</span>
+            @if (Model.Imports.HasNextPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="UserDetails" asp-route-userId="@Model.UserId" asp-route-applicationsPage="@Model.Applications.Page" asp-route-importsPage="@(Model.Imports.Page + 1)">Next →</a>
+            }
+        </nav>
+    </section>
+
+    <section class="admin-content-grid admin-report-overview">
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Quality</span><h3>Latest analyses</h3></div><small>Latest 25</small></header>
+            @if (Model.LatestAnalyses.Count == 0)
+            {
+                <div class="admin-empty admin-compact-empty"><strong>No analyses</strong><span>Scores will appear after a resume check.</span></div>
+            }
+            else
+            {
+                <div class="admin-timeline-list">
+                    @foreach (var analysis in Model.LatestAnalyses)
+                    {
+                        <article>
+                            <div><strong>@analysis.ResumeVersionName</strong><span>@analysis.AnalysisType · @analysis.CreatedAt.ToUniversalTime().ToString("MMM d, yyyy 'UTC'")</span><span>ATS @(analysis.AtsReadinessScore?.ToString() ?? "—") · job match @(analysis.JobMatchScore?.ToString() ?? "—") · confidence @(analysis.ConfidenceScore?.ToString() ?? "—")</span></div>
+                            <b aria-label="Overall match score @analysis.MatchScore out of 100">@analysis.MatchScore<small>/100</small></b>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+        <article class="panel admin-report-panel">
+            <header class="panel-heading"><div><span class="eyebrow">Pipeline</span><h3>Latest interviews</h3></div><small>Latest 25</small></header>
+            @if (Model.LatestInterviews.Count == 0)
+            {
+                <div class="admin-empty admin-compact-empty"><strong>No interviews</strong><span>Scheduled interviews will appear here.</span></div>
+            }
+            else
+            {
+                <div class="admin-timeline-list">
+                    @foreach (var interview in Model.LatestInterviews)
+                    {
+                        <article>
+                            <div><strong>@interview.JobTitle · @interview.CompanyName</strong><span>@interview.InterviewType · @interview.ScheduledAt.ToUniversalTime().ToString("MMM d, yyyy h:mm tt 'UTC'")</span></div>
+                            <span class="badge badge-neutral">@interview.Status</span>
+                        </article>
+                    }
+                </div>
+            }
+        </article>
+    </section>
+
+    <section class="panel admin-report-panel">
+        <header class="panel-heading"><div><span class="eyebrow">Audit-friendly activity</span><h3>Recent product events</h3></div><small>Latest 40 · content-free</small></header>
+        @if (Model.RecentEvents.Count == 0)
+        {
+            <div class="admin-empty admin-compact-empty"><strong>No recent events</strong><span>Only recorded product actions appear here.</span></div>
+        }
+        else
+        {
+            <div class="admin-event-grid">
+                @foreach (var item in Model.RecentEvents)
+                {
+                    <div><span class="admin-event-dot @(item.Succeeded ? "is-success" : "is-failed")" aria-hidden="true"></span><span class="visually-hidden">@(item.Succeeded ? "Succeeded" : "Failed"):</span><strong>@item.Name</strong><span>@item.Source</span><time datetime="@item.OccurredAt.ToString("O")">@item.OccurredAt.ToUniversalTime().ToString("MMM d, h:mm tt 'UTC'")</time></div>
+                }
+            </div>
+        }
+    </section>
+
+    <p class="admin-generated">Generated @Model.GeneratedAt.ToUniversalTime().ToString("MMM d, yyyy 'at' h:mm:ss tt 'UTC'")</p>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}

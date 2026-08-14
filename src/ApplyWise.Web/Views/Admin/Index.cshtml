@@ -3,16 +3,26 @@
     ViewData["Title"] = "Owner dashboard";
     ViewData["MetaDescription"] = "Private operational metrics for the ApplyWise owner.";
     var maximumDailyEvents = Math.Max(1, Model.DailyActivity.Max(day => day.Events));
+    var selectedDays = Model.Range switch
+    {
+        "Last 7 days" => 7,
+        "Last 90 days" => 90,
+        _ => 30
+    };
 }
 
 <div class="admin-dashboard">
     <section class="page-heading admin-heading">
         <div>
             <span class="eyebrow">Private owner console</span>
-            <h2>Product health</h2>
-            <p>Privacy-safe account, engagement, and feature metrics. User document contents are never shown here.</p>
+            <h1>Product health</h1>
+            <p>Account, engagement, and feature metrics with secure per-user operational reports.</p>
         </div>
         <form method="get" class="admin-range-form">
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <input type="hidden" name="search" value="@Model.Search" />
+            }
             <label for="days">Reporting range</label>
             <select id="days" name="days" class="form-select" onchange="this.form.submit()">
                 @foreach (var range in new[] { 7, 30, 90 })
@@ -104,23 +114,38 @@
     <section class="panel admin-users-panel">
         <header class="panel-heading">
             <div><span class="eyebrow">Accounts</span><h3>Recent users</h3></div>
-            <small>Maximum 100 · times shown locally</small>
+            <small>@Model.TotalMatchingUsers matching · page @Model.UserPage of @Model.TotalUserPages · UTC</small>
         </header>
+        <form method="get" class="admin-user-search" role="search">
+            <input type="hidden" name="days" value="@selectedDays" />
+            <label class="visually-hidden" for="admin-user-search">Search users by name or email</label>
+            <input id="admin-user-search" class="form-control" type="search" name="search" value="@Model.Search" maxlength="320" placeholder="Search by name or email" />
+            <button class="btn btn-primary" type="submit">Search</button>
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index" asp-route-days="@selectedDays">Clear</a>
+            }
+        </form>
         <div class="table-responsive">
             <table class="table app-table admin-user-table">
+                <caption class="visually-hidden">ApplyWise user accounts and usage totals</caption>
                 <thead>
-                    <tr><th>User</th><th>Joined</th><th>Last active</th><th>Account</th><th>Usage</th></tr>
+                    <tr><th>User</th><th>Joined</th><th>Last active</th><th>Account</th><th>Usage</th><th><span class="visually-hidden">Actions</span></th></tr>
                 </thead>
                 <tbody>
+                    @if (Model.Users.Count == 0)
+                    {
+                        <tr><td colspan="6"><div class="admin-empty admin-compact-empty"><strong>No users found</strong><span>Try a different name or email.</span></div></td></tr>
+                    }
                     @foreach (var user in Model.Users)
                     {
                         <tr>
                             <td data-label="User"><div class="admin-user-identity"><strong>@user.DisplayName</strong><span>@user.Email</span></div></td>
-                            <td data-label="Joined"><time datetime="@user.RegisteredAt.ToString("O")">@(user.RegisteredAt == DateTimeOffset.MinValue ? "Before tracking" : user.RegisteredAt.ToLocalTime().ToString("MMM d, yyyy"))</time></td>
+                            <td data-label="Joined"><time datetime="@user.RegisteredAt.ToString("O")">@(user.RegisteredAt == DateTimeOffset.MinValue ? "Before tracking" : user.RegisteredAt.ToUniversalTime().ToString("MMM d, yyyy 'UTC'"))</time></td>
                             <td data-label="Last active">
                                 @if (user.LastActivityAt.HasValue)
                                 {
-                                    <time datetime="@user.LastActivityAt.Value.ToString("O")">@user.LastActivityAt.Value.ToLocalTime().ToString("MMM d, h:mm tt")</time>
+                                    <time datetime="@user.LastActivityAt.Value.ToString("O")">@user.LastActivityAt.Value.ToUniversalTime().ToString("MMM d, h:mm tt 'UTC'")</time>
                                 }
                                 else
                                 {
@@ -132,14 +157,26 @@
                                 <small class="admin-account-detail">@(user.OnboardingCompleted ? "Onboarded" : "Onboarding incomplete") · @user.SuccessfulLogins login@(user.SuccessfulLogins == 1 ? string.Empty : "s")</small>
                             </td>
                             <td data-label="Usage"><span class="admin-usage-counts">@user.ResumeCount resumes · @user.AnalysisCount analyses · @user.ApplicationCount applications · @user.InterviewCount interviews</span></td>
+                            <td data-label="Action"><a class="btn btn-outline-primary btn-sm admin-report-link" asp-action="UserDetails" asp-route-userId="@user.UserId">View report</a></td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+        <nav class="admin-pagination" aria-label="User account pages">
+            @if (Model.HasPreviousUserPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-route-days="@selectedDays" asp-route-search="@Model.Search" asp-route-page="@(Model.UserPage - 1)">← Previous</a>
+            }
+            <span>Showing page @Model.UserPage of @Model.TotalUserPages</span>
+            @if (Model.HasNextUserPage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-route-days="@selectedDays" asp-route-search="@Model.Search" asp-route-page="@(Model.UserPage + 1)">Next →</a>
+            }
+        </nav>
     </section>
 
-    <p class="admin-generated">Generated @Model.GeneratedAt.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm:ss tt") · Product events are retained for a limited period.</p>
+    <p class="admin-generated">Generated @Model.GeneratedAt.ToUniversalTime().ToString("MMM d, yyyy 'at' h:mm:ss tt 'UTC'") · Product events are retained for a limited period.</p>
 </div>
 
 @section Styles {
