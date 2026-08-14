@@ -49,6 +49,51 @@ jobs:
           dotnet test ApplyWise.sln -c Release --no-build
           dotnet publish src/ApplyWise.Web/ApplyWise.Web.csproj -c Release --no-build --self-contained false -o .artifacts/publish
 
+      - name: Preserve Monster runtime settings
+        shell: pwsh
+        env:
+          APPLYWISE_GOOGLE_CLIENT_ID: ${{ secrets.APPLYWISE_GOOGLE_CLIENT_ID }}
+          APPLYWISE_GOOGLE_CLIENT_SECRET: ${{ secrets.APPLYWISE_GOOGLE_CLIENT_SECRET }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:APPLYWISE_GOOGLE_CLIENT_ID) -or
+              [string]::IsNullOrWhiteSpace($env:APPLYWISE_GOOGLE_CLIENT_SECRET)) {
+            throw "The protected production Google OAuth settings are missing."
+          }
+
+          $configPath = Join-Path $PWD ".artifacts/publish/web.config"
+          [xml]$config = Get-Content -LiteralPath $configPath
+          $aspNetCore = $config.configuration.location.'system.webServer'.aspNetCore
+          $existingEnvironment = $aspNetCore.SelectSingleNode("environmentVariables")
+          if ($null -ne $existingEnvironment) {
+            [void]$aspNetCore.RemoveChild($existingEnvironment)
+          }
+
+          $environmentVariables = $config.CreateElement("environmentVariables")
+          $runtimeSettings = [ordered]@{
+            "Google__ClientId" = $env:APPLYWISE_GOOGLE_CLIENT_ID
+            "Google__ClientSecret" = $env:APPLYWISE_GOOGLE_CLIENT_SECRET
+            "Database__AllowUntrustedServerCertificate" = "true"
+          }
+
+          foreach ($setting in $runtimeSettings.GetEnumerator()) {
+            $element = $config.CreateElement("environmentVariable")
+            $element.SetAttribute("name", $setting.Key)
+            $element.SetAttribute("value", $setting.Value)
+            [void]$environmentVariables.AppendChild($element)
+          }
+
+          [void]$aspNetCore.AppendChild($environmentVariables)
+          $writerSettings = [System.Xml.XmlWriterSettings]::new()
+          $writerSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
+          $writerSettings.Indent = $true
+          $writer = [System.Xml.XmlWriter]::Create($configPath, $writerSettings)
+          try {
+            $config.Save($writer)
+          }
+          finally {
+            $writer.Dispose()
+          }
+
       - name: Deploy compiled application through Monster Web Deploy
         uses: rasmusbuchholdt/simply-web-deploy@026998dd5857dd5f3645cc13ed48335e07d7f94b
         with:
@@ -58,3 +103,24 @@ jobs:
           server-password: ${{ secrets.MONSTER_SERVER_PASSWORD }}
           source-path: .artifacts/publish
           target-delete: false
+
+      - name: Verify production health
+        shell: pwsh
+        run: |
+          $healthUri = "https://applywise.runasp.net/health"
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+            try {
+              $response = Invoke-WebRequest -Uri $healthUri -UseBasicParsing -TimeoutSec 20
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Production health check passed."
+                exit 0
+              }
+            }
+            catch {
+              if ($attempt -eq 6) {
+                throw "Production health check failed after deployment."
+              }
+            }
+
+            Start-Sleep -Seconds 10
+          }
