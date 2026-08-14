@@ -95,7 +95,7 @@ jobs:
           }
 
       - name: Deploy compiled application through Monster Web Deploy
-        uses: rasmusbuchholdt/simply-web-deploy@026998dd5857dd5f3645cc13ed48335e07d7f94b
+        uses: rasmusbuchholdt/simply-web-deploy@cf9160163099a3b6b8ddf3978ed26b348221bbb8
         with:
           website-name: ${{ inputs.website_name }}
           server-computer-name: ${{ secrets.MONSTER_SERVER_COMPUTER_NAME }}
