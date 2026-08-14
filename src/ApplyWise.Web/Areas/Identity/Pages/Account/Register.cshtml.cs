@@ -11,6 +11,7 @@ using ApplyWise.Web.Services.Gmail;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using ApplyWise.Web.Services.Monitoring;
+using ApplyWise.Web.Services.Admin;
 
 namespace ApplyWise.Web.Areas.Identity.Pages.Account;
 
@@ -21,6 +22,7 @@ public class RegisterModel(
     IAccountSecurityCodeService securityCodes,
     ApplicationDbContext dbContext,
     IProductEventRecorder events,
+    IAdminRoleAssignmentService adminRoles,
     IOptions<GoogleIntegrationOptions> googleOptions,
     ILogger<RegisterModel> logger) : PageModel
 {
@@ -159,8 +161,12 @@ public class RegisterModel(
                 return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl });
             }
 
+            var isAdminAccount = await adminRoles.SynchronizeUserAsync(user)
+                || await userManager.IsInRoleAsync(user, AdminAccess.Role);
             await signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Onboarding");
+            return isAdminAccount
+                ? RedirectToAction("Settings", "Dashboard")
+                : RedirectToAction("Index", "Onboarding");
         }
 
         if (result.Errors.Any(error => error.Code is "DuplicateUserName" or "DuplicateEmail"))
