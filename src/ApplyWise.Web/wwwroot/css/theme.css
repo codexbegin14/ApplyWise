@@ -1175,12 +1175,20 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .identity-body,
 .identity-body main { background: var(--aw-page); }
 .identity-body .public-header { border-color: var(--aw-border); background: var(--aw-surface); }
-.identity-body main { display: grid; min-height: calc(100vh - 76px); place-items: center; padding: 32px 20px; }
+.identity-body main {
+    display: grid;
+    min-height: calc(100vh - 76px);
+    min-height: calc(100dvh - 76px);
+    place-items: center;
+    padding: 32px 20px;
+}
 .identity-body .aw-auth-shell {
     display: grid;
     grid-template-columns: minmax(380px, .9fr) minmax(320px, .72fr);
     width: min(100%, 1000px);
-    min-height: 0;
+    height: auto;
+    min-height: min(630px, calc(100vh - 140px));
+    min-height: min(630px, calc(100dvh - 140px));
     margin: 0 auto;
     overflow: hidden;
     color: var(--aw-text);
@@ -1205,6 +1213,7 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .identity-body .aw-login-card,
 .identity-body main .aw-auth-status-card {
     width: 100%;
+    margin: 0;
     padding: 40px;
     color: var(--aw-text);
     border: 0;
@@ -1310,8 +1319,15 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
 .identity-body .aw-login-input select:focus-visible { outline: 0 !important; }
 .identity-body .aw-login-input svg { stroke: var(--aw-muted); }
 .identity-body .aw-login-options { font-size: .8125rem; }
+.identity-body .aw-login-options label,
+.identity-body .aw-login-options a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+}
 .identity-body .aw-login-options label { color: var(--aw-text-2); }
 .identity-body .aw-login-options input { accent-color: var(--aw-primary); }
+.identity-body .aw-password-toggle { min-width: 64px; min-height: 44px; }
 .identity-body .aw-login-submit,
 .identity-body .aw-create-account { width: 100%; }
 .aw-auth-status-callout { color: var(--aw-text-2); border-color: var(--aw-border); background: var(--aw-surface-2); }
@@ -1692,6 +1708,14 @@ html[data-theme="dark"] .account-avatar-fallback {
     .identity-body .aw-auth-quote blockquote { max-width: 68%; font-size: 1.25rem; }
     .identity-body .aw-auth-quote p { display: none; }
     .identity-body .aw-auth-avatar-wrap img { width: 190px; height: 190px; }
+}
+
+@media (max-height: 720px) and (min-width: 801px) {
+    .identity-body main { place-items: start center; padding-block: 16px; }
+    .identity-body .aw-auth-shell { min-height: 0; }
+    .identity-body .aw-login-card { justify-content: flex-start; padding: 28px 32px; }
+    .identity-body .aw-login-heading { margin-bottom: 16px; }
+    .identity-body main .aw-login-form { gap: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

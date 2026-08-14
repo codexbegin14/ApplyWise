@@ -126,7 +126,7 @@ else
                     </div>
                     <div class="aw-home-nav-actions">
                         <a class="aw-home-sign-in" asp-area="Identity" asp-page="/Account/Login">Sign In</a>
-                        <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Get Started</a>
+                        <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Start Tracking</a>
                     </div>
                 </nav>
             </div>
@@ -140,14 +140,17 @@ else
         </header>
         <main id="main-content" role="main">@RenderBody()</main>
     }
-    <footer class="public-footer">
-        <nav aria-label="Legal and support">
-            <a asp-controller="Home" asp-action="Privacy">Privacy</a>
-            <a asp-controller="Home" asp-action="Terms">Terms</a>
-            <a asp-controller="Home" asp-action="Support">Support</a>
-        </nav>
-        <span>&copy; @DateTime.UtcNow.Year ApplyWise</span>
-    </footer>
+    @if (!isMarketingHome)
+    {
+        <footer class="public-footer">
+            <nav aria-label="Legal and support">
+                <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+                <a asp-controller="Home" asp-action="Terms">Terms</a>
+                <a asp-controller="Home" asp-action="Support">Support</a>
+            </nav>
+            <span>&copy; @DateTime.UtcNow.Year ApplyWise</span>
+        </footer>
+    }
 }
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
