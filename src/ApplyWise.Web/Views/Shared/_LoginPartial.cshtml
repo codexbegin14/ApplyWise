@@ -1,10 +1,17 @@
 @using Microsoft.AspNetCore.Identity
+@using ApplyWise.Web.Services.Admin
+@using Microsoft.Extensions.Options
 @inject SignInManager<IdentityUser> SignInManager
+@inject IOptions<AdminAccessOptions> AdminOptions
 @{
     var displayName = User.FindFirst("display_name")?.Value;
     displayName = string.IsNullOrWhiteSpace(displayName)
         ? User.Identity?.Name?.Split('@')[0] ?? "User"
         : displayName.Trim();
+    var authenticatedEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+        ?? User.Identity?.Name;
+    var isAdmin = User.IsInRole(AdminAccess.Role)
+        || AdminOptions.Value.Contains(authenticatedEmail);
 }
 <div class="account-links">
 @if (SignInManager.IsSignedIn(User)) {
@@ -12,7 +19,10 @@
         <button class="account-menu-trigger" type="button" data-account-menu-trigger aria-expanded="false" aria-haspopup="menu" aria-controls="account-menu-panel" title="Open account menu">
             <span class="account-avatar">
                 <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
-                <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="Your profile picture" onerror="this.hidden=true;" />
+                @if (!isAdmin)
+                {
+                    <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="Your profile picture" onerror="this.hidden=true;" />
+                }
             </span>
             <span class="visually-hidden">Open account menu</span>
         </button>
@@ -20,13 +30,24 @@
             <div class="account-menu-summary">
                 <span class="account-avatar account-avatar-large">
                     <span class="account-avatar-fallback" aria-hidden="true">@displayName[0].ToString().ToUpperInvariant()</span>
-                    <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="" onerror="this.hidden=true;" />
+                    @if (!isAdmin)
+                    {
+                        <img src="@(Url.Action("Avatar", "Profile", new { version = DateTimeOffset.UtcNow.ToUnixTimeSeconds() }) ?? "/profile/avatar")" alt="" onerror="this.hidden=true;" />
+                    }
                 </span>
-                <span><strong>@displayName</strong><small>ApplyWise account</small></span>
+                <span><strong>@displayName</strong><small>@(isAdmin ? "Owner account" : "ApplyWise account")</small></span>
             </div>
             <div class="account-menu-links">
-                <a asp-controller="Profile" asp-action="Index" role="menuitem">My profile</a>
-                <a asp-controller="Dashboard" asp-action="Settings" role="menuitem">Settings</a>
+                @if (isAdmin)
+                {
+                    <a asp-controller="Admin" asp-action="Index" role="menuitem">Owner console</a>
+                    <a asp-controller="Dashboard" asp-action="Settings" role="menuitem">Owner security</a>
+                }
+                else
+                {
+                    <a asp-controller="Profile" asp-action="Index" role="menuitem">My profile</a>
+                    <a asp-controller="Dashboard" asp-action="Settings" role="menuitem">Settings</a>
+                }
             </div>
             <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
                 <button type="submit" role="menuitem">Log out</button>

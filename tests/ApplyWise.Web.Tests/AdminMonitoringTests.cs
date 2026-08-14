@@ -10,6 +10,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace ApplyWise.Web.Tests;
@@ -65,6 +66,193 @@ public sealed class AdminMonitoringTests
         Assert.Equal(expected, options.Contains(email));
     }
 
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/applications")]
+    [InlineData("/resumes")]
+    public async Task Mfa_verified_admin_is_redirected_out_of_the_candidate_workspace(string path)
+    {
+        var context = AdminContext(path, includeMfa: true);
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.False(nextCalled);
+        Assert.Equal(StatusCodes.Status302Found, context.Response.StatusCode);
+        Assert.Equal("/admin", context.Response.Headers.Location);
+    }
+
+    [Fact]
+    public async Task Admin_without_current_mfa_is_sent_to_owner_security()
+    {
+        var context = AdminContext("/admin", includeMfa: false);
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.False(nextCalled);
+        Assert.Equal(StatusCodes.Status302Found, context.Response.StatusCode);
+        Assert.Equal("/settings", context.Response.Headers.Location);
+    }
+
+    [Theory]
+    [InlineData("/admin")]
+    [InlineData("/settings")]
+    [InlineData("/Identity/Account/Manage/TwoFactorAuthentication")]
+    [InlineData("/Identity/Account/Manage/EnableAuthenticator")]
+    [InlineData("/Identity/Account/Manage/GenerateRecoveryCodes")]
+    [InlineData("/Identity/Account/Manage/ShowRecoveryCodes")]
+    [InlineData("/Identity/Account/Manage/ResetAuthenticator")]
+    [InlineData("/Identity/Account/Logout")]
+    [InlineData("/css/site.css")]
+    public async Task Admin_boundary_allows_console_security_and_assets(string path)
+    {
+        var context = AdminContext(path, includeMfa: true);
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.True(nextCalled);
+    }
+
+    [Theory]
+    [InlineData("/settings/delete-account")]
+    [InlineData("/settings/security-code/delete")]
+    [InlineData("/Identity/Account/Manage/DeletePersonalData")]
+    [InlineData("/Identity/Account/Manage/PersonalData")]
+    [InlineData("/Identity/Account/Manage/ChangePassword")]
+    [InlineData("/Identity/Account/Manage/Email")]
+    [InlineData("/Identity/Account/Manage/ExternalLogins")]
+    [InlineData("/Identity/Account/Manage/Disable2fa")]
+    public async Task Admin_boundary_rejects_unapproved_account_mutations(string path)
+    {
+        var context = AdminContext(path, includeMfa: true);
+        context.Request.Method = HttpMethods.Post;
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.False(nextCalled);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/settings/security-code/password")]
+    [InlineData("/settings/change-password")]
+    public async Task Admin_boundary_allows_only_approved_password_mutations(string path)
+    {
+        var context = AdminContext(path, includeMfa: true);
+        context.Request.Method = HttpMethods.Post;
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.True(nextCalled);
+    }
+
+    [Fact]
+    public async Task Allowlisted_identity_with_a_stale_role_cookie_is_still_contained()
+    {
+        var context = AdminContext("/applications", includeMfa: true, includeAdminRole: false);
+        context.User.Identities.Single().AddClaim(
+            new Claim(ClaimTypes.Email, "owner@example.test"));
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(
+            () => nextCalled = true,
+            new AdminAccessOptions
+            {
+                RequireMfa = true,
+                Emails = ["owner@example.test"]
+            });
+
+        await middleware.InvokeAsync(context);
+
+        Assert.False(nextCalled);
+        Assert.Equal("/owner/session", context.Response.Headers.Location);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Non_admin_principals_pass_through(bool authenticated)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/applications";
+        if (authenticated)
+        {
+            context.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "candidate"),
+                new Claim(ClaimTypes.Email, "candidate@example.test")
+            ], "Identity.Application"));
+        }
+        var nextCalled = false;
+        var middleware = CreateAdminOnlyMiddleware(() => nextCalled = true);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.True(nextCalled);
+    }
+
+    [Fact]
+    public async Task Admin_workspace_mutation_is_rejected_instead_of_redirected()
+    {
+        var context = AdminContext("/applications/create", includeMfa: true);
+        context.Request.Method = HttpMethods.Post;
+        var middleware = CreateAdminOnlyMiddleware(() => { });
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        Assert.False(context.Response.Headers.ContainsKey("Location"));
+    }
+
+    private static AdminOnlyAccountMiddleware CreateAdminOnlyMiddleware(
+        Action onNext,
+        AdminAccessOptions? options = null) =>
+        new(
+            _ =>
+            {
+                onNext();
+                return Task.CompletedTask;
+            },
+            Options.Create(options ?? new AdminAccessOptions { RequireMfa = true }));
+
+    private static DefaultHttpContext AdminContext(
+        string path,
+        bool includeMfa,
+        bool includeAdminRole = true)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, "owner")
+        };
+        if (includeAdminRole)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, AdminAccess.Role));
+        }
+        if (includeMfa)
+        {
+            claims.Add(new Claim(
+                AdminAccess.AuthenticationMethodClaim,
+                AdminAccess.MfaAuthenticationMethod));
+        }
+
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Identity.Application"))
+        };
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = path;
+        return context;
+    }
+
     [Fact]
     public async Task Login_tracking_updates_account_activity_and_records_a_content_free_event()
     {
@@ -102,17 +290,37 @@ public sealed class AdminMonitoringTests
     public async Task Admin_dashboard_returns_aggregate_counts_without_document_contents()
     {
         const string userId = "admin-view-user";
+        const string ownerId = "owner-user";
+        const string adminRoleId = "admin-role";
         var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase("admin-dashboard-" + Guid.NewGuid().ToString("N"))
             .Options;
         await using var db = new ApplicationDbContext(dbOptions);
         var now = DateTimeOffset.UtcNow;
-        db.Users.Add(new IdentityUser
+        db.Users.AddRange(new IdentityUser
         {
             Id = userId,
             UserName = "candidate@example.test",
             Email = "candidate@example.test",
             EmailConfirmed = true
+        }, new IdentityUser
+        {
+            Id = ownerId,
+            UserName = "owner@example.test",
+            Email = "owner@example.test",
+            NormalizedEmail = "OWNER@EXAMPLE.TEST",
+            EmailConfirmed = true
+        });
+        db.Roles.Add(new IdentityRole
+        {
+            Id = adminRoleId,
+            Name = AdminAccess.Role,
+            NormalizedName = AdminAccess.Role.ToUpperInvariant()
+        });
+        db.UserRoles.Add(new IdentityUserRole<string>
+        {
+            UserId = ownerId,
+            RoleId = adminRoleId
         });
         db.CareerProfiles.Add(new CareerProfile
         {
@@ -130,6 +338,14 @@ public sealed class AdminMonitoringTests
             LastLoginAt = now,
             TotalSuccessfulLogins = 2
         });
+        db.UserAccountActivities.Add(new UserAccountActivity
+        {
+            UserId = ownerId,
+            RegisteredAt = now.AddDays(-2),
+            LastActivityAt = now,
+            LastLoginAt = now,
+            TotalSuccessfulLogins = 5
+        });
         db.ProductEvents.Add(new ProductEvent
         {
             UserId = userId,
@@ -138,9 +354,20 @@ public sealed class AdminMonitoringTests
             Succeeded = true,
             OccurredAt = now
         });
+        db.ProductEvents.Add(new ProductEvent
+        {
+            UserId = ownerId,
+            Name = ProductEventNames.ResumeAnalysisCompleted,
+            Source = "owner",
+            Succeeded = true,
+            OccurredAt = now
+        });
         await db.SaveChangesAsync();
 
-        var service = new AdminDashboardService(db, TimeProvider.System);
+        var service = new AdminDashboardService(
+            db,
+            TimeProvider.System,
+            Options.Create(new AdminAccessOptions { Emails = ["owner@example.test"] }));
         var result = await service.LoadAsync(30);
 
         Assert.Equal(1, result.TotalUsers);
@@ -149,6 +376,7 @@ public sealed class AdminMonitoringTests
         Assert.Equal(1, result.CompletedOnboardingUsers);
         Assert.Equal("candidate@example.test", Assert.Single(result.Users).Email);
         Assert.Equal(1, Assert.Single(result.FeatureUsage).Count);
+        Assert.DoesNotContain(result.Users, user => user.Email == "owner@example.test");
         Assert.DoesNotContain(
             typeof(AdminUserRowViewModel).GetProperties(),
             property => property.Name.Contains("Text", StringComparison.OrdinalIgnoreCase)
