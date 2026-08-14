@@ -384,4 +384,117 @@ public sealed class AdminMonitoringTests
                         || property.Name.Contains("Token", StringComparison.OrdinalIgnoreCase)
                         || property.Name.Contains("Hash", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public async Task Admin_dashboard_searches_email_and_display_name_case_insensitively()
+    {
+        var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("admin-search-" + Guid.NewGuid().ToString("N"))
+            .Options;
+        await using var db = new ApplicationDbContext(dbOptions);
+        var now = DateTimeOffset.UtcNow;
+        db.Users.AddRange(
+            new IdentityUser
+            {
+                Id = "alice",
+                UserName = "alice@example.test",
+                Email = "alice@example.test",
+                NormalizedEmail = "ALICE@EXAMPLE.TEST"
+            },
+            new IdentityUser
+            {
+                Id = "bob",
+                UserName = "bob@example.test",
+                Email = "bob@example.test",
+                NormalizedEmail = "BOB@EXAMPLE.TEST"
+            },
+            new IdentityUser
+            {
+                Id = "owner",
+                UserName = "owner@example.test",
+                Email = "owner@example.test",
+                NormalizedEmail = "OWNER@EXAMPLE.TEST"
+            });
+        db.CareerProfiles.AddRange(
+            new CareerProfile
+            {
+                UserId = "alice",
+                FullName = "Alice Designer",
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new CareerProfile
+            {
+                UserId = "bob",
+                FullName = "Bob Engineer",
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        await db.SaveChangesAsync();
+
+        var service = new AdminDashboardService(
+            db,
+            TimeProvider.System,
+            Options.Create(new AdminAccessOptions { Emails = ["owner@example.test"] }));
+        var byName = await service.LoadAsync(30, "  dEsIgNeR  ", 1);
+        var byEmail = await service.LoadAsync(30, "ALICE@EXAMPLE.TEST", 1);
+
+        Assert.Equal("dEsIgNeR", byName.Search);
+        Assert.Equal(2, byName.TotalUsers);
+        Assert.Equal(1, byName.TotalMatchingUsers);
+        Assert.Equal("alice", Assert.Single(byName.Users).UserId);
+        Assert.Equal("alice", Assert.Single(byEmail.Users).UserId);
+        Assert.DoesNotContain(byName.Users, user => user.UserId == "owner");
+    }
+
+    [Fact]
+    public async Task Admin_dashboard_pages_users_and_clamps_to_the_last_valid_page()
+    {
+        var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("admin-pagination-" + Guid.NewGuid().ToString("N"))
+            .Options;
+        await using var db = new ApplicationDbContext(dbOptions);
+        var now = DateTimeOffset.UtcNow;
+        for (var index = 1; index <= 27; index++)
+        {
+            var userId = $"candidate-{index:00}";
+            db.Users.Add(new IdentityUser
+            {
+                Id = userId,
+                UserName = $"{userId}@example.test",
+                Email = $"{userId}@example.test",
+                NormalizedEmail = $"{userId}@example.test".ToUpperInvariant()
+            });
+            db.UserAccountActivities.Add(new UserAccountActivity
+            {
+                UserId = userId,
+                RegisteredAt = now.AddMinutes(-index)
+            });
+        }
+
+        db.Users.Add(new IdentityUser
+        {
+            Id = "owner",
+            UserName = "owner@example.test",
+            Email = "owner@example.test",
+            NormalizedEmail = "OWNER@EXAMPLE.TEST"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new AdminDashboardService(
+            db,
+            TimeProvider.System,
+            Options.Create(new AdminAccessOptions { Emails = ["owner@example.test"] }));
+        var result = await service.LoadAsync(30, null, 999);
+
+        Assert.Equal(27, result.TotalUsers);
+        Assert.Equal(27, result.TotalMatchingUsers);
+        Assert.Equal(2, result.TotalUserPages);
+        Assert.Equal(2, result.UserPage);
+        Assert.Equal(25, result.UserPageSize);
+        Assert.Equal(2, result.Users.Count);
+        Assert.True(result.HasPreviousUserPage);
+        Assert.False(result.HasNextUserPage);
+        Assert.DoesNotContain(result.Users, user => user.UserId == "owner");
+    }
 }

@@ -2,8 +2,17 @@ namespace ApplyWise.Web.ViewModels.Admin;
 
 public sealed class AdminDashboardViewModel
 {
+    public const int DefaultUserPageSize = 25;
+
     public required DateTimeOffset GeneratedAt { get; init; }
     public required string Range { get; init; }
+    public string? Search { get; init; }
+    public int UserPage { get; init; } = 1;
+    public int UserPageSize { get; init; } = DefaultUserPageSize;
+    public int TotalMatchingUsers { get; init; }
+    public int TotalUserPages { get; init; } = 1;
+    public bool HasPreviousUserPage => UserPage > 1;
+    public bool HasNextUserPage => UserPage < TotalUserPages;
     public int TotalUsers { get; init; }
     public int ConfirmedUsers { get; init; }
     public int NewUsersInRange { get; init; }
@@ -23,6 +32,7 @@ public sealed class AdminDashboardViewModel
 }
 
 public sealed record AdminUserRowViewModel(
+    string UserId,
     string Email,
     string DisplayName,
     bool EmailConfirmed,

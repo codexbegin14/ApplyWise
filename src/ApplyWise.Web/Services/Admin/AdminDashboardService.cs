@@ -8,7 +8,15 @@ namespace ApplyWise.Web.Services.Admin;
 
 public interface IAdminDashboardService
 {
-    Task<AdminDashboardViewModel> LoadAsync(int days, CancellationToken cancellationToken = default);
+    Task<AdminDashboardViewModel> LoadAsync(
+        int days,
+        string? search = null,
+        int page = 1,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminDashboardViewModel> LoadAsync(
+        int days,
+        CancellationToken cancellationToken);
 }
 
 public sealed class AdminDashboardService(
@@ -16,6 +24,8 @@ public sealed class AdminDashboardService(
     TimeProvider timeProvider,
     IOptions<AdminAccessOptions> adminOptions) : IAdminDashboardService
 {
+    private const int UserPageSize = AdminDashboardViewModel.DefaultUserPageSize;
+
     private static readonly IReadOnlyDictionary<string, string> EventLabels =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -32,9 +42,14 @@ public sealed class AdminDashboardService(
 
     public async Task<AdminDashboardViewModel> LoadAsync(
         int days,
+        string? search = null,
+        int page = 1,
         CancellationToken cancellationToken = default)
     {
         days = days is 7 or 30 or 90 ? days : 30;
+        search = NormalizeSearch(search);
+        var hasSearch = search is not null;
+        var normalizedSearch = search?.ToUpperInvariant() ?? string.Empty;
         var now = timeProvider.GetUtcNow();
         var today = DateOnly.FromDateTime(now.UtcDateTime);
         var rangeStartDate = today.AddDays(-(days - 1));
@@ -43,16 +58,22 @@ public sealed class AdminDashboardService(
             TimeSpan.Zero);
         var adminUserIds = await GetAdminUserIdsAsync(cancellationToken);
 
-        var users = await (
+        var usersQuery =
             from user in dbContext.Users.AsNoTracking()
-            where !adminUserIds.Contains(user.Id)
             join profile in dbContext.CareerProfiles.AsNoTracking()
                 on user.Id equals profile.UserId into profiles
             from profile in profiles.DefaultIfEmpty()
             join activity in dbContext.UserAccountActivities.AsNoTracking()
                 on user.Id equals activity.UserId into activities
             from activity in activities.DefaultIfEmpty()
-            orderby activity != null ? activity.RegisteredAt : profile != null ? profile.CreatedAt : DateTimeOffset.MinValue descending
+            where !adminUserIds.Contains(user.Id)
+                && (!hasSearch
+                    || (user.NormalizedEmail != null
+                        && user.NormalizedEmail!.Contains(normalizedSearch))
+                    || (user.Email != null
+                        && user.Email!.ToUpper().Contains(normalizedSearch))
+                    || (profile != null
+                        && profile.FullName.ToUpper().Contains(normalizedSearch)))
             select new
             {
                 user.Id,
@@ -70,8 +91,20 @@ public sealed class AdminDashboardService(
                 AnalysisCount = dbContext.ResumeAnalyses.Count(analysis => analysis.UserId == user.Id),
                 ApplicationCount = dbContext.JobApplications.Count(application => application.UserId == user.Id),
                 InterviewCount = dbContext.Interviews.Count(interview => interview.UserId == user.Id)
-            })
-            .Take(100)
+            };
+
+        var totalMatchingUsers = await usersQuery.CountAsync(cancellationToken);
+        var totalUserPages = Math.Max(
+            1,
+            (int)Math.Ceiling(totalMatchingUsers / (double)UserPageSize));
+        page = Math.Clamp(page, 1, totalUserPages);
+
+        var users = await usersQuery
+            .OrderByDescending(user => user.RegisteredAt)
+            .ThenBy(user => user.Email)
+            .ThenBy(user => user.Id)
+            .Skip((page - 1) * UserPageSize)
+            .Take(UserPageSize)
             .ToListAsync(cancellationToken);
 
         var eventRows = await dbContext.ProductEvents
@@ -130,6 +163,11 @@ public sealed class AdminDashboardService(
         {
             GeneratedAt = now,
             Range = $"Last {days} days",
+            Search = search,
+            UserPage = page,
+            UserPageSize = UserPageSize,
+            TotalMatchingUsers = totalMatchingUsers,
+            TotalUserPages = totalUserPages,
             TotalUsers = await dbContext.Users.CountAsync(
                 user => !adminUserIds.Contains(user.Id),
                 cancellationToken),
@@ -162,6 +200,7 @@ public sealed class AdminDashboardService(
                 cancellationToken),
             FailedEventsInRange = eventRows.Count(row => !row.Succeeded),
             Users = users.Select(user => new AdminUserRowViewModel(
+                user.Id,
                 user.Email,
                 string.IsNullOrWhiteSpace(user.DisplayName) ? "Not provided" : user.DisplayName,
                 user.EmailConfirmed,
@@ -178,6 +217,11 @@ public sealed class AdminDashboardService(
             FeatureUsage = featureUsage
         };
     }
+
+    public Task<AdminDashboardViewModel> LoadAsync(
+        int days,
+        CancellationToken cancellationToken) =>
+        LoadAsync(days, null, 1, cancellationToken);
 
     private async Task<string[]> GetAdminUserIdsAsync(CancellationToken cancellationToken)
     {
@@ -203,5 +247,16 @@ public sealed class AdminDashboardService(
         }
 
         return roleUserIds.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string? NormalizeSearch(string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return null;
+        }
+
+        var normalized = search.Trim();
+        return normalized.Length <= 320 ? normalized : normalized[..320];
     }
 }
