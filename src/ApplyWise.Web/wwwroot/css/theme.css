@@ -1282,6 +1282,14 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
     border-radius: 28%;
     mix-blend-mode: multiply;
 }
+.identity-body .aw-auth-shell-login .aw-auth-avatar-wrap img {
+    width: min(390px, calc(100% + 36px), 60vh);
+    height: auto;
+}
+.identity-body .aw-auth-shell-register .aw-auth-avatar-wrap img {
+    width: min(420px, calc(100% + 48px), 62vh);
+    height: auto;
+}
 .identity-body .aw-auth-avatar-wrap > span {
     position: absolute;
     z-index: 2;
@@ -1295,6 +1303,12 @@ textarea::placeholder { color: var(--aw-muted); opacity: .82; }
     box-shadow: 0 8px 20px rgba(15, 23, 42, .08);
     font-size: .72rem;
     font-weight: 800;
+}
+@media (min-width: 801px) {
+    .identity-body .aw-auth-shell-register .aw-auth-avatar-wrap img {
+        transform: translateY(-8px) scale(1.32);
+        transform-origin: 50% 100%;
+    }
 }
 .identity-body .aw-login-heading { margin-bottom: var(--aw-space-3); }
 .identity-body .aw-login-heading h1,
@@ -1589,6 +1603,19 @@ html[data-theme="dark"] .account-avatar-fallback {
     .identity-body .aw-auth-avatar-wrap::before,
     .identity-body .aw-auth-avatar-wrap > span { display: none; }
     .identity-body .aw-auth-avatar-wrap img { width: 230px; height: 230px; }
+    .identity-body .aw-auth-shell-login .aw-auth-visual,
+    .identity-body .aw-auth-shell-register .aw-auth-visual { min-height: 300px; }
+    .identity-body .aw-auth-shell-login .aw-auth-quote blockquote,
+    .identity-body .aw-auth-shell-register .aw-auth-quote blockquote {
+        max-width: calc(100% - 250px);
+    }
+    .identity-body .aw-auth-shell-login .aw-auth-avatar-wrap,
+    .identity-body .aw-auth-shell-register .aw-auth-avatar-wrap { right: -8px; }
+    .identity-body .aw-auth-shell-login .aw-auth-avatar-wrap img,
+    .identity-body .aw-auth-shell-register .aw-auth-avatar-wrap img {
+        width: 280px;
+        height: 280px;
+    }
 }
 
 @media (max-width: 640px) {
@@ -1708,6 +1735,17 @@ html[data-theme="dark"] .account-avatar-fallback {
     .identity-body .aw-auth-quote blockquote { max-width: 68%; font-size: 1.25rem; }
     .identity-body .aw-auth-quote p { display: none; }
     .identity-body .aw-auth-avatar-wrap img { width: 190px; height: 190px; }
+    .identity-body .aw-auth-shell-login .aw-auth-visual,
+    .identity-body .aw-auth-shell-register .aw-auth-visual { min-height: 240px; }
+    .identity-body .aw-auth-shell-login .aw-auth-quote blockquote,
+    .identity-body .aw-auth-shell-register .aw-auth-quote blockquote { max-width: 58%; }
+    .identity-body .aw-auth-shell-login .aw-auth-avatar-wrap,
+    .identity-body .aw-auth-shell-register .aw-auth-avatar-wrap { right: -12px; }
+    .identity-body .aw-auth-shell-login .aw-auth-avatar-wrap img,
+    .identity-body .aw-auth-shell-register .aw-auth-avatar-wrap img {
+        width: 220px;
+        height: 220px;
+    }
 }
 
 @media (max-height: 720px) and (min-width: 801px) {

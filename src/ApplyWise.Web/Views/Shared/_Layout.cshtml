@@ -115,18 +115,20 @@ else
     {
         <header class="public-header aw-public-header" data-home-header>
             <div class="aw-home-nav-shell">
-                <a class="brand aw-home-brand" asp-controller="Home" asp-action="Index" aria-label="ApplyWise home"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span>ApplyWise</span></a>
+                <a class="brand aw-home-brand" asp-controller="Home" asp-action="Index" aria-label="ApplyWise home"><img class="brand-mark" src="~/images/applywise-logo-v2.png" width="34" height="34" alt="" /><span class="visually-hidden">ApplyWise</span></a>
                 <button class="aw-home-nav-toggle" type="button" aria-expanded="false" aria-controls="public-navigation" aria-label="Open navigation" data-home-nav-toggle hidden>
                     <span></span><span></span><span></span>
                 </button>
                 <nav class="aw-home-nav" id="public-navigation" aria-label="Primary navigation" data-home-nav>
                     <div class="aw-home-nav-links">
-                        <a href="#features">Features</a>
+                        <a href="#job-tracker">Job Tracker</a>
+                        <a href="#resume-match">Resume Match</a>
+                        <a href="#resume-builder">Resume Builder</a>
                         <a href="#how-it-works">How It Works</a>
                     </div>
                     <div class="aw-home-nav-actions">
                         <a class="aw-home-sign-in" asp-area="Identity" asp-page="/Account/Login">Sign In</a>
-                        <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Register">Start Tracking</a>
+                        <a class="btn aw-home-nav-cta" asp-area="Identity" asp-page="/Account/Register">Start Tracking</a>
                     </div>
                 </nav>
             </div>

@@ -27,7 +27,7 @@
     document.addEventListener('click', (event) => {
         if (header.classList.contains('is-open') && !header.contains(event.target)) close();
     });
-    window.matchMedia('(min-width: 761px)').addEventListener?.('change', (event) => {
+    window.matchMedia('(min-width: 1081px)').addEventListener?.('change', (event) => {
         if (event.matches) close();
     });
 })();
