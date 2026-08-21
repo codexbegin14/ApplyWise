@@ -24,7 +24,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function (templateRenderers) {
     'use strict';
 
-    const SCHEMA_VERSION = 4;
+    const SCHEMA_VERSION = 5;
     const LIMITS = Object.freeze({
         draftBytes: 512000,
         photoDataUrl: 320000,
@@ -282,6 +282,7 @@
             companyName: text(source.companyName, LIMITS.shortText),
             jobTitle: text(source.jobTitle, LIMITS.shortText),
             employmentType: text(source.employmentType, LIMITS.shortText),
+            technologySkills: text(source.technologySkills, LIMITS.longText),
             location: text(source.location, LIMITS.shortText),
             startDate: text(source.startDate, 7),
             endDate: text(source.endDate, 7),
@@ -1386,7 +1387,8 @@
                 twoCellResumeRight: twoCellResumeRight,
                 sectionHeading: sectionHeading,
                 pdfText: pdfText,
-                pdfRichText: pdfRichText
+                pdfRichText: pdfRichText,
+                safeUrl: parseHttpUrl
             });
             if (lockedDefinition) return lockedDefinition;
         }
@@ -1435,9 +1437,9 @@
                 { id: 'education-harbor', institutionName: 'Harbor College', degree: 'Intermediate', fieldOfStudy: 'Pre-Engineering', startDate: '2020-08', endDate: '2022-06', location: 'Seattle, WA', grade: '90%', descriptionOrCoursework: 'Mathematics, Physics, and Chemistry' }
             ],
             experience: [
-                { id: 'experience-codesprint', companyName: 'CodeSprint - Northbridge University', jobTitle: 'Co-Head', employmentType: 'Leadership', location: 'Seattle, WA', startDate: '2025-03', endDate: '2026-01', bulletPoints: ['Co-led a full-stack competition platform supporting registration, problem access, and [b]real-time results[/b].'] },
-                { id: 'experience-workshops', companyName: 'Open Source Society', jobTitle: 'Workshop Lead', employmentType: 'Volunteer', location: 'Seattle, WA', startDate: '2024-08', isCurrentlyWorking: true, bulletPoints: ['Lead practical Git and GitHub workshops for student development teams.'] },
-                { id: 'experience-intern', companyName: 'Example Labs', jobTitle: 'Software Engineering Intern', employmentType: 'Internship', location: 'Remote', startDate: '2024-06', endDate: '2024-08', bulletPoints: ['Shipped tested API and dashboard improvements that reduced manual reporting work.'] }
+                { id: 'experience-codesprint', companyName: 'CodeSprint - Northbridge University', jobTitle: 'Co-Head', employmentType: 'Leadership', technologySkills: 'Full-Stack Development, Contest Management, Team Coordination', location: 'Seattle, WA', startDate: '2025-03', endDate: '2026-01', bulletPoints: ['Co-led a full-stack competition platform supporting registration, problem access, and [b]real-time results[/b].'] },
+                { id: 'experience-workshops', companyName: 'Open Source Society', jobTitle: 'Workshop Lead', employmentType: 'Volunteer', technologySkills: 'Git, GitHub, Public Speaking, Team Leadership', location: 'Seattle, WA', startDate: '2024-08', isCurrentlyWorking: true, bulletPoints: ['Lead practical Git and GitHub workshops for student development teams.'] },
+                { id: 'experience-intern', companyName: 'Example Labs', jobTitle: 'Software Engineering Intern', employmentType: 'Internship', technologySkills: '.NET, PostgreSQL, Automated Testing', location: 'Remote', startDate: '2024-06', endDate: '2024-08', bulletPoints: ['Shipped tested API and dashboard improvements that reduced manual reporting work.'] }
             ],
             projects: [
                 { id: 'project-campus-collab', projectName: 'Campus Collaboration Hub', projectUrl: 'https://example.com/campus-hub', repositoryUrl: 'https://example.com/campus-hub-source', technologiesUsed: ['Next.js', 'Python', 'PostgreSQL'], startDate: '2025-01', isOngoing: true, bulletPoints: ['Connected university projects with skill-matched contributors across batches.'] },
@@ -1550,6 +1552,7 @@
         company: LIMITS.shortText,
         jobTitle: LIMITS.shortText,
         employmentType: LIMITS.shortText,
+        technologySkills: LIMITS.longText,
         projectName: LIMITS.shortText,
         projectUrl: LIMITS.url,
         repositoryUrl: LIMITS.url,
@@ -1569,7 +1572,7 @@
 
     const ENTRY_FACTORIES = Object.freeze({
         education: function () { return { id: newId('education'), institutionName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', isCurrentlyStudying: false, location: '', grade: '', descriptionOrCoursework: '' }; },
-        experience: function () { return { id: newId('experience'), companyName: '', jobTitle: '', employmentType: '', location: '', startDate: '', endDate: '', isCurrentlyWorking: false, bulletPoints: [''] }; },
+        experience: function () { return { id: newId('experience'), companyName: '', jobTitle: '', employmentType: '', technologySkills: '', location: '', startDate: '', endDate: '', isCurrentlyWorking: false, bulletPoints: [''] }; },
         projects: function () { return { id: newId('project'), projectName: '', projectUrl: '', repositoryUrl: '', technologiesUsed: [], startDate: '', endDate: '', isOngoing: false, bulletPoints: [''] }; },
         skills: function () { return { id: newId('skills'), name: '', skills: [] }; },
         achievementsAndCertifications: function () { return { id: newId('achievement'), title: '', issuingOrganization: '', date: '', credentialUrl: '', description: '' }; },
@@ -2549,7 +2552,8 @@
                 help: 'Lead with outcomes and quantify impact where you can.', entryTitle: function (entry, index) { return entry.jobTitle || entry.companyName || 'Experience ' + String(index + 1); },
                 fields: [
                     { property: 'companyName', label: 'Company name' }, { property: 'jobTitle', label: 'Job title' },
-                    { property: 'employmentType', label: 'Employment type', placeholder: 'Full-time, internship, contract…' }, { property: 'location', label: 'Location' },
+                    { property: 'employmentType', label: 'Employment type', placeholder: 'Full-time, internship, contract…' }, { property: 'location', label: 'Location or organization' },
+                    { property: 'technologySkills', label: 'Technology / skills', placeholder: 'React.js, PostgreSQL, Leadership…', wide: true },
                     { property: 'startDate', label: 'Start month', type: 'month' }, { property: 'endDate', label: 'End month', type: 'month', when: function (entry) { return !entry.isCurrentlyWorking; } },
                     { property: 'isCurrentlyWorking', label: 'Currently working', type: 'checkbox' }
                 ],
@@ -2841,6 +2845,9 @@
                 loads.push(loadFontScript(
                     'libre-baskerville',
                     root.dataset.libreBaskervilleFontUrl));
+            }
+            if (font.includes('cmu')) {
+                loads.push(loadFontScript('cmu-serif', root.dataset.cmuSerifFontUrl));
             }
             return Promise.all(loads);
         }
